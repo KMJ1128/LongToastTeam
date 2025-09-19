@@ -1,3 +1,4 @@
+
 pluginManagement {
     repositories {
         google {
@@ -16,6 +17,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // 카카오맵 SDK를 위한 저장소 추가 (오류 해결)
+        maven { url = uri("https://devrepo.kakao.com/nexus/content/groups/public/") }
     }
 }
 
