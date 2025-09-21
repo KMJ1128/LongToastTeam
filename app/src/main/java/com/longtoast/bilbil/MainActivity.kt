@@ -1,6 +1,7 @@
 package com.longtoast.bilbil
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Base64
@@ -104,6 +105,36 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this@MainActivity, "로그인 완료: ${memberTokenResponse.nickname}", Toast.LENGTH_LONG).show()
 
                         // 💡 TODO: 서비스 토큰 저장 및 메인 화면 이동 로직 구현
+                        val isAddressMissing = memberTokenResponse.address.isNullOrEmpty() ||
+                                memberTokenResponse.locationLatitude == null ||
+                                memberTokenResponse.locationLongitude == null
+
+                        if (isAddressMissing) {
+                            // 🚨 Case 1: 주소 정보 누락 (지도 설정 필요)
+                            Log.d("SERVER_AUTH", "🚨 주소 정보 누락! 지도 설정 필요.${memberTokenResponse.address}")
+
+                            // SettingMapActivity로 이동 (주소 설정 절차 진행)
+                            val intent = Intent(this@MainActivity, SettingMapActivity::class.java).apply {
+                                putExtra("USER_NICKNAME", memberTokenResponse.nickname)
+                                putExtra("SETUP_ADDRESS_NEEDED", true) // 주소 설정 필요 플래그
+                            }
+                            startActivity(intent)
+                            // finish() // 로그인 화면을 닫지 않고 뒤로 가기를 허용할 수 있음 (선택 사항)
+
+                        } else {
+                            // ✅ Case 2: 주소 정보가 모두 설정되어 있음 (정상 로그인)
+
+                            Log.d("SERVER_AUTH", "✅ 로그인 성공! 기존 회원 메인 화면 이동.")
+                            Toast.makeText(this@MainActivity, "${memberTokenResponse.nickname}님 환영합니다.", Toast.LENGTH_LONG).show()
+
+                            // MainHomeActivity (예시) 등 서비스의 주 화면으로 이동
+                            val intent = Intent(this@MainActivity, HomeActivity::class.java).apply {
+                                // 서비스 토큰 및 기타 필요한 정보를 전달
+                                putExtra("SERVICE_TOKEN", memberTokenResponse.serviceToken)
+                            }
+                            startActivity(intent)
+                            finish() // 로그인 화면을 닫습니다.
+                        }
 
                     }
                 } else {
