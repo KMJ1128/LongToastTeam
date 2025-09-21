@@ -104,6 +104,7 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this@MainActivity, "로그인 완료: ${memberTokenResponse.nickname}", Toast.LENGTH_LONG).show()
 
                         // 💡 TODO: 서비스 토큰 저장 및 메인 화면 이동 로직 구현
+
                     }
                 } else {
                     Log.e("SERVER_AUTH", "서버 응답 실패: ${response.code()}. 메시지: ${response.errorBody()?.string()}")
