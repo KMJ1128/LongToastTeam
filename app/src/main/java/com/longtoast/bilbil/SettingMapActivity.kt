@@ -1,61 +1,64 @@
 package com.longtoast.bilbil
 
 import android.os.Bundle
-import androidx.activity.enableEdgeToEdge
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import com.longtoast.bilbil.databinding.ActivitySettingMapBinding
-
+import com.kakao.vectormap.MapView
 import com.kakao.vectormap.KakaoMap
+import com.kakao.vectormap.LatLng
+import com.kakao.vectormap.camera.CameraUpdateFactory
+import com.kakao.vectormap.camera.CameraAnimation
+import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.KakaoMapReadyCallback
 import com.kakao.vectormap.KakaoMapSdk
-import com.kakao.vectormap.MapLifeCycleCallback
-import com.kakao.vectormap.MapView
 
 class SettingMapActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivitySettingMapBinding
     private lateinit var mapView: MapView
+    private lateinit var kakaoMap: KakaoMap
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        setContentView(R.layout.activity_setting_map)
 
-        binding = ActivitySettingMapBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        // 1. Kakao Maps SDK v2 초기화 (Application에서 이미 초기화했어도 안전하게 중복 호출 가능)
+       // KakaoMapSdk.init(this, "7a3a72c388ba6dfc6df8ca9715f284ff")
 
-        mapView = binding.mapView
+        // 2. MapView 가져오기
+        mapView = findViewById(R.id.map_view)
 
-        // 4. MapView의 start() 호출 및 콜백 구현
-        mapView.start(object : MapLifeCycleCallback() {
+        // 3. MapView 시작 (v2에서는 콜백 객체를 바로 생성)
+        mapView.start(
+            object : MapLifeCycleCallback() {
+                override fun onMapDestroy() {
+                    // 지도 종료 시 필요한 처리
+                }
 
-            override fun onMapDestroy() {
-                // 지도 API 가 정상적으로 종료될 때 호출됨
+                override fun onMapError(error: Exception) {
+                    error.printStackTrace()
+                    Log.e("MAP_ERROR", "Map error: ${error.message}")
+                }
+            },
+            object : KakaoMapReadyCallback() {
+                override fun onMapReady(map: KakaoMap) {
+                    kakaoMap = map
+                    Log.d("MAP_READY", "Map is ready!")
+                    // 지도 초기 위치 설정
+                    val cameraUpdate = CameraUpdateFactory.newCenterPosition(
+                        LatLng.from(37.402005, 127.108621)
+                    )
+                    kakaoMap.moveCamera(cameraUpdate) // 즉시 이동
+
+                    // 애니메이션 이동 예시
+                    // kakaoMap.moveCamera(cameraUpdate, CameraAnimation.from(500, true, true))
+                }
             }
-
-            override fun onMapError(error: Exception) {
-                // 인증 실패 및 지도 사용 중 에러가 발생할 때 호출됨
-                // Logcat에서 에러 메시지를 확인하여 인증/네트워크 문제 확인
-                android.util.Log.e("KAKAO_MAP", "Map Error: ${error.message}")
-            }
-        }, object : KakaoMapReadyCallback() {
-            override fun onMapReady(kakaoMap: KakaoMap) {
-                // 인증 후 API 가 정상적으로 실행될 때 호출됨
-            }
-        })
-
-        // Window Insets 설정 (기존 코드와 동일)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        )
     }
 
+    // Activity 라이프사이클과 MapView 연동
     override fun onResume() {
         super.onResume()
-        // SDK 초기화가 성공하면 이제 이 코드가 NullPointerException 없이 실행됩니다.
         mapView.resume()
     }
 
@@ -66,6 +69,6 @@ class SettingMapActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // MapView.onDestroy()는 최신 SDK 버전에서 수동 호출하지 않는 것이 일반적입니다.
+        //mapView.stop() // 종료 시 반드시 호출
     }
 }
