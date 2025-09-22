@@ -19,8 +19,8 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <View
-        android:id="@+id/map_container"
+    <com.kakao.vectormap.MapView
+        android:id="@+id/map_view"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="#E0E0E0"  app:layout_constraintTop_toBottomOf="@id/text_title"

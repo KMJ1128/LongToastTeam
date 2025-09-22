@@ -56,4 +56,7 @@ dependencies {
     // Retrofit2 (HTTP 클라이언트)
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    //kakao map
+    implementation("com.kakao.maps.open:android:2.12.17")
 }
