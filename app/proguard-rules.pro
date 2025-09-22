@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# KakaoMap SDK를 난독화 대상에서 제외 (Keep rules)
+-keep class com.kakao.vectormap.** { *; }
+-keep interface com.kakao.vectormap.** { *; }

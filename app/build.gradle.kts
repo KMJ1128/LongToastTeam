@@ -1,7 +1,9 @@
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
 }
+
 
 android {
     namespace = "com.longtoast.bilbil"
@@ -9,7 +11,10 @@ android {
 
     buildFeatures {
         viewBinding=true
+        buildConfig = true
     }
+
+
 
     defaultConfig {
         applicationId = "com.longtoast.bilbil"
@@ -19,11 +24,13 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -59,4 +66,6 @@ dependencies {
 
     //kakao map
     implementation("com.kakao.maps.open:android:2.12.17")
+
+
 }

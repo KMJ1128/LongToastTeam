@@ -17,6 +17,7 @@ import com.longtoast.bilbil.dto.KakaoTokenRequest // DTO import
 import com.longtoast.bilbil.dto.MsgEntity // DTO import
 import com.kakao.sdk.user.UserApiClient // 🚨 카카오 SDK import 활성화
 import com.kakao.sdk.auth.model.OAuthToken // 카카오 토큰 모델
+import com.kakao.vectormap.KakaoMapSdk
 import java.security.MessageDigest
 import retrofit2.Call
 import retrofit2.Callback

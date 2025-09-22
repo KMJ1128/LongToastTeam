@@ -24,11 +24,12 @@ class SettingMapActivity : AppCompatActivity() {
 
         binding = ActivitySettingMapBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        KakaoMapSdk.init(this, "7a3a72c388ba6dfc6df8ca9715f284ff");
+
         mapView = binding.mapView
 
         // 4. MapView의 start() 호출 및 콜백 구현
         mapView.start(object : MapLifeCycleCallback() {
+
             override fun onMapDestroy() {
                 // 지도 API 가 정상적으로 종료될 때 호출됨
             }
