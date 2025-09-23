@@ -48,7 +48,7 @@ class SettingMapActivity : AppCompatActivity() {
                         LatLng.from(37.402005, 127.108621)
                     )
                     kakaoMap.moveCamera(cameraUpdate) // 즉시 이동
-
+                    //hi
                     // 애니메이션 이동 예시
                     // kakaoMap.moveCamera(cameraUpdate, CameraAnimation.from(500, true, true))
                 }
