@@ -120,7 +120,7 @@ class MainActivity : AppCompatActivity() {
                                 putExtra("SETUP_ADDRESS_NEEDED", true) // 주소 설정 필요 플래그
                             }
                             startActivity(intent)
-                            // finish() /dd/ 로그인 화면을 닫지 않고 뒤로 가기를 허용할 수 있음 (선택 사항)
+                            // finish() /dd/ f로그인 화면을 닫지 않고 뒤로 가기를 허용할 수 있음 (선택 사항)
 
                         } else {
                             // ✅ Case 2: 주소 정보가 모두 설정되어 있음 (정상 로그인)

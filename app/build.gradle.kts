@@ -70,7 +70,7 @@ dependencies {
 
 
     implementation("com.kakao.sdk:v2-user:2.21.0")
-    // Retrofit2 (HTTP 클라이언트)
+    // Retrofit2 (HTTP 클라이언트)dd
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
