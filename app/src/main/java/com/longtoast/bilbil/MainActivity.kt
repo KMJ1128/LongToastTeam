@@ -30,7 +30,24 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
 
     // ... (getHashKey 함수는 생략, 그대로 유지) ...
-    fun getHashKey(context: Context) { /* ... */ }
+    fun getHashKey(context: Context) {
+        try {
+            val info = context.packageManager.getPackageInfo(
+                context.packageName,
+                PackageManager.GET_SIGNATURES
+            )
+
+            for (signature in info.signatures!!) {
+                val md = MessageDigest.getInstance("SHA")
+                md.update(signature.toByteArray())
+
+                // 키 해시를 Logcat의 'd' 레벨로 출력
+                Log.d("KeyHash", Base64.encodeToString(md.digest(), Base64.NO_WRAP))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
