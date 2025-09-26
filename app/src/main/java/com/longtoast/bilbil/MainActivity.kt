@@ -64,7 +64,7 @@ class MainActivity : AppCompatActivity() {
      * ✅ 카카오 SDK를 사용하여 로그인 프로세스를 시작하고 토큰을 서버로 전달합니다.
      */
     private fun startKakaoLogin() {
-        // 1. 카카오톡 설치 유무에 따라 로그인 방식 분기
+        // 1. 카카오톡 설치 유무에 따라 로그인 방식 분기dd
         if (UserApiClient.instance.isKakaoTalkLoginAvailable(this)) {
             UserApiClient.instance.loginWithKakaoTalk(this) { token, error ->
                 handleKakaoLoginResult(token, error)
