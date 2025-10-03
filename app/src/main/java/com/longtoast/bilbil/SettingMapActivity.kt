@@ -21,8 +21,7 @@ class SettingMapActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_setting_map)
 
-        // 1. Kakao Maps SDK v2 초기화 (Application에서 이미 초기화했어도 안전하게 중복 호출 가능)
-       // KakaoMapSdk.init(this, "7a3a72c388ba6dfc6df8ca9715f284ff")
+
 
         // 2. MapView 가져오기
         mapView = findViewById(R.id.map_view)
