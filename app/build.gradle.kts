@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
-
+//d
 android {
     namespace = "com.longtoast.bilbil"
     compileSdk = 36

@@ -10,7 +10,7 @@ material = "1.13.0"
 activity = "1.11.0"
 constraintlayout = "2.2.1"
 playServicesMaps = "19.2.0"
-
+#d
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
