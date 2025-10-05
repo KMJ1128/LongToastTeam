@@ -67,7 +67,7 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-
+ //dd
 
     implementation("com.kakao.sdk:v2-user:2.21.0")
     // Retrofit2 (HTTP 클라이언트)dd

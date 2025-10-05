@@ -29,7 +29,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
-    // ... (getHashKey 함수는 생략, 그대로 유지) ...
+    // ... (getHashKey 함수는 생략, 그대로 유지) ...업데이트
     fun getHashKey(context: Context) {
         try {
             val info = context.packageManager.getPackageInfo(
