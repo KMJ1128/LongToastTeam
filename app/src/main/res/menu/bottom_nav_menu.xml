@@ -1,15 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-
     <item
         android:id="@+id/nav_home"
-        android:icon="@android:drawable/ic_menu_agenda"  android:title="홈" />
-
-    <item
-        android:id="@+id/nav_map"
-        android:icon="@android:drawable/ic_menu_mapmode" android:title="지도" />
-
+        android:icon="@drawable/ic_home" android:title="홈" />
     <item
         android:id="@+id/nav_message"
-        android:icon="@android:drawable/ic_menu_send"   android:title="메시지" />
+        android:icon="@drawable/ic_message" android:title="메세지" />
+    <item
+        android:id="@+id/nav_my_items"
+        android:icon="@drawable/ic_person" android:title="나의 물품" />
 </menu>

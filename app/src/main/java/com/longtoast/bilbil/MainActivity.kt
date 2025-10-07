@@ -22,6 +22,9 @@ import java.security.MessageDigest
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import kotlin.jvm.java
+
+// 🚨 import kotlin.jvm.java 코드는 삭제했습니다. (불필요한 import)
 
 // 네이버 SDK 관련 import는 일단 주석 처리 유지
 
@@ -29,7 +32,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
-    // ... (getHashKey 함수는 생략, 그대로 유지) ...
+// ... (getHashKey 함수는 생략, 그대로 유지) ...
+
     fun getHashKey(context: Context) {
         try {
             val info = context.packageManager.getPackageInfo(
@@ -131,22 +135,20 @@ class MainActivity : AppCompatActivity() {
                             // 🚨 Case 1: 주소 정보 누락 (지도 설정 필요)
                             Log.d("SERVER_AUTH", "🚨 주소 정보 누락! 지도 설정 필요.${memberTokenResponse.address}")
 
-                            // SettingMapActivity로 이동 (주소 설정 절차 진행)
-                            val intent = Intent(this@MainActivity, SettingMapActivity::class.java).apply {
+                            // HomeHostActivity로 이동 (주소 설정 절차 진행)
+                            val intent = Intent(this@MainActivity, HomeHostActivity::class.java).apply { // 🚨 HomeHostActivity로 수정
                                 putExtra("USER_NICKNAME", memberTokenResponse.nickname)
                                 putExtra("SETUP_ADDRESS_NEEDED", true) // 주소 설정 필요 플래그
                             }
                             startActivity(intent)
-                            // finish() /dd/ f로그인 화면을 닫지 않고 뒤로 가기를 허용할 수 있음 (선택 사항)
 
                         } else {
                             // ✅ Case 2: 주소 정보가 모두 설정되어 있음 (정상 로그인)
-
                             Log.d("SERVER_AUTH", "✅ 로그인 성공! 기존 회원 메인 화면 이동.")
                             Toast.makeText(this@MainActivity, "${memberTokenResponse.nickname}님 환영합니다.", Toast.LENGTH_LONG).show()
 
                             // MainHomeActivity (예시) 등 서비스의 주 화면으로 이동
-                            val intent = Intent(this@MainActivity, HomeActivity::class.java).apply {
+                            val intent = Intent(this@MainActivity, HomeHostActivity::class.java).apply { // 🚨 HomeHostActivity로 수정
                                 // 서비스 토큰 및 기타 필요한 정보를 전달
                                 putExtra("SERVICE_TOKEN", memberTokenResponse.serviceToken)
                             }

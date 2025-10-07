@@ -1,3 +1,4 @@
+import org.gradle.kotlin.dsl.implementation
 
 plugins {
     alias(libs.plugins.android.application)
@@ -13,7 +14,6 @@ android {
         viewBinding=true
         buildConfig = true
     }
-
 
 
     defaultConfig {
@@ -33,8 +33,6 @@ android {
         }
 
     }
-
-
 
 
 
@@ -63,6 +61,10 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.lifecycle.livedata.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.navigation.fragment.ktx)
+    implementation(libs.androidx.navigation.ui.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -77,5 +79,7 @@ dependencies {
     //kakao map
     implementation("com.kakao.maps.open:android:2.12.17")
 
+    // 💡 추가: 원형 프로필 이미지 뷰 (CircleImageView) 라이브러리 추가
+    implementation("de.hdodenhof:circleimageview:3.1.0")
 
 }

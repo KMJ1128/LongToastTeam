@@ -8,7 +8,8 @@ object RetrofitClient {
     // 🚨 중요: 여기에 Spring Boot 서버의 주소를 입력하세요!
     // 개발 중이라면 일반적으로 http://10.0.2.2:8080 (Android Emulator의 로컬호스트 주소)
     // 실제 서버라면 https://your-domain.com
-    private const val BASE_URL = "http://13.209.68.29:8080/"
+    private const val BASE_URL = "http://192.168.200.139:8080/"
+    //private const val BASE_URL = "http://13.209.68.29:8080/"
 //김민재 로컬PC http://192.168.0.211:8080
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()

@@ -1,5 +1,10 @@
 <resources>
+
     <string name="app_name">BilBil</string>
     <string name="박우정">BilBil</string>
     <string name="김민재">김민재입니다</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+
+
 </resources>
