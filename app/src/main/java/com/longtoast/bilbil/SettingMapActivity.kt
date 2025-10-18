@@ -52,16 +52,10 @@ class SettingMapActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_setting_map)
 
-        val userNickname = intent.getStringExtra("USER_NICKNAME") ?: ""
-        val isSetupNeeded = intent.getBooleanExtra("SETUP_ADDRESS_NEEDED", false)
-
-        Log.d("SettingMap", "닉네임: $userNickname, 설정필요: $isSetupNeeded")
-
         initViews()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         initializeMap()
         setupListeners()
-        checkAndRequestLocationPermission()
     }
 
     private fun initViews() {
@@ -76,27 +70,20 @@ class SettingMapActivity : AppCompatActivity() {
     private fun setupListeners() {
         buttonSearch.setOnClickListener {
             val query = editSearchAddress.text.toString().trim()
-            if (query.isNotEmpty()) {
-                searchAddress(query)
-            } else {
-                Toast.makeText(this, "주소를 입력해주세요", Toast.LENGTH_SHORT).show()
-            }
+            if (query.isNotEmpty()) searchAddress(query)
+            else Toast.makeText(this, "주소를 입력해주세요", Toast.LENGTH_SHORT).show()
         }
 
         editSearchAddress.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 val query = editSearchAddress.text.toString().trim()
-                if (query.isNotEmpty()) {
-                    searchAddress(query)
-                }
+                if (query.isNotEmpty()) searchAddress(query)
                 true
-            } else {
-                false
-            }
+            } else false
         }
 
         buttonCurrentLocation.setOnClickListener {
-            getCurrentLocationAndMove()
+            getRealTimeLocation()
         }
 
         buttonConfirm.setOnClickListener {
@@ -107,199 +94,76 @@ class SettingMapActivity : AppCompatActivity() {
     private fun initializeMap() {
         mapView.start(
             object : MapLifeCycleCallback() {
-                override fun onMapDestroy() {
-                    Log.d("MAP", "Map destroyed")
-                }
-
+                override fun onMapDestroy() {}
                 override fun onMapError(error: Exception) {
-                    error.printStackTrace()
                     Log.e("MAP_ERROR", "Map error: ${error.message}")
-                    Toast.makeText(
-                        this@SettingMapActivity,
-                        "지도 로드 오류",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(this@SettingMapActivity, "지도 로드 오류", Toast.LENGTH_SHORT).show()
                 }
             },
             object : KakaoMapReadyCallback() {
                 override fun onMapReady(map: KakaoMap) {
                     kakaoMap = map
-                    moveCameraTo(currentLatitude, currentLongitude)
-
-                    Log.d("MAP", "지도 준비 완료")
+                    checkLocationPermissionAndFetch()
                 }
             }
         )
     }
 
-    private fun checkAndRequestLocationPermission() {
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            getCurrentLocationAndMove()
+    private fun checkLocationPermissionAndFetch() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            getRealTimeLocation()
         } else {
             ActivityCompat.requestPermissions(
                 this,
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ),
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
                 LOCATION_PERMISSION_REQUEST_CODE
             )
         }
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
         if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
-            if (grantResults.isNotEmpty() &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED
-            ) {
-                Toast.makeText(this, "위치 권한이 승인되었습니다", Toast.LENGTH_SHORT).show()
-                getCurrentLocationAndMove()
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                getRealTimeLocation()
             } else {
-                Toast.makeText(
-                    this,
-                    "위치 권한이 필요합니다. 수동으로 위치를 선택해주세요.",
-                    Toast.LENGTH_LONG
-                ).show()
+                Toast.makeText(this, "위치 권한이 필요합니다. 수동으로 위치를 선택해주세요.", Toast.LENGTH_LONG).show()
             }
         }
     }
 
-    private fun getCurrentLocationAndMove() {
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            Toast.makeText(this, "위치 권한이 필요합니다", Toast.LENGTH_SHORT).show()
-            return
-        }
+    private fun getRealTimeLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
 
-        Toast.makeText(this, "현재 위치를 가져오는 중...", Toast.LENGTH_SHORT).show()
-
-        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-            if (location != null) {
-                currentLatitude = location.latitude
-                currentLongitude = location.longitude
-
-                Log.d("GPS", "현재 위치: $currentLatitude, $currentLongitude")
+        fusedLocationClient.getCurrentLocation(
+            com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
+            null
+        ).addOnSuccessListener { location: Location? ->
+            location?.let {
+                currentLatitude = it.latitude
+                currentLongitude = it.longitude
+                moveCameraTo(currentLatitude, currentLongitude)
                 Toast.makeText(this, "현재 위치로 이동했습니다", Toast.LENGTH_SHORT).show()
-
-                if (::kakaoMap.isInitialized) {
-                    moveCameraTo(currentLatitude, currentLongitude)
-                }
-            } else {
-                Log.w("GPS", "위치를 가져올 수 없습니다")
-                Toast.makeText(this, "현재 위치를 가져올 수 없습니다", Toast.LENGTH_SHORT).show()
-            }
-        }.addOnFailureListener { e ->
-            Log.e("GPS", "위치 가져오기 실패", e)
-            Toast.makeText(this, "위치 가져오기 실패", Toast.LENGTH_SHORT).show()
+            } ?: Toast.makeText(this, "위치를 가져올 수 없습니다", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun searchAddress(query: String) {
-        Toast.makeText(this, "검색 중...", Toast.LENGTH_SHORT).show()
+    private fun moveCameraTo(latitude: Double, longitude: Double) {
+        currentLatitude = latitude
+        currentLongitude = longitude
+        if (!::kakaoMap.isInitialized) return
 
+        val cameraUpdate = CameraUpdateFactory.newCenterPosition(LatLng.from(latitude, longitude))
+        kakaoMap.moveCamera(cameraUpdate)
+        fetchAddressFromCoordinates(latitude, longitude)
+    }
+
+    private fun fetchAddressFromCoordinates(lat: Double, lon: Double) {
         lifecycleScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) {
-                    searchKakaoLocalAPI(query)
-                }
-
-                if (result != null) {
-                    val lat = result.first
-                    val lon = result.second
-                    val addressName = result.third
-
-                    currentLatitude = lat
-                    currentLongitude = lon
-                    currentAddress = addressName
-
-                    moveCameraTo(lat, lon)
-                    textSelectedAddress.text = addressName
-
-                    Toast.makeText(
-                        this@SettingMapActivity,
-                        "검색 완료: $addressName",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                } else {
-                    Toast.makeText(
-                        this@SettingMapActivity,
-                        "검색 결과가 없습니다",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Log.e("SEARCH", "주소 검색 실패", e)
-                Toast.makeText(
-                    this@SettingMapActivity,
-                    "검색 실패: ${e.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-    }
-
-    private fun searchKakaoLocalAPI(query: String): Triple<Double, Double, String>? {
-        val encodedQuery = URLEncoder.encode(query, "UTF-8")
-        val apiUrl = "https://dapi.kakao.com/v2/local/search/keyword.json?query=$encodedQuery"
-
-        val url = URL(apiUrl)
-        val connection = url.openConnection() as HttpURLConnection
-
-        try {
-            connection.requestMethod = "GET"
-            connection.setRequestProperty("Authorization", "KakaoAK $KAKAO_REST_API_KEY")
-
-            val responseCode = connection.responseCode
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                val response = connection.inputStream.bufferedReader().use { it.readText() }
-                val json = JSONObject(response)
-                val documents = json.getJSONArray("documents")
-
-                if (documents.length() > 0) {
-                    val firstResult = documents.getJSONObject(0)
-                    val lat = firstResult.getString("y").toDouble()
-                    val lon = firstResult.getString("x").toDouble()
-                    val addressName = firstResult.getString("place_name")
-
-                    return Triple(lat, lon, addressName)
-                }
-            } else {
-                Log.e("SEARCH", "API 응답 오류: $responseCode")
-            }
-        } finally {
-            connection.disconnect()
-        }
-
-        return null
-    }
-
-    private fun getAddressFromCoordinates(lat: Double, lon: Double) {
-        lifecycleScope.launch {
-            try {
-                val address = withContext(Dispatchers.IO) {
-                    reverseGeocodeKakaoAPI(lat, lon)
-                }
-
-                if (address != null) {
-                    currentAddress = address
-                    textSelectedAddress.text = address
-                } else {
-                    textSelectedAddress.text = "위도: $lat, 경도: $lon"
-                }
+                val address = withContext(Dispatchers.IO) { reverseGeocodeKakaoAPI(lat, lon) }
+                currentAddress = address ?: "위도: $lat, 경도: $lon"
+                textSelectedAddress.text = currentAddress
             } catch (e: Exception) {
                 e.printStackTrace()
                 textSelectedAddress.text = "위도: $lat, 경도: $lon"
@@ -309,60 +173,68 @@ class SettingMapActivity : AppCompatActivity() {
 
     private fun reverseGeocodeKakaoAPI(lat: Double, lon: Double): String? {
         val apiUrl = "https://dapi.kakao.com/v2/local/geo/coord2address.json?x=$lon&y=$lat"
-
         val url = URL(apiUrl)
         val connection = url.openConnection() as HttpURLConnection
 
-        try {
+        return try {
             connection.requestMethod = "GET"
             connection.setRequestProperty("Authorization", "KakaoAK $KAKAO_REST_API_KEY")
-
-            val responseCode = connection.responseCode
-            if (responseCode == HttpURLConnection.HTTP_OK) {
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
-                val json = JSONObject(response)
-                val documents = json.getJSONArray("documents")
-
+                val documents = JSONObject(response).getJSONArray("documents")
                 if (documents.length() > 0) {
-                    val firstResult = documents.getJSONObject(0)
-                    val address = firstResult.getJSONObject("address")
-                    return address.getString("address_name")
-                }
-            }
+                    documents.getJSONObject(0).getJSONObject("address").getString("address_name")
+                } else null
+            } else null
         } finally {
             connection.disconnect()
         }
-
-        return null
     }
 
-    private fun moveCameraTo(latitude: Double, longitude: Double) {
-        currentLatitude = latitude
-        currentLongitude = longitude
+    private fun searchAddress(query: String) {
+        Toast.makeText(this, "검색 중...", Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) { searchKakaoLocalAPI(query) }
+                if (result != null) {
+                    val (lat, lon, addressName) = result
+                    currentLatitude = lat
+                    currentLongitude = lon
+                    currentAddress = addressName
+                    moveCameraTo(lat, lon)
+                    textSelectedAddress.text = addressName
+                    Toast.makeText(this@SettingMapActivity, "검색 완료: $addressName", Toast.LENGTH_SHORT).show()
+                } else Toast.makeText(this@SettingMapActivity, "검색 결과가 없습니다", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(this@SettingMapActivity, "검색 실패: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
-        val cameraUpdate = CameraUpdateFactory.newCenterPosition(
-            LatLng.from(latitude, longitude)
-        )
-        kakaoMap.moveCamera(cameraUpdate)
-
-        // 카메라 이동 후 주소 가져오기
-        getAddressFromCoordinates(latitude, longitude)
+    private fun searchKakaoLocalAPI(query: String): Triple<Double, Double, String>? {
+        val encodedQuery = URLEncoder.encode(query, "UTF-8")
+        val apiUrl = "https://dapi.kakao.com/v2/local/search/keyword.json?query=$encodedQuery"
+        val url = URL(apiUrl)
+        val connection = url.openConnection() as HttpURLConnection
+        return try {
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("Authorization", "KakaoAK $KAKAO_REST_API_KEY")
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val documents = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                    .getJSONArray("documents")
+                if (documents.length() > 0) {
+                    val firstResult = documents.getJSONObject(0)
+                    Triple(firstResult.getString("y").toDouble(), firstResult.getString("x").toDouble(), firstResult.getString("place_name"))
+                } else null
+            } else null
+        } finally {
+            connection.disconnect()
+        }
     }
 
     private fun onLocationConfirmed() {
-        Log.d("LOCATION_CONFIRM", "선택된 위치: $currentLatitude, $currentLongitude")
-        Log.d("LOCATION_CONFIRM", "주소: $currentAddress")
-
-        // 주소가 없어도 진행 가능하도록 수정
-        if (currentAddress.isEmpty()) {
-            currentAddress = "위도: $currentLatitude, 경도: $currentLongitude"
-            Log.d("LOCATION_CONFIRM", "주소를 가져올 수 없어 좌표로 대체")
-        }
-
-        Toast.makeText(this, "위치가 설정되었습니다", Toast.LENGTH_SHORT).show()
-
         val receivedNickname = intent.getStringExtra("USER_NICKNAME")
-
         val newIntent = Intent(this, SettingProfileActivity::class.java).apply {
             putExtra("LATITUDE", currentLatitude)
             putExtra("LONGITUDE", currentLongitude)

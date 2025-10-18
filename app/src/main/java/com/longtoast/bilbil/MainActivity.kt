@@ -119,8 +119,8 @@ class MainActivity : AppCompatActivity() {
         // RetrofitClient.getApiService()는 BASE_URL이 http://10.0.2.2:8080/로 설정되어야 합니다.
         val call = RetrofitClient.getApiService().loginWithKakaoToken(requestBody)
 
-        call.enqueue(object : Callback<MsgEntity<MemberTokenResponse>> {
-            override fun onResponse(call: Call<MsgEntity<MemberTokenResponse>>, response: Response<MsgEntity<MemberTokenResponse>>) {
+        call.enqueue(object : Callback<MsgEntity> {
+            override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                 if (response.isSuccessful) {
                     val memberTokenResponse = response.body()?.data as? MemberTokenResponse
                     if (memberTokenResponse != null) {
@@ -137,7 +137,7 @@ class MainActivity : AppCompatActivity() {
                             Log.d("SERVER_AUTH", "🚨 주소 정보 누락! 지도 설정 필요.${memberTokenResponse.address}")
 
                             // HomeHostActivity로 이동 (주소 설정 절차 진행)
-                            val intent = Intent(this@MainActivity, HomeHostActivity::class.java).apply { // 🚨 HomeHostActivity로 수정
+                            val intent = Intent(this@MainActivity, SettingMapActivity::class.java).apply { // 🚨 HomeHostActivity로 수정
                                 putExtra("USER_NICKNAME", memberTokenResponse.nickname)
                                 putExtra("SETUP_ADDRESS_NEEDED", true) // 주소 설정 필요 플래그
                             }
@@ -164,7 +164,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            override fun onFailure(call: Call<MsgEntity<MemberTokenResponse>>, t: Throwable) {
+            override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
                 Log.e("SERVER_AUTH", "서버 통신 오류", t)
                 Toast.makeText(this@MainActivity, "로컬호스트 서버 접속 오류", Toast.LENGTH_LONG).show()
             }

@@ -18,7 +18,7 @@ interface ApiService {
     // 서버의 POST /kakao/login/token 엔드포인트와 매칭됩니다.
     // 요청 본문으로 KakaoTokenRequest를 보내고, 응답으로 MsgEntity를 받습니다.
     @POST("/kakao/login/token")
-    fun loginWithKakaoToken(@Body request: KakaoTokenRequest): Call<MsgEntity<MemberTokenResponse>>
+    fun loginWithKakaoToken(@Body request: KakaoTokenRequest): Call<MsgEntity>
 
     /**
      * 🚨 새 게시글 작성 API: POST /writeproduct/create
@@ -28,7 +28,7 @@ interface ApiService {
     // 또는 @POST("/writeproduct/create") 로 수정
     fun createProduct(
         @Body request: ProductCreateRequest
-    ): Call<MsgEntity<MemberTokenResponse>>
+    ): Call<MsgEntity>
 
     @POST("/location/update")
     suspend fun sendLocation(@Body request: LocationRequest): retrofit2.Response<Void>

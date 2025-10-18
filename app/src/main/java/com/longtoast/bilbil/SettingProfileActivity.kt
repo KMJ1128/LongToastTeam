@@ -247,8 +247,8 @@ class SettingProfileActivity : AppCompatActivity() {
 
         Toast.makeText(this, "프로필 설정이 완료되었습니다!", Toast.LENGTH_SHORT).show()
 
-        // HomeActivity로 이동
-        val intent = Intent(this, HomeActivity::class.java).apply {
+        // HostHomeActivity로 이동
+        val intent = Intent(this, HomeHostActivity::class.java).apply {
             // 필요한 데이터 전달 (예: 서비스 토큰 등)
             putExtra("NICKNAME", nickname)
             putExtra("ADDRESS", address)
