@@ -1,6 +1,7 @@
 package com.longtoast.bilbil.api
 
 import com.longtoast.bilbil.dto.KakaoTokenRequest
+import com.longtoast.bilbil.dto.LocationRequest
 import com.longtoast.bilbil.dto.MsgEntity
 import retrofit2.Call
 import retrofit2.http.Body
@@ -16,6 +17,10 @@ interface ApiService {
     // 요청 본문으로 KakaoTokenRequest를 보내고, 응답으로 MsgEntity를 받습니다.
     @POST("/kakao/login/token")
     fun loginWithKakaoToken(@Body request: KakaoTokenRequest): Call<MsgEntity>
+
+    @POST("/location/update")
+    suspend fun sendLocation(@Body request: LocationRequest): retrofit2.Response<Void>
+
 
     // 다른 API 엔드포인트가 필요하면 여기에 추가합니다.
     // @GET("/member/info")
