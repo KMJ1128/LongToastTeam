@@ -1,6 +1,7 @@
 package com.longtoast.bilbil.api
 
 import com.longtoast.bilbil.dto.KakaoTokenRequest
+import com.longtoast.bilbil.dto.LocationRequest
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ProductCreateRequest // 🚨 추가
 import com.longtoast.bilbil.dto.MemberTokenResponse // 💡 MemberTokenResponse import 추가
@@ -28,6 +29,10 @@ interface ApiService {
     fun createProduct(
         @Body request: ProductCreateRequest
     ): Call<MsgEntity<MemberTokenResponse>>
+
+    @POST("/location/update")
+    suspend fun sendLocation(@Body request: LocationRequest): retrofit2.Response<Void>
+
 
     // 다른 API 엔드포인트가 필요하면 여기에 추가합니다.
     // @GET("/member/info")

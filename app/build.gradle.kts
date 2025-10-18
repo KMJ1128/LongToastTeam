@@ -1,4 +1,3 @@
-import org.gradle.kotlin.dsl.implementation
 
 plugins {
     alias(libs.plugins.android.application)
@@ -14,6 +13,7 @@ android {
         viewBinding=true
         buildConfig = true
     }
+
 
 
     defaultConfig {
@@ -36,6 +36,8 @@ android {
 
 //이제 보이시나요
 
+
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -55,16 +57,20 @@ android {
 }
 
 dependencies {
+    implementation("com.google.android.material:material:1.9.0")
+    implementation("androidx.activity:activity-ktx:1.8.0")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.play.services.location)
     implementation(libs.androidx.lifecycle.livedata.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

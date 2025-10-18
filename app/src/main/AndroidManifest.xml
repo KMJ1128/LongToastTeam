@@ -5,6 +5,13 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- 카메라 권한 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+
+    <!-- Activity 등록
+    <activity android:name=".SettingProfileActivity" /> -->
 
     <application
         android:name=".MyApplication"
@@ -17,6 +24,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BilBil"
         android:usesCleartextTraffic="true">
+        <activity
+            android:name=".SettingProfileActivity"
+            tools:ignore="DuplicateActivity" />
         <activity
             android:name=".ProductCreateRequest"
             android:exported="false" />
@@ -37,9 +47,6 @@
             android:exported="false" />
         <activity
             android:name=".SettingMapActivity"
-            android:exported="false" />
-        <activity
-            android:name=".SettingMapActivity"
             android:exported="false" /> <!-- 🚨 [수정 완료] 카카오 로그인 SDK용 키 -->
         <meta-data
             android:name="com.kakao.sdk.AppKey"
@@ -47,6 +54,7 @@
         <meta-data
             android:name="com.kakao.vectormap.appKey"
             android:value="7a3a72c388ba6dfc6df8ca9715f284ff" />
+
 
         <activity
             android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
@@ -71,6 +79,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- FileProvider 설정 (application 태그 안에) -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>
