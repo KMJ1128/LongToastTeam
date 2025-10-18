@@ -12,6 +12,7 @@ import androidx.fragment.app.Fragment
 import com.longtoast.bilbil.databinding.ActivityNewPostFragmentBinding
 // Retrofit 및 DTO Import
 import com.longtoast.bilbil.api.RetrofitClient
+import com.longtoast.bilbil.dto.MemberTokenResponse
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ProductCreateRequest
 import retrofit2.Call
@@ -189,8 +190,8 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
 
         // 4. Retrofit 서버 통신 실행
         RetrofitClient.getApiService().createProduct(request)
-            .enqueue(object : Callback<MsgEntity> {
-                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+            .enqueue(object : Callback<MsgEntity<MemberTokenResponse>> {
+                override fun onResponse(call: Call<MsgEntity<MemberTokenResponse>>, response: Response<MsgEntity<MemberTokenResponse>>) {
                     if (response.isSuccessful) {
                         Toast.makeText(requireContext(), "게시글이 성공적으로 등록되었습니다!", Toast.LENGTH_LONG).show()
                         parentFragmentManager.popBackStack() // 성공 시 화면 닫기
@@ -201,7 +202,7 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
                     }
                 }
 
-                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                override fun onFailure(call: Call<MsgEntity<MemberTokenResponse>>, t: Throwable) {
                     Log.e("POST_API", "서버 통신 오류", t)
                     Toast.makeText(requireContext(), "서버 연결 오류 발생", Toast.LENGTH_LONG).show()
                 }

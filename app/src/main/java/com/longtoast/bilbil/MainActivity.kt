@@ -18,6 +18,7 @@ import com.longtoast.bilbil.dto.MsgEntity // DTO import
 import com.kakao.sdk.user.UserApiClient // 🚨 카카오 SDK import 활성화
 import com.kakao.sdk.auth.model.OAuthToken // 카카오 토큰 모델
 import com.kakao.vectormap.KakaoMapSdk
+import com.longtoast.bilbil.dto.MemberTokenResponse
 import java.security.MessageDigest
 import retrofit2.Call
 import retrofit2.Callback
@@ -118,10 +119,10 @@ class MainActivity : AppCompatActivity() {
         // RetrofitClient.getApiService()는 BASE_URL이 http://10.0.2.2:8080/로 설정되어야 합니다.
         val call = RetrofitClient.getApiService().loginWithKakaoToken(requestBody)
 
-        call.enqueue(object : Callback<MsgEntity> {
-            override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+        call.enqueue(object : Callback<MsgEntity<MemberTokenResponse>> {
+            override fun onResponse(call: Call<MsgEntity<MemberTokenResponse>>, response: Response<MsgEntity<MemberTokenResponse>>) {
                 if (response.isSuccessful) {
-                    val memberTokenResponse = response.body()?.data
+                    val memberTokenResponse = response.body()?.data as? MemberTokenResponse
                     if (memberTokenResponse != null) {
                         Log.d("SERVER_AUTH", "✅ 서버 인증 성공! 서비스 토큰 수신.")
                         Toast.makeText(this@MainActivity, "로그인 완료: ${memberTokenResponse.nickname}", Toast.LENGTH_LONG).show()
@@ -163,7 +164,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+            override fun onFailure(call: Call<MsgEntity<MemberTokenResponse>>, t: Throwable) {
                 Log.e("SERVER_AUTH", "서버 통신 오류", t)
                 Toast.makeText(this@MainActivity, "로컬호스트 서버 접속 오류", Toast.LENGTH_LONG).show()
             }
