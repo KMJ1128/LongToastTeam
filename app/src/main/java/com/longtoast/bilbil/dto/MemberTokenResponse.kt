@@ -8,4 +8,5 @@ data class MemberTokenResponse(
     val address: String?,             // 🚨 주소 필드 추가 (null 가능)
     val locationLatitude: Double?,    // 🚨 위도 필드 추가 (null 가능)
     val locationLongitude: Double?    // 🚨 경도 필드 추가 (null 가능)
+    
 )
