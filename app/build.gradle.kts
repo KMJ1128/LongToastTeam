@@ -75,17 +75,21 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
- //dd
 
-    implementation("com.kakao.sdk:v2-user:2.21.0")
-    // Retrofit2 (HTTP 클라이언트)dd
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
-    //kakao map
-    implementation("com.kakao.maps.open:android:2.12.17")
+    // ❌ [제거] StompProtocolAndroid 및 모든 RxJava 의존성
+    // implementation("com.github.NaikSoftware:StompProtocolAndroid:1.6.6")
+    // implementation("io.reactivex.rxjava3:rxandroid:3.0.0")
+    // implementation("io.reactivex.rxjava3:rxjava:3.1.6")
+    // implementation("io.reactivex.rxjava2:rxandroid:2.1.1")
+    // implementation("io.reactivex.rxjava2:rxjava:2.2.21")
 
-    // 💡 추가: 원형 프로필 이미지 뷰 (CircleImageView) 라이브러리 추가
-    implementation("de.hdodenhof:circleimageview:3.1.0")
+    // ✅ [추가] Krossbow STOMP 클라이언트
+    implementation("org.hildan.krossbow:krossbow-stomp-websocket:3.1.0")
 
+    // ✅ [추가] Kotlin Coroutines (비동기 처리)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
+
+    // Gson과 OkHttp는 유지
 }

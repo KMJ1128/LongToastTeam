@@ -11,16 +11,10 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.dto.ChatRoomCreateRequest
-import com.longtoast.bilbil.dto.ChatRoomResponse // 🚨 이 DTO가 필요합니다.
-import com.longtoast.bilbil.dto.MsgEntity // 🚨 이 DTO가 필요합니다.
+import com.longtoast.bilbil.dto.ChatMsgEntity // 🚨 임포트 변경
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-
-// Gson 사용을 위해 import가 필요합니다.
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
-
 
 class SearchResultActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,9 +59,9 @@ class SearchResultActivity : AppCompatActivity() {
 
         // API 호출
         RetrofitClient.getApiService().createChatRoom(request)
-            .enqueue(object : Callback<MsgEntity> {
+            .enqueue(object : Callback<ChatMsgEntity> { // 💡 ChatMsgEntity 사용
 
-                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                override fun onResponse(call: Call<ChatMsgEntity>, response: Response<ChatMsgEntity>) {
                     // 1. 서버 응답 실패 처리
                     if (!response.isSuccessful || response.body() == null) {
                         val errorMsg = response.errorBody()?.string() ?: "알 수 없는 오류"
@@ -77,33 +71,15 @@ class SearchResultActivity : AppCompatActivity() {
                     }
 
                     // -------------------------------------------------
-                    // 🚨 [수정된 파싱 로직] - Gson을 사용하여 ChatRoomResponse DTO로 안전하게 변환
+                    // 🚨 [핵심 수정] - DTO 체인을 통해 roomId에 직접 접근 (자동 파싱 활용)
                     // -------------------------------------------------
-                    val rawData = response.body()?.data
-                    Log.d("CHAT_API_RAW_DATA", "서버 data 필드 내용: $rawData")
+                    val chatMsgEntity = response.body()
+                    val roomIdString = chatMsgEntity?.data?.roomId // 💡 Null safety를 적용하여 직접 String 추출
 
-                    var roomIdString: String? = null
+                    Log.d("CHAT_API_RAW_DATA", "서버 data 필드 내용: ${chatMsgEntity?.data.toString()}")
 
-                    try {
-                        // 1. Gson 객체 생성 (Retrofit이 사용하는 기본 Gson 객체를 재사용하는 것이 가장 좋음)
-                        // 임시로 Gson 인스턴스를 직접 생성하여 사용
-                        val gson = Gson()
 
-                        // 2. data 필드의 rawData (Any?)를 JSON 문자열로 변환
-                        val dataJson = gson.toJson(rawData)
-
-                        // 3. JSON 문자열을 ChatRoomResponse DTO로 변환
-                        val chatResponse = gson.fromJson(dataJson, ChatRoomResponse::class.java)
-
-                        roomIdString = chatResponse.roomId
-
-                    } catch (e: Exception) {
-                        Log.e("CHAT_API", "Room ID 파싱 중 치명적인 오류 발생: ${e.message}", e)
-                    }
-
-                    // -------------------------------------------------
-
-                    // 2. roomId 파싱 실패 (null 이거나 empty)
+                    // 2. roomId 검증 및 다음 단계로 진행
                     if (roomIdString.isNullOrEmpty()) {
                         Log.e("CHAT_API", "Room ID 획득 실패. 최종 파싱 결과: $roomIdString")
                         Toast.makeText(this@SearchResultActivity, "Room ID 획득 실패", Toast.LENGTH_LONG).show()
@@ -123,7 +99,7 @@ class SearchResultActivity : AppCompatActivity() {
                     startActivity(intent)
                 }
 
-                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                override fun onFailure(call: Call<ChatMsgEntity>, t: Throwable) {
                     Log.e("CHAT_API", "서버 통신 오류", t)
                     Toast.makeText(this@SearchResultActivity, "네트워크 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
                 }
