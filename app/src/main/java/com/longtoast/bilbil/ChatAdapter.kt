@@ -28,7 +28,6 @@ class ChatAdapter(
         private val timestampText: TextView = view.findViewById(R.id.text_timestamp_sent)
 
         fun bind(message: ChatMessage) {
-            // 🚨 message 대신 content 사용
             messageText.text = message.content
             timestampText.text = formatTimestamp(message.sentAt)
         }
@@ -41,13 +40,10 @@ class ChatAdapter(
         private val nicknameText: TextView = view.findViewById(R.id.text_nickname_received)
 
         fun bind(message: ChatMessage) {
-            // 🚨 message 대신 content 사용
             messageText.text = message.content
             timestampText.text = formatTimestamp(message.sentAt)
-            // TODO: 닉네임 필드가 ChatMessage DTO에 없으므로, ChatRoomActivity에서 전달받아야 함.
-            // 임시로 senderId를 사용하거나, 백엔드에서 닉네임이 포함된 DTO를 사용해야 합니다.
-            // nicknameText.text = message.senderNickname
-            nicknameText.text = message.senderId // 임시
+            // 닉네임은 ChatMessage에 없으므로, 임시로 senderId 사용
+            nicknameText.text = message.senderId
         }
     }
 
@@ -65,7 +61,7 @@ class ChatAdapter(
         return if (viewType == VIEW_TYPE_SENT) {
             val view = inflater.inflate(R.layout.item_chat_message_sent, parent, false)
             SentMessageViewHolder(view)
-        } else { // VIEW_TYPE_RECEIVED
+        } else {
             val view = inflater.inflate(R.layout.item_chat_message_received, parent, false)
             ReceivedMessageViewHolder(view)
         }
@@ -85,11 +81,10 @@ class ChatAdapter(
     // 시간 포맷팅 유틸리티 함수 (백엔드의 LocalDateTime 문자열을 파싱)
     private fun formatTimestamp(sentAt: String): String {
         return try {
-            // 백엔드에서 전송하는 기본 ISO 8601 포맷을 파싱
             val dateTime = LocalDateTime.parse(sentAt)
             dateTime.format(timeFormatter)
         } catch (e: Exception) {
-            "..."
+            "시간 오류"
         }
     }
 }

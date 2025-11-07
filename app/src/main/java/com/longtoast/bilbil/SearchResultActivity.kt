@@ -11,15 +11,17 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.dto.ChatRoomCreateRequest
-import com.longtoast.bilbil.dto.MsgEntity
-import com.google.gson.Gson // Gson 임포트
+import com.longtoast.bilbil.dto.ChatRoomResponse // 🚨 이 DTO가 필요합니다.
+import com.longtoast.bilbil.dto.MsgEntity // 🚨 이 DTO가 필요합니다.
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import kotlin.jvm.java
-data class ChatRoomResponseData(
-    val roomId: Int? // 서버에서 Integer로 반환되므로 Int?로 받습니다.
-)
+
+// Gson 사용을 위해 import가 필요합니다.
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+
+
 class SearchResultActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,7 +44,7 @@ class SearchResultActivity : AppCompatActivity() {
     }
 
     /**
-     * 1. 채팅방 생성 API를 호출하고
+     * 1. (테스트) 채팅방 생성 API를 호출하고
      * 2. (성공 시) ChatRoomActivity를 시작하는 함수
      */
     private fun createChatRoomAndStartActivity() {
@@ -66,6 +68,7 @@ class SearchResultActivity : AppCompatActivity() {
             .enqueue(object : Callback<MsgEntity> {
 
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    // 1. 서버 응답 실패 처리
                     if (!response.isSuccessful || response.body() == null) {
                         val errorMsg = response.errorBody()?.string() ?: "알 수 없는 오류"
                         Log.e("CHAT_API", "채팅방 생성 실패 (서버 응답 오류): ${response.code()} / $errorMsg")
@@ -74,35 +77,44 @@ class SearchResultActivity : AppCompatActivity() {
                     }
 
                     // -------------------------------------------------
-                    // 🚨 [최종 파싱 로직] data 필드를 명시적 DTO로 안전하게 파싱
+                    // 🚨 [수정된 파싱 로직] - Gson을 사용하여 ChatRoomResponse DTO로 안전하게 변환
                     // -------------------------------------------------
-                    val gson = Gson()
                     val rawData = response.body()?.data
+                    Log.d("CHAT_API_RAW_DATA", "서버 data 필드 내용: $rawData")
 
-                    // rawData를 JsonElement로 변환하여 명시적 파싱 시도
-                    val jsonElement = gson.toJsonTree(rawData)
-                    val chatRoomData: ChatRoomResponseData? = try {
-                        // MsgEntity의 data 필드를 ChatRoomResponseData DTO로 파싱
-                        gson.fromJson(jsonElement, ChatRoomResponseData::class.java)
+                    var roomIdString: String? = null
+
+                    try {
+                        // 1. Gson 객체 생성 (Retrofit이 사용하는 기본 Gson 객체를 재사용하는 것이 가장 좋음)
+                        // 임시로 Gson 인스턴스를 직접 생성하여 사용
+                        val gson = Gson()
+
+                        // 2. data 필드의 rawData (Any?)를 JSON 문자열로 변환
+                        val dataJson = gson.toJson(rawData)
+
+                        // 3. JSON 문자열을 ChatRoomResponse DTO로 변환
+                        val chatResponse = gson.fromJson(dataJson, ChatRoomResponse::class.java)
+
+                        roomIdString = chatResponse.roomId
+
                     } catch (e: Exception) {
-                        Log.e("CHAT_API", "ChatRoomResponseData 파싱 오류", e)
-                        null
+                        Log.e("CHAT_API", "Room ID 파싱 중 치명적인 오류 발생: ${e.message}", e)
                     }
 
-                    // ChatRoomResponseData 객체에서 roomId (Int?)를 가져와 String으로 변환
-                    val roomIdString = chatRoomData?.roomId?.toString()
+                    // -------------------------------------------------
 
+                    // 2. roomId 파싱 실패 (null 이거나 empty)
                     if (roomIdString.isNullOrEmpty()) {
-                        Log.e("CHAT_API", "Room ID 획득 실패. 서버 응답 데이터: $rawData")
+                        Log.e("CHAT_API", "Room ID 획득 실패. 최종 파싱 결과: $roomIdString")
                         Toast.makeText(this@SearchResultActivity, "Room ID 획득 실패", Toast.LENGTH_LONG).show()
                         return
                     }
 
-                    // 5. roomId 파싱 성공
+                    // 3. roomId 파싱 성공
                     Log.d("CHAT_API", "채팅방 생성 성공. Room ID: $roomIdString")
                     Toast.makeText(this@SearchResultActivity, "채팅방이 생성되었습니다. ID: $roomIdString", Toast.LENGTH_SHORT).show()
 
-                    // 6. ChatRoomActivity 시작 (roomId 전달)
+                    // 4. ChatRoomActivity 시작 (roomId 전달)
                     val intent = Intent(this@SearchResultActivity, ChatRoomActivity::class.java).apply {
                         putExtra("PRODUCT_ID", testItemId.toString())
                         putExtra("SELLER_NICKNAME", testSellerNickname)
