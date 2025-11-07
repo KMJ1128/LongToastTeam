@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="8dp">
+
+    <TextView
+        android:id="@+id/text_nickname_received"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="판매자 닉네임" />
+
+    <TextView
+        android:id="@+id/text_message_received"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/chat_bubble_received"
+        android:padding="12dp"
+        android:textColor="@android:color/black"
+        android:maxWidth="280dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/text_nickname_received"
+        tools:text="안녕하세요. 물건 아직 있나요? (받은 메시지)" />
+
+    <TextView
+        android:id="@+id/text_timestamp_received"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="10sp"
+        app:layout_constraintBottom_toBottomOf="@id/text_message_received"
+        app:layout_constraintStart_toEndOf="@id/text_message_received"
+        android:layout_marginStart="4dp"
+        tools:text="오전 10:30" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
