@@ -24,12 +24,12 @@ interface ApiService {
     fun createProduct(
         @Body request: ProductCreateRequest
     ): Call<MsgEntity>
-
     @POST("/location/update")
     suspend fun sendLocation(@Body request: LocationRequest): retrofit2.Response<Void>
-
-
-
     @POST("/api/chat/room")
-    fun createChatRoom(@Body request: ChatRoomCreateRequest): Call<ChatMsgEntity> // 💡 ChatMsgEntity로 변경
+    fun createChatRoom(
+        @Body request: ChatRoomCreateRequest
+    ): Call<ChatMsgEntity>
+    @GET("/chat/rooms")
+    fun getMyChatRooms(): Call<MsgEntity>
 }
