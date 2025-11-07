@@ -1,9 +1,10 @@
 package com.longtoast.bilbil.api
 
+import com.longtoast.bilbil.dto.ChatRoomCreateRequest
 import com.longtoast.bilbil.dto.KakaoTokenRequest
 import com.longtoast.bilbil.dto.LocationRequest
 import com.longtoast.bilbil.dto.MsgEntity
-import com.longtoast.bilbil.dto.ProductCreateRequest // 🚨 추가
+import com.longtoast.bilbil.dto.ProductCreateRequest // 추가
 import com.longtoast.bilbil.dto.MemberTokenResponse // 💡 MemberTokenResponse import 추가
 import retrofit2.Call
 import retrofit2.http.Body
@@ -33,8 +34,11 @@ interface ApiService {
     @POST("/location/update")
     suspend fun sendLocation(@Body request: LocationRequest): retrofit2.Response<Void>
 
-
+    @POST("/api/chat/room")
+    fun createChatRoom(
+        @Body request: ChatRoomCreateRequest
+    ): Call<MsgEntity> // 서버 응답이 MsgEntity 형식이 맞는지 확인 필요
+}
     // 다른 API 엔드포인트가 필요하면 여기에 추가합니다.
     // @GET("/member/info")
     // fun getMemberInfo(@Header("Authorization") token: String): Call<MsgEntity>
-}
