@@ -77,19 +77,19 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
 
 
-    // ❌ [제거] StompProtocolAndroid 및 모든 RxJava 의존성
-    // implementation("com.github.NaikSoftware:StompProtocolAndroid:1.6.6")
-    // implementation("io.reactivex.rxjava3:rxandroid:3.0.0")
-    // implementation("io.reactivex.rxjava3:rxjava:3.1.6")
-    // implementation("io.reactivex.rxjava2:rxandroid:2.1.1")
-    // implementation("io.reactivex.rxjava2:rxjava:2.2.21")
+    implementation("com.kakao.sdk:v2-user:2.21.0")
 
-    // ✅ [추가] Krossbow STOMP 클라이언트
-    implementation("org.hildan.krossbow:krossbow-stomp-websocket:3.1.0")
+    implementation("com.kakao.maps.open:android:2.12.17")
 
-    // ✅ [추가] Kotlin Coroutines (비동기 처리)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
+    // ✅ [추가] Gson (JSON 직렬화/역직렬화용) - 유지
+    implementation("com.google.code.gson:gson:2.10.1")
 
-    // Gson과 OkHttp는 유지
+    // Retrofit 및 OkHttp 의존성 - 유지
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    // OkHttp (WebSocket 사용을 위해 필요)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0") // 🚨 OkHttp 추가
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    implementation("com.github.bumptech.glide:glide:4.15.1")
 }

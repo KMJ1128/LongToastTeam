@@ -11,7 +11,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 object RetrofitClient {
 
     // 🚨 중요: 여기에 Spring Boot 서버의 주소를 입력하세요!
-    private const val BASE_URL = "http://172.16.102.62:8080/"
+    private const val BASE_URL = "http://192.168.0.211:8080/"
     //김민재 로컬PC http://192.168.0.211:8080
 
     // 🚨 1. [추가됨] Authorization 헤더를 자동으로 추가하는 Interceptor
