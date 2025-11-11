@@ -15,7 +15,7 @@ import retrofit2.http.POST
  * Retrofit2에서 사용됩니다.
  */
 interface ApiService {
-
+    
     // 서버의 POST /kakao/login/token 엔드포인트와 매칭됩니다.
     // 요청 본문으로 KakaoTokenRequest를 보내고, 응답으로 MsgEntity를 받습니다.
     @POST("/kakao/login/token")
