@@ -22,7 +22,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BilBil"
         android:usesCleartextTraffic="true">
-
+        <activity
+            android:name=".AuthTokenManager"
+            android:exported="false" />
         <activity
             android:name=".ChatRoomActivity"
             android:exported="false" />

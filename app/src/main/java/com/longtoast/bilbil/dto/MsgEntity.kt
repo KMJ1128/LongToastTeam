@@ -1,9 +1,13 @@
+// com.longtoast.bilbil.dto/MsgEntity.kt
+
 package com.longtoast.bilbil.dto
 
-// 🚨 <T>를 추가하여 제네릭 클래스로 만듭니다.
+import com.google.gson.annotations.SerializedName
+
 data class MsgEntity(
-    val success: Boolean,
     val message: String,
-    // data 필드는 MemberTokenResponse 타입 또는 null을 가질 수 있습니다.
-    val data: MemberTokenResponse?
+    // 💡 핵심: data 필드를 Any (Kotlin의 일반적인 Object 타입)로 정의하여
+    // Gson이 이 필드를 Map 또는 List 등 제네릭 타입으로 파싱하도록 유도합니다.
+    @SerializedName("data")
+    val data: Any?
 )

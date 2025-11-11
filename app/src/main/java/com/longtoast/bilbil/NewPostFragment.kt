@@ -1,3 +1,4 @@
+// com.longtoast.bilbil.NewPostFragment.kt
 package com.longtoast.bilbil
 
 import android.content.Intent
@@ -18,6 +19,10 @@ import com.longtoast.bilbil.dto.ProductCreateRequest
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+
+// 💡 [핵심 수정] Java/Kotlin List 타입 충돌 해결을 위한 Import (이전 시도와 다름)
+import kotlin.collections.List as KList
+import java.util.List as JList
 
 // 🚨 클래스 정의를 하나로 통합합니다.
 class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
@@ -83,8 +88,6 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
 
         // 6. 대여 상태 토글 그룹 리스너 설정
         setupStatusToggleGroup()
-
-        // 나머지 리스너 설정은 여기에 추가됩니다.
     }
 
     // PriceUnitListener 인터페이스 구현 (팝업에서 결과를 받아옴)
@@ -169,14 +172,16 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
 
         // 3. 데이터 변환 및 DTO 생성
         val price = rentalPriceString.toIntOrNull() ?: 0
-        val deposit = depositText.toIntOrNull()
+        val deposit: Int? = depositText.toIntOrNull()
 
         // TODO: 이미지 업로드 로직으로 얻은 실제 URL 목록으로 대체해야 합니다. (임시 데이터 사용)
-        val imageUrls = listOf(
+        // 💡 [수정] Kotlin List 타입이 DTO 생성자에 전달되도록 수정
+        val imageUrls: KList<String> = listOf(
             "https://bilbil-bucket.s3.ap-northeast-2.amazonaws.com/temp_image1.jpg",
             "https://bilbil-bucket.s3.ap-northeast-2.amazonaws.com/temp_image2.jpg"
         )
 
+        // DTO 정의가 (val imageUrls: List<String>)일 때, Kotlin List를 전달
         val request = ProductCreateRequest(
             title = title,
             price = price,
@@ -189,6 +194,7 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         )
 
         // 4. Retrofit 서버 통신 실행
+        // 이 시점에서 오류가 발생한다면, DTO의 필드명/타입이 백엔드와 불일치하는 경우 외에는 없음.
         RetrofitClient.getApiService().createProduct(request)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {

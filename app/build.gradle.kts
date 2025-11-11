@@ -75,17 +75,21 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
- //dd
+
 
     implementation("com.kakao.sdk:v2-user:2.21.0")
-    // Retrofit2 (HTTP 클라이언트)dd
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
-    //kakao map
     implementation("com.kakao.maps.open:android:2.12.17")
 
-    // 💡 추가: 원형 프로필 이미지 뷰 (CircleImageView) 라이브러리 추가
-    implementation("de.hdodenhof:circleimageview:3.1.0")
+    // ✅ [추가] Gson (JSON 직렬화/역직렬화용) - 유지
+    implementation("com.google.code.gson:gson:2.10.1")
 
+    // Retrofit 및 OkHttp 의존성 - 유지
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    // OkHttp (WebSocket 사용을 위해 필요)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0") // 🚨 OkHttp 추가
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    implementation("com.github.bumptech.glide:glide:4.15.1")
 }
