@@ -34,7 +34,7 @@ class ChatRoomActivity : AppCompatActivity() {
 
     private val chatMessages = mutableListOf<ChatMessage>()
 
-    private val WEBSOCKET_URL = "ws://192.168.0.211:8080/stomp/chat"
+    private val WEBSOCKET_URL = BuildConfig.WebSocket_URL
     private val roomId by lazy { intent.getStringExtra("ROOM_ID") ?: "1" }
 
     // 💡 [수정] senderId는 String으로 유지. AuthTokenManager가 Int를 반환하므로 String으로 변환.
