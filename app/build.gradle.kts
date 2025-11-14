@@ -92,4 +92,7 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     implementation("com.github.bumptech.glide:glide:4.15.1")
+
+    // ✅ [추가] 네이버 아이디 로그인 SDK (필수)
+    implementation("com.navercorp.nid:oauth:5.7.0")
 }

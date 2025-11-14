@@ -17,12 +17,16 @@ import com.longtoast.bilbil.dto.KakaoTokenRequest // DTO import
 import com.longtoast.bilbil.dto.MsgEntity // DTO import
 import com.kakao.sdk.user.UserApiClient // 카카오 SDK import
 import com.kakao.sdk.auth.model.OAuthToken // 카카오 토큰 모델
+import com.navercorp.nid.NaverIdLoginSDK // ✅ 이 줄을 추가합니다.
+import com.navercorp.nid.oauth.OAuthLoginCallback // ✅ 이 줄을 추가합니다.
 import com.longtoast.bilbil.dto.MemberTokenResponse
+import com.longtoast.bilbil.dto.NaverTokenRequest
 import com.google.gson.Gson // 🚨 Gson 임포트 추가
 import java.security.MessageDigest
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -85,6 +89,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
+
     private fun handleKakaoLoginResult(token: OAuthToken?, error: Throwable?) {
         if (error != null) {
             Log.e("KAKAO", "카카오 로그인 실패", error)
@@ -95,6 +101,112 @@ class MainActivity : AppCompatActivity() {
             sendTokenToServer(token.accessToken)
         }
     }
+
+
+
+
+    private fun startNaverLogin() {
+        // 🚨 [Naver SDK 실제 연동 코드]
+        NaverIdLoginSDK.authenticate(this, object : OAuthLoginCallback {
+            override fun onSuccess() {
+                val naverAccessToken = NaverIdLoginSDK.getAccessToken()
+                naverAccessToken?.let {
+                    Log.i("NAVER", "네이버 로그인 성공, Access Token 획득")
+                    // 서버로 토큰 전송 (이미 구현된 함수)
+                    sendNaverTokenToServer(it)
+                }
+            }
+            override fun onFailure(httpStatus: Int, message: String) {
+                Log.e("NAVER", "네이버 로그인 실패: $message")
+                Toast.makeText(this@MainActivity, "네이버 로그인 실패: $message", Toast.LENGTH_LONG).show()
+            }
+            override fun onError(errorCode: Int, message: String) {
+                Log.e("NAVER", "네이버 로그인 에러: $message")
+            }
+            fun onCancel() {
+                Log.i("NAVER", "네이버 로그인 취소")
+            }
+        })
+    }
+
+    /**
+     * 네이버 Access Token을 서버로 전송하고 인증 응답을 처리하는 함수
+     */
+    private fun sendNaverTokenToServer(naverAccessToken: String) {
+        val requestBody = NaverTokenRequest(naverAccessToken)
+        val call = RetrofitClient.getApiService().loginWithNaverToken(requestBody)
+
+        call.enqueue(object : Callback<MsgEntity> {
+            override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                handleServerAuthResponse(response)
+            }
+
+            override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                Log.e("SERVER_AUTH_NAVER", "서버 통신 오류", t)
+                Toast.makeText(this@MainActivity, "로컬호스트 서버 접속 오류", Toast.LENGTH_LONG).show()
+            }
+        })
+    }
+
+    // -----------------------------------------------------
+    // ✅ [추가/재활용] 서버 인증 응답 공통 처리 함수
+    // -----------------------------------------------------
+    private fun handleServerAuthResponse(response: Response<MsgEntity>) {
+        if (response.isSuccessful && response.body() != null) {
+
+            val rawData = response.body()?.data
+            val gson = Gson()
+            val memberTokenResponse: MemberTokenResponse? = try {
+                gson.fromJson(gson.toJsonTree(rawData), MemberTokenResponse::class.java)
+            } catch (e: Exception) {
+                Log.e("SERVER_AUTH", "MemberTokenResponse 파싱 실패", e)
+                null
+            }
+
+            if (memberTokenResponse != null) {
+                Log.d("SERVER_AUTH", "✅ 서버 인증 성공! 응답: $memberTokenResponse")
+
+                if (memberTokenResponse.serviceToken != null) {
+                    AuthTokenManager.saveToken(memberTokenResponse.serviceToken)
+                    // userId 저장 (Long을 Int로 변환해서 저장)
+                    AuthTokenManager.saveUserId(memberTokenResponse.userId.toInt())
+                } else {
+                    Log.w("SERVER_AUTH", "⚠️ 서버가 serviceToken을 null로 보냈습니다. (로그인은 성공)")
+                }
+
+                // 주소 정보 확인 및 화면 이동
+                val isAddressMissing = memberTokenResponse.address.isNullOrEmpty() ||
+                        memberTokenResponse.locationLatitude == null ||
+                        memberTokenResponse.locationLongitude == null
+
+                if (isAddressMissing) {
+                    Log.d("SERVER_AUTH", "🚨 주소 정보 누락! 지도 설정 필요.")
+                    val intent = Intent(this@MainActivity, SettingMapActivity::class.java).apply {
+                        putExtra("USER_NICKNAME", memberTokenResponse.nickname)
+                        putExtra("SETUP_ADDRESS_NEEDED", true)
+                    }
+                    startActivity(intent)
+                } else {
+                    Log.d("SERVER_AUTH", "✅ 로그인 성공! 기존 회원 메인 화면 이동.")
+                    Toast.makeText(this@MainActivity, "${memberTokenResponse.nickname}님 환영합니다.", Toast.LENGTH_LONG).show()
+                    val intent = Intent(this@MainActivity, HomeHostActivity::class.java)
+                    startActivity(intent)
+                    finish() // 로그인 화면 종료
+                }
+
+            } else {
+                Log.e("SERVER_AUTH", "서버 응답 data를 MemberTokenResponse로 변환 실패. rawData: $rawData")
+                Toast.makeText(this@MainActivity, "서버 인증 실패 (응답 형식 오류)", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            Log.e("SERVER_AUTH", "서버 응답 실패: ${response.code()}. 메시지: ${response.errorBody()?.string()}")
+            Toast.makeText(this@MainActivity, "서버 인증 실패: ${response.code()}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+
+
+
 
     // 서버 통신 (Retrofit 사용)
     private fun sendTokenToServer(kakaoAccessToken: String) {
@@ -168,9 +280,5 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this@MainActivity, "로컬호스트 서버 접속 오류", Toast.LENGTH_LONG).show()
             }
         })
-    }
-
-    private fun startNaverLogin() {
-        // ... (네이버 로그인 로직은 나중에 구현)
     }
 }

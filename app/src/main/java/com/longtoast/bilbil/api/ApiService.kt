@@ -7,6 +7,7 @@ import com.longtoast.bilbil.dto.LocationRequest
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ProductCreateRequest
 import com.longtoast.bilbil.dto.ChatMessage
+import com.longtoast.bilbil.dto.NaverTokenRequest
 import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.POST
@@ -22,6 +23,9 @@ interface ApiService {
      * ✅ [핵심 수정] 상품 생성 API.
      * NewPostFragment에서 호출하는 메서드 정의가 명확하게 포함되어야 합니다.
      */
+    @GET("products/myitems")
+    fun getMyProducts(): Call<MsgEntity>
+
     @POST("writeproduct/create")
     fun createProduct(
         @Body request: ProductCreateRequest
@@ -40,4 +44,7 @@ interface ApiService {
 
     @GET("/api/chat/history/{roomId}")
     fun getChatHistory(@Path("roomId") roomId: String): Call<MsgEntity>
+
+    @POST("/naver/login/token")
+    fun loginWithNaverToken(@Body request: NaverTokenRequest): Call<MsgEntity>
 }

@@ -82,6 +82,21 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <activity
+            android:name="com.navercorp.nid.oauth.activity.NidOAuthActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="navera7CXZxOYZfr0Oz_swkzL" android:host="oauth" />
+
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>
