@@ -28,6 +28,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
+
     fun getHashKey(context: Context) {
         try {
             val info = context.packageManager.getPackageInfo(
@@ -50,6 +51,18 @@ class MainActivity : AppCompatActivity() {
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // 🔑 [핵심 코드] 앱 시작 시 JWT 토큰 상태 확인
+        val token = AuthTokenManager.getToken()
+
+        if (token != null) {
+            // 토큰이 존재할 경우 (길기 때문에 일부만 출력)
+            val shortToken = token.substring(0, Math.min(token.length, 20)) + "..."
+            Log.i("APP_AUTH_STATE", "✅ JWT 토큰 존재: $shortToken")
+        } else {
+            // 토큰이 존재하지 않을 경우
+            Log.w("APP_AUTH_STATE", "⚠️ JWT 토큰 없음. 로그인 필요.")
+        }
 
         getHashKey(this)
         setupLoginButtons()
