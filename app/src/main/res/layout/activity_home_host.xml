@@ -19,6 +19,21 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- 1. [신규 추가] 채팅 테스트용 플로팅 버튼 -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_test_chat"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="16dp"
+        android:contentDescription="채팅방 생성 테스트"
+        android:src="@drawable/ic_message"
+        app:fabSize="mini"
+        app:layout_constraintBottom_toTopOf="@id/fab_new_post"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:tint="@android:color/white" />
+
+    <!-- 2. [수정] 기존 FAB의 layout_margin 값 수정 (필요시) -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_new_post"
         android:layout_width="wrap_content"
