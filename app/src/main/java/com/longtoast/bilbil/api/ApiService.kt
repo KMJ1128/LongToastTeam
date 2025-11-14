@@ -1,5 +1,6 @@
 package com.longtoast.bilbil.api
 
+import com.longtoast.bilbil.ProductListResponse
 import com.longtoast.bilbil.dto.KakaoTokenRequest
 import com.longtoast.bilbil.dto.LocationRequest
 import com.longtoast.bilbil.dto.MsgEntity
@@ -7,7 +8,9 @@ import com.longtoast.bilbil.dto.ProductCreateRequest // 🚨 추가
 import com.longtoast.bilbil.dto.MemberTokenResponse // 💡 MemberTokenResponse import 추가
 import retrofit2.Call
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 /**
  * 서버와의 통신을 위한 API 인터페이스
@@ -37,4 +40,16 @@ interface ApiService {
     // 다른 API 엔드포인트가 필요하면 여기에 추가합니다.
     // @GET("/member/info")
     // fun getMemberInfo(@Header("Authorization") token: String): Call<MsgEntity>
+
+
+
+    @GET("/products/lists")
+    suspend fun getProductLists(
+        // title: 사용자가 입력한 검색어
+        @Query("title") title: String?,
+        // category: 카테고리 필터링
+        @Query("category") category: String?,
+        // sort: 정렬 기준 (예: "latest", "price_asc")
+        @Query("sort") sort: String?
+    ): retrofit2.Response<ProductListResponse.ProductListResponse> // Coroutine과 함께 사용하기 위해 Response<T>를 반환합니다.
 }
