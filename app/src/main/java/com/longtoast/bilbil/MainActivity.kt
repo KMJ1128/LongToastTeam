@@ -12,13 +12,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.longtoast.bilbil.databinding.ActivityMainBinding
-import com.longtoast.bilbil.api.RetrofitClient // RetrofitClient import
-import com.longtoast.bilbil.dto.KakaoTokenRequest // DTO import
-import com.longtoast.bilbil.dto.MsgEntity // DTO import
-import com.kakao.sdk.user.UserApiClient // 카카오 SDK import
-import com.kakao.sdk.auth.model.OAuthToken // 카카오 토큰 모델
+import com.longtoast.bilbil.api.RetrofitClient
+import com.longtoast.bilbil.dto.KakaoTokenRequest
+import com.longtoast.bilbil.dto.MsgEntity
+import com.kakao.sdk.user.UserApiClient
+import com.kakao.sdk.auth.model.OAuthToken
 import com.longtoast.bilbil.dto.MemberTokenResponse
-import com.google.gson.Gson // 🚨 Gson 임포트 추가
+import com.google.gson.Gson
 import java.security.MessageDigest
 import retrofit2.Call
 import retrofit2.Callback
@@ -28,7 +28,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
-    // ... (getHashKey 함수는 그대로 둠) ...
     fun getHashKey(context: Context) {
         try {
             val info = context.packageManager.getPackageInfo(
@@ -103,17 +102,13 @@ class MainActivity : AppCompatActivity() {
 
         call.enqueue(object : Callback<MsgEntity> {
 
-            // -------------------------------------------------
-            // 🚨 [수정됨] onResponse 함수
-            // -------------------------------------------------
             override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                 if (response.isSuccessful && response.body() != null) {
 
-                    // 1. [수정] data 필드를 MemberTokenResponse로 안전하게 파싱
+                    // 1. data 필드를 MemberTokenResponse로 안전하게 파싱
                     val rawData = response.body()?.data
                     val gson = Gson()
                     val memberTokenResponse: MemberTokenResponse? = try {
-                        // GSON을 사용해 rawData(Map)를 MemberTokenResponse 객체로 변환
                         gson.fromJson(gson.toJsonTree(rawData), MemberTokenResponse::class.java)
                     } catch (e: Exception) {
                         Log.e("SERVER_AUTH", "MemberTokenResponse 파싱 실패", e)
@@ -123,29 +118,33 @@ class MainActivity : AppCompatActivity() {
                     if (memberTokenResponse != null) {
                         Log.d("SERVER_AUTH", "✅ 서버 인증 성공! 응답: $memberTokenResponse")
 
-                        // 2. -------------------------------------------------
-                        //    🚨 [핵심] 서비스 토큰 저장
-                        // -------------------------------------------------
-                        if (memberTokenResponse.serviceToken != null) {
-                            AuthTokenManager.saveToken(memberTokenResponse.serviceToken)
-                        } else {
-                            Log.w("SERVER_AUTH", "⚠️ 서버가 serviceToken을 null로 보냈습니다. (로그인은 성공)")
-                        }
-                        // -------------------------------------------------
+                        val tempServiceToken = memberTokenResponse.serviceToken
+                        val tempUserId = memberTokenResponse.userId.toInt() // Long -> Int 변환
 
-                        // 3. 주소 정보 확인 및 화면 이동
-                        val isAddressMissing = memberTokenResponse.address.isNullOrEmpty() ||
-                                memberTokenResponse.locationLatitude == null ||
-                                memberTokenResponse.locationLongitude == null
+                        // 2. 주소 정보 확인 및 화면 이동 (회원가입/로그인 구분)
+                        // 🔑 [핵심 수정] nickname 필드가 null인지 (혹은 임시값인지) 확인하여 신규 회원 여부를 판단합니다.
+                        // 현재 DB 스키마는 nickname NOT NULL이므로, address/위치 정보가 null인지 확인합니다.
+                        val isSetupNeeded = memberTokenResponse.address.isNullOrEmpty()
 
-                        if (isAddressMissing) {
-                            Log.d("SERVER_AUTH", "🚨 주소 정보 누락! 지도 설정 필요.")
+                        if (isSetupNeeded) {
+                            Log.d("SERVER_AUTH", "🚨 신규 회원 또는 주소 정보 누락! 지도 설정 필요.")
+
+                            // 💡 SettingMapActivity 호출 시 JWT 및 ID, SETUP_MODE=true 전달
                             val intent = Intent(this@MainActivity, SettingMapActivity::class.java).apply {
                                 putExtra("USER_NICKNAME", memberTokenResponse.nickname)
-                                putExtra("SETUP_ADDRESS_NEEDED", true)
+                                putExtra("SETUP_MODE", true) // 🚨 초기 설정 모드 플래그
+                                putExtra("SERVICE_TOKEN", tempServiceToken) // 🚨 JWT 토큰 전달
+                                putExtra("USER_ID", tempUserId) // 🚨 User ID 전달
                             }
                             startActivity(intent)
+
                         } else {
+                            // 💡 [기존 회원] 주소 설정이 완료된 경우, 바로 토큰 저장 후 메인 화면으로 이동
+                            if (tempServiceToken != null) {
+                                AuthTokenManager.saveToken(tempServiceToken)
+                                AuthTokenManager.saveUserId(tempUserId)
+                            }
+
                             Log.d("SERVER_AUTH", "✅ 로그인 성공! 기존 회원 메인 화면 이동.")
                             Toast.makeText(this@MainActivity, "${memberTokenResponse.nickname}님 환영합니다.", Toast.LENGTH_LONG).show()
                             val intent = Intent(this@MainActivity, HomeHostActivity::class.java)
