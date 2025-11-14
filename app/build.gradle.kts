@@ -24,7 +24,7 @@ android {
         versionName = "1.0"
 
         //웹소켓 주소ss
-        buildConfigField("String", "WebSocket_URL", """ "ws://172.16.102.73:8080/stomp/chat" """)
+        buildConfigField("String", "WebSocket_URL", """ "ws://192.168.0.211:8080/stomp/chat" """)
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
