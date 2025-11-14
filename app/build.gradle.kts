@@ -23,7 +23,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        //웹소켓 주소
+        //웹소켓 주소ss
         buildConfigField("String", "WebSocket_URL", """ "ws://192.168.0.211:8080/stomp/chat" """)
 
 
