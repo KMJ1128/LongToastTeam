@@ -7,7 +7,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
 import android.util.Log
 import android.widget.Button
 import android.widget.EditText
@@ -21,8 +20,14 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.longtoast.bilbil.api.RetrofitClient // 💡 RetrofitClient Import
+import com.longtoast.bilbil.dto.MemberDTO // 💡 MemberDTO Import
+import com.longtoast.bilbil.dto.MsgEntity // 💡 MsgEntity Import
 import java.io.File
 import java.io.IOException
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response // 💡 Retrofit Response
 
 class SettingProfileActivity : AppCompatActivity() {
 
@@ -40,6 +45,10 @@ class SettingProfileActivity : AppCompatActivity() {
     private var longitude: Double = 0.0
     private var address: String = ""
     private var userNickname: String = ""
+
+    // 💡 [핵심] MainActivity -> SettingMapActivity를 거쳐 전달받은 JWT 정보
+    private var serviceToken: String? = null
+    private var userId: Int = 0
 
     private val CAMERA_PERMISSION_CODE = 100
 
@@ -86,8 +95,14 @@ class SettingProfileActivity : AppCompatActivity() {
         address = intent.getStringExtra("ADDRESS") ?: ""
         userNickname = intent.getStringExtra("USER_NICKNAME") ?: ""
 
+        // 💡 [핵심 추가] SettingMapActivity에서 전달받은 JWT와 User ID
+        serviceToken = intent.getStringExtra("SERVICE_TOKEN")
+        userId = intent.getIntExtra("USER_ID", 0)
+
+
         Log.d("SettingProfile", "받은 데이터 - 위도: $latitude, 경도: $longitude")
         Log.d("SettingProfile", "주소: $address, 닉네임: $userNickname")
+        Log.d("SettingProfile", "인증 정보 - USER_ID: $userId, SERVICE_TOKEN: ${serviceToken?.substring(0, 10)}...")
     }
 
     private fun initViews() {
@@ -220,42 +235,65 @@ class SettingProfileActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * 완료 버튼 클릭 시, 서버 통신 후 홈 화면으로 이동하며 스택 정리
+     */
     private fun onCompleteButtonClicked() {
         val nickname = editNickname.text.toString().trim()
 
         // 닉네임 유효성 검사
-        if (nickname.isEmpty()) {
-            Toast.makeText(this, "닉네임을 입력해주세요", Toast.LENGTH_SHORT).show()
-            editNickname.requestFocus()
-            return
-        }
-
-        if (nickname.length < 2) {
+        if (nickname.isEmpty() || nickname.length < 2) {
             Toast.makeText(this, "닉네임은 2자 이상이어야 합니다", Toast.LENGTH_SHORT).show()
             editNickname.requestFocus()
             return
         }
 
-        Log.d("PROFILE_COMPLETE", "닉네임: $nickname")
-        Log.d("PROFILE_COMPLETE", "위치: $address ($latitude, $longitude)")
-        Log.d("PROFILE_COMPLETE", "프로필 이미지: ${if (profileBitmap != null) "있음" else "없음"}")
-
-        // TODO: 나중에 서버로 데이터 전송
-        // - nickname
-        // - latitude, longitude, address
-        // - profileBitmap (이미지를 Base64 또는 Multipart로 변환)
-
-        Toast.makeText(this, "프로필 설정이 완료되었습니다!", Toast.LENGTH_SHORT).show()
-
-        // HostHomeActivity로 이동
-        val intent = Intent(this, HomeHostActivity::class.java).apply {
-            // 필요한 데이터 전달 (예: 서비스 토큰 등)
-            putExtra("NICKNAME", nickname)
-            putExtra("ADDRESS", address)
+        if (serviceToken == null || userId == 0) {
+            Log.e("PROFILE_COMPLETE", "🚨 JWT 또는 USER_ID 누락. 홈 이동 실패.")
+            Toast.makeText(this, "인증 정보가 부족합니다. 다시 로그인해주세요.", Toast.LENGTH_LONG).show()
+            startActivity(Intent(this, MainActivity::class.java))
+            finishAffinity()
+            return
         }
-        startActivity(intent)
 
-        // 이전 Activity들 모두 종료 (뒤로가기로 로그인 화면 안 나오게)
-        finishAffinity()
+        // 1. DTO 생성 (백엔드 MemberDTO의 8개 필드를 모두 채워서 보냅니다.)
+        val updateRequest = MemberDTO(
+            id = userId,
+            nickname = nickname,
+            address = address,
+            locationLatitude = latitude,
+            locationLongitude = longitude,
+            creditScore = 720, // 더미 값 (MemberDTO의 모든 필드 수를 맞추기 위함)
+            profileImageUrl = null, // 더미 값
+            createdAt = null // 더미 값
+        )
+
+        // 2. 🔑 [핵심 추가] API 호출: 프로필 업데이트 (DB 저장)
+        RetrofitClient.getApiService().updateProfile(updateRequest)
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (response.isSuccessful) {
+                        // 3. 성공 시, 토큰 저장 및 홈 화면 이동
+                        AuthTokenManager.saveToken(serviceToken!!)
+                        AuthTokenManager.saveUserId(userId)
+
+                        Log.d("PROFILE_COMPLETE", "✅ 프로필 업데이트 및 JWT 저장 완료.")
+                        Toast.makeText(this@SettingProfileActivity, "프로필 설정 및 저장 완료!", Toast.LENGTH_SHORT).show()
+
+                        val intent = Intent(this@SettingProfileActivity, HomeHostActivity::class.java)
+                        startActivity(intent)
+                        finishAffinity()
+                    } else {
+                        val errorBody = response.errorBody()?.string()
+                        Log.e("PROFILE_API", "프로필 업데이트 실패: ${response.code()}, 메시지: $errorBody")
+                        Toast.makeText(this@SettingProfileActivity, "닉네임 등록 실패: ${response.code()}", Toast.LENGTH_LONG).show()
+                    }
+                }
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Log.e("PROFILE_API", "서버 통신 오류", t)
+                    Toast.makeText(this@SettingProfileActivity, "서버 연결 오류", Toast.LENGTH_LONG).show()
+                }
+            })
     }
 }

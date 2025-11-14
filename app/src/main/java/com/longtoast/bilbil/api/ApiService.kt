@@ -7,10 +7,12 @@ import com.longtoast.bilbil.dto.LocationRequest
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ProductCreateRequest
 import com.longtoast.bilbil.dto.ChatMessage
+import com.longtoast.bilbil.dto.MemberDTO // 💡 MemberDTO Import
 import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.POST
 import retrofit2.http.GET
+import retrofit2.http.PUT // 💡 PUT 메서드 Import
 import retrofit2.http.Path
 
 interface ApiService {
@@ -18,10 +20,6 @@ interface ApiService {
     @POST("/kakao/login/token")
     fun loginWithKakaoToken(@Body request: KakaoTokenRequest): Call<MsgEntity>
 
-    /**
-     * ✅ [핵심 수정] 상품 생성 API.
-     * NewPostFragment에서 호출하는 메서드 정의가 명확하게 포함되어야 합니다.
-     */
     @POST("writeproduct/create")
     fun createProduct(
         @Body request: ProductCreateRequest
@@ -40,4 +38,10 @@ interface ApiService {
 
     @GET("/api/chat/history/{roomId}")
     fun getChatHistory(@Path("roomId") roomId: String): Call<MsgEntity>
+
+    /**
+     * ✅ [핵심 추가] 프로필 업데이트 API (MemberController의 PUT /member/profile과 일치)
+     */
+    @PUT("member/profile")
+    fun updateProfile(@Body memberDTO: MemberDTO): Call<MsgEntity> // 💡 @Body 파라미터와 반환 타입 일치
 }

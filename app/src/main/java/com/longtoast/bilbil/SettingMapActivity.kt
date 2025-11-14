@@ -48,9 +48,22 @@ class SettingMapActivity : AppCompatActivity() {
     private val LOCATION_PERMISSION_REQUEST_CODE = 1000
     private val KAKAO_REST_API_KEY = "7a3a72c388ba6dfc6df8ca9715f284ff"
 
+    // 💡 [추가] 초기 설정 모드 플래그 및 JWT 정보 저장을 위한 변수
+    private var isSetupMode: Boolean = false
+    private var serviceToken: String? = null
+    private var userId: Int = 0
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_setting_map)
+
+        // 💡 [핵심 추가] Intent에서 SETUP_MODE 플래그와 JWT 정보를 받습니다.
+        isSetupMode = intent.getBooleanExtra("SETUP_MODE", false)
+        serviceToken = intent.getStringExtra("SERVICE_TOKEN")
+        userId = intent.getIntExtra("USER_ID", 0)
+
+        Log.d("SettingMap", "받은 정보: SETUP_MODE=$isSetupMode, USER_ID=$userId") // 디버깅용
 
         initViews()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -65,6 +78,11 @@ class SettingMapActivity : AppCompatActivity() {
         buttonCurrentLocation = findViewById(R.id.button_current_location)
         buttonConfirm = findViewById(R.id.button_confirm_location)
         textSelectedAddress = findViewById(R.id.text_selected_address)
+
+        // 💡 설정 모드가 아닐 때 완료 버튼 텍스트를 일반적인 완료로 변경합니다.
+        if (!isSetupMode) {
+            buttonConfirm.text = "위치 설정 완료"
+        }
     }
 
     private fun setupListeners() {
@@ -233,16 +251,39 @@ class SettingMapActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * 위치 확인 버튼 클릭 시 동작 분기
+     */
     private fun onLocationConfirmed() {
+        // 🚨 [핵심 수정] Intent에서 받은 JWT 및 User ID를 사용합니다.
         val receivedNickname = intent.getStringExtra("USER_NICKNAME")
-        val newIntent = Intent(this, SettingProfileActivity::class.java).apply {
-            putExtra("LATITUDE", currentLatitude)
-            putExtra("LONGITUDE", currentLongitude)
-            putExtra("ADDRESS", currentAddress)
-            putExtra("USER_NICKNAME", receivedNickname)
+
+        if (isSetupMode) {
+            // 💡 회원가입 초기 설정 모드일 때: SettingProfileActivity로 이동 (JWT/ID 전달)
+            val newIntent = Intent(this, SettingProfileActivity::class.java).apply {
+                putExtra("LATITUDE", currentLatitude)
+                putExtra("LONGITUDE", currentLongitude)
+                putExtra("ADDRESS", currentAddress)
+                putExtra("USER_NICKNAME", receivedNickname)
+
+                // 💡 [핵심 전달] MainActivity에서 받은 JWT와 User ID를 SettingProfileActivity로 전달
+                putExtra("SERVICE_TOKEN", serviceToken)
+                putExtra("USER_ID", userId)
+            }
+            startActivity(newIntent)
+            finish()
+        } else {
+            // 💡 일반적인 위치 설정 모드일 때: 결과를 호출한 Activity (예: NewPostFragment)로 반환
+            Toast.makeText(this, "위치 설정이 완료되었습니다.", Toast.LENGTH_SHORT).show()
+
+            // 결과를 Intent에 담아 반환
+            val resultIntent = Intent()
+            resultIntent.putExtra("LATITUDE", currentLatitude)
+            resultIntent.putExtra("LONGITUDE", currentLongitude)
+            resultIntent.putExtra("ADDRESS", currentAddress)
+            setResult(RESULT_OK, resultIntent)
+            finish()
         }
-        startActivity(newIntent)
-        finish()
     }
 
     override fun onResume() {
