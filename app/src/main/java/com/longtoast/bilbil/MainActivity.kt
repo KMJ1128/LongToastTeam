@@ -28,7 +28,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
-
     fun getHashKey(context: Context) {
         try {
             val info = context.packageManager.getPackageInfo(
@@ -49,20 +48,31 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        // 🔑 [핵심 코드] 앱 시작 시 JWT 토큰 상태 확인
+        // 💡 [임시 조치] 신규 회원가입 플로우 테스트를 위해 저장된 토큰 강제 초기화
+        /*if (AuthTokenManager.getToken() != null) {
+            AuthTokenManager.clearToken()
+            AuthTokenManager.clearUserId()
+            Log.w("JWT_CLEAN", "JWT 토큰 강제 초기화 완료. 신규 회원가입 플로우 시작.")
+        }*/
+        // 1. JWT 토큰 상태 확인 및 자동 이동 (가장 먼저 실행)
         val token = AuthTokenManager.getToken()
 
         if (token != null) {
-            // 토큰이 존재할 경우 (길기 때문에 일부만 출력)
             val shortToken = token.substring(0, Math.min(token.length, 20)) + "..."
-            Log.i("APP_AUTH_STATE", "✅ JWT 토큰 존재: $shortToken")
-        } else {
-            // 토큰이 존재하지 않을 경우
-            Log.w("APP_AUTH_STATE", "⚠️ JWT 토큰 없음. 로그인 필요.")
+            Log.i("APP_AUTH_STATE", "✅ JWT 토큰 존재: $shortToken. 홈 화면으로 이동.")
+
+            // 🔑 토큰이 유효하면 바로 홈 화면으로 이동
+            val intent = Intent(this, HomeHostActivity::class.java)
+            startActivity(intent)
+            finish()
+            return // 이후 로그인 UI 로직을 건너뜁니다.
         }
+
+        // 2. 토큰이 없는 경우에만 로그인 UI 로드
+        Log.w("APP_AUTH_STATE", "⚠️ JWT 토큰 없음. 로그인 UI 로드.")
+
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         getHashKey(this)
         setupLoginButtons()
@@ -135,19 +145,17 @@ class MainActivity : AppCompatActivity() {
                         val tempUserId = memberTokenResponse.userId.toInt() // Long -> Int 변환
 
                         // 2. 주소 정보 확인 및 화면 이동 (회원가입/로그인 구분)
-                        // 🔑 [핵심 수정] nickname 필드가 null인지 (혹은 임시값인지) 확인하여 신규 회원 여부를 판단합니다.
-                        // 현재 DB 스키마는 nickname NOT NULL이므로, address/위치 정보가 null인지 확인합니다.
                         val isSetupNeeded = memberTokenResponse.address.isNullOrEmpty()
 
                         if (isSetupNeeded) {
                             Log.d("SERVER_AUTH", "🚨 신규 회원 또는 주소 정보 누락! 지도 설정 필요.")
 
-                            // 💡 SettingMapActivity 호출 시 JWT 및 ID, SETUP_MODE=true 전달
+                            // 🔑 SettingMapActivity 호출 시 JWT 및 ID, SETUP_MODE=true 전달
                             val intent = Intent(this@MainActivity, SettingMapActivity::class.java).apply {
                                 putExtra("USER_NICKNAME", memberTokenResponse.nickname)
-                                putExtra("SETUP_MODE", true) // 🚨 초기 설정 모드 플래그
-                                putExtra("SERVICE_TOKEN", tempServiceToken) // 🚨 JWT 토큰 전달
-                                putExtra("USER_ID", tempUserId) // 🚨 User ID 전달
+                                putExtra("SETUP_MODE", true)
+                                putExtra("SERVICE_TOKEN", tempServiceToken)
+                                putExtra("USER_ID", tempUserId)
                             }
                             startActivity(intent)
 

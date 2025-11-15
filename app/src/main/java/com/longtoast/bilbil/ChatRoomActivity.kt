@@ -34,7 +34,7 @@ class ChatRoomActivity : AppCompatActivity() {
 
     private val chatMessages = mutableListOf<ChatMessage>()
 
-    private val WEBSOCKET_URL = "ws://172.16.102.73:8080/stomp/chat"
+    private val WEBSOCKET_URL = "ws://192.168.0.211:8080/stomp/chat"
     private val roomId by lazy { intent.getStringExtra("ROOM_ID") ?: "1" }
 
     private val senderId: String by lazy {

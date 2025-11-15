@@ -20,14 +20,20 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.longtoast.bilbil.api.RetrofitClient // 💡 RetrofitClient Import
-import com.longtoast.bilbil.dto.MemberDTO // 💡 MemberDTO Import
-import com.longtoast.bilbil.dto.MsgEntity // 💡 MsgEntity Import
+import com.longtoast.bilbil.api.ApiService
+import com.longtoast.bilbil.dto.MemberDTO
+import com.longtoast.bilbil.dto.MsgEntity
 import java.io.File
 import java.io.IOException
 import retrofit2.Call
 import retrofit2.Callback
-import retrofit2.Response // 💡 Retrofit Response
+import retrofit2.Response
+import okhttp3.Interceptor
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
+import com.longtoast.bilbil.api.RetrofitClient // BASE_URL을 가져오기 위해 유지
 
 class SettingProfileActivity : AppCompatActivity() {
 
@@ -46,7 +52,6 @@ class SettingProfileActivity : AppCompatActivity() {
     private var address: String = ""
     private var userNickname: String = ""
 
-    // 💡 [핵심] MainActivity -> SettingMapActivity를 거쳐 전달받은 JWT 정보
     private var serviceToken: String? = null
     private var userId: Int = 0
 
@@ -76,16 +81,9 @@ class SettingProfileActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_setting_profile)
 
-        // Intent로 받은 데이터 가져오기
         getIntentData()
-
-        // View 초기화
         initViews()
-
-        // 데이터 표시
         displayData()
-
-        // 리스너 설정
         setupListeners()
     }
 
@@ -95,14 +93,13 @@ class SettingProfileActivity : AppCompatActivity() {
         address = intent.getStringExtra("ADDRESS") ?: ""
         userNickname = intent.getStringExtra("USER_NICKNAME") ?: ""
 
-        // 💡 [핵심 추가] SettingMapActivity에서 전달받은 JWT와 User ID
         serviceToken = intent.getStringExtra("SERVICE_TOKEN")
         userId = intent.getIntExtra("USER_ID", 0)
 
 
         Log.d("SettingProfile", "받은 데이터 - 위도: $latitude, 경도: $longitude")
         Log.d("SettingProfile", "주소: $address, 닉네임: $userNickname")
-        Log.d("SettingProfile", "인증 정보 - USER_ID: $userId, SERVICE_TOKEN: ${serviceToken?.substring(0, 10)}...")
+        Log.d("SettingProfile", "인증 정보 - USER_ID: $userId, SERVICE_TOKEN: ${serviceToken?.substring(0, Math.min(serviceToken?.length ?: 0, 10))}...")
     }
 
     private fun initViews() {
@@ -114,10 +111,8 @@ class SettingProfileActivity : AppCompatActivity() {
     }
 
     private fun displayData() {
-        // 닉네임 표시 (서버에서 받은 닉네임 또는 빈 문자열)
         editNickname.setText(userNickname)
 
-        // 주소 표시
         if (address.isNotEmpty()) {
             textLocationInfo.text = address
         } else {
@@ -126,12 +121,10 @@ class SettingProfileActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        // 프로필 사진 변경 버튼
         fabChangePhoto.setOnClickListener {
             showImagePickerDialog()
         }
 
-        // 완료 버튼
         buttonComplete.setOnClickListener {
             onCompleteButtonClicked()
         }
@@ -157,7 +150,6 @@ class SettingProfileActivity : AppCompatActivity() {
     }
 
     private fun openCamera() {
-        // 카메라 권한 확인
         if (ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.CAMERA
@@ -165,7 +157,6 @@ class SettingProfileActivity : AppCompatActivity() {
         ) {
             launchCamera()
         } else {
-            // 권한 요청
             ActivityCompat.requestPermissions(
                 this,
                 arrayOf(Manifest.permission.CAMERA),
@@ -194,7 +185,6 @@ class SettingProfileActivity : AppCompatActivity() {
 
     private fun launchCamera() {
         try {
-            // 임시 파일 생성
             val photoFile = File.createTempFile(
                 "profile_",
                 ".jpg",
@@ -217,12 +207,10 @@ class SettingProfileActivity : AppCompatActivity() {
 
     private fun handleImageResult(uri: Uri) {
         try {
-            // URI를 Bitmap으로 변환
             val inputStream = contentResolver.openInputStream(uri)
             profileBitmap = BitmapFactory.decodeStream(inputStream)
             inputStream?.close()
 
-            // ImageView에 표시
             imageProfile.setImageBitmap(profileBitmap)
 
             Log.d("IMAGE", "프로필 이미지 설정 완료")
@@ -256,34 +244,46 @@ class SettingProfileActivity : AppCompatActivity() {
             return
         }
 
-        // 1. DTO 생성 (백엔드 MemberDTO의 8개 필드를 모두 채워서 보냅니다.)
+        // 1. DTO 생성 (MemberDTO는 8개 필드를 String? 타입으로 가정)
         val updateRequest = MemberDTO(
             id = userId,
             nickname = nickname,
             address = address,
             locationLatitude = latitude,
             locationLongitude = longitude,
-            creditScore = 720, // 더미 값 (MemberDTO의 모든 필드 수를 맞추기 위함)
-            profileImageUrl = null, // 더미 값
-            createdAt = null // 더미 값
+            creditScore = 720,
+            profileImageUrl = null,
+            createdAt = null
         )
 
-        // 2. 🔑 [핵심 추가] API 호출: 프로필 업데이트 (DB 저장)
-        RetrofitClient.getApiService().updateProfile(updateRequest)
+        // 2. 🔑 [핵심] API 호출 전에 AuthTokenManager에 토큰/ID를 저장합니다.
+        AuthTokenManager.saveToken(serviceToken!!)
+        AuthTokenManager.saveUserId(userId)
+        Log.d("PROFILE_COMPLETE", "✅ JWT 및 User ID 저장 완료. API 호출 시작.")
+
+
+        // 3. 🔑 [최종 해결책] 토큰을 헤더에 직접 주입하는 임시 Retrofit 클라이언트 생성 및 호출
+        val tempApiService = createTempApiServiceWithToken(serviceToken!!)
+
+        tempApiService.updateProfile(updateRequest)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (response.isSuccessful) {
-                        // 3. 성공 시, 토큰 저장 및 홈 화면 이동
-                        AuthTokenManager.saveToken(serviceToken!!)
-                        AuthTokenManager.saveUserId(userId)
-
-                        Log.d("PROFILE_COMPLETE", "✅ 프로필 업데이트 및 JWT 저장 완료.")
+                        Log.d("PROFILE_COMPLETE", "✅ 프로필 업데이트 성공 (200/201). 홈 이동.")
                         Toast.makeText(this@SettingProfileActivity, "프로필 설정 및 저장 완료!", Toast.LENGTH_SHORT).show()
 
                         val intent = Intent(this@SettingProfileActivity, HomeHostActivity::class.java)
                         startActivity(intent)
                         finishAffinity()
-                    } else {
+                    } else if (response.code() == 403 || response.code() == 401) {
+                        // 🚨 [403/401 에러 감지] 토큰이 무효하거나 만료됨.
+                        Log.e("PROFILE_API", "프로필 업데이트 실패: 인증 거부 (403/401). 토큰 무효화.")
+                        Toast.makeText(this@SettingProfileActivity, "인증 오류. 다시 로그인해주세요.", Toast.LENGTH_LONG).show()
+                        AuthTokenManager.clearToken()
+                        startActivity(Intent(this@SettingProfileActivity, MainActivity::class.java))
+                        finishAffinity()
+                    }
+                    else {
                         val errorBody = response.errorBody()?.string()
                         Log.e("PROFILE_API", "프로필 업데이트 실패: ${response.code()}, 메시지: $errorBody")
                         Toast.makeText(this@SettingProfileActivity, "닉네임 등록 실패: ${response.code()}", Toast.LENGTH_LONG).show()
@@ -295,5 +295,42 @@ class SettingProfileActivity : AppCompatActivity() {
                     Toast.makeText(this@SettingProfileActivity, "서버 연결 오류", Toast.LENGTH_LONG).show()
                 }
             })
+    }
+
+
+    /**
+     * 🔑 [핵심 메서드] API 호출 시점에 토큰을 직접 주입하는 임시 Retrofit 인스턴스 생성
+     */
+    private fun createTempApiServiceWithToken(token: String): ApiService {
+        val authInterceptor = Interceptor { chain ->
+            val newRequest = chain.request().newBuilder()
+                .addHeader("Authorization", "Bearer $token")
+                .build()
+            chain.proceed(newRequest)
+        }
+
+        // 💡 BASE_URL을 RetrofitClient.kt에서 직접 참조합니다. (하드코딩 방지)
+        val BASE_URL_TEMP = try {
+            val field = RetrofitClient::class.java.getDeclaredField("BASE_URL")
+            field.isAccessible = true
+            field.get(RetrofitClient) as String
+        } catch (e: Exception) {
+            // Reflection이 실패하면, 현재 알려주신 IP를 사용합니다.
+            Log.e("RETROFIT_INIT", "BASE_URL Reflection 실패, 하드코딩된 주소 사용.")
+            "http://172.16.102.73:8080/"
+        }
+
+        val okHttpClient = OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .build()
+
+        val retrofit = Retrofit.Builder()
+            .baseUrl(BASE_URL_TEMP)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        return retrofit.create(ApiService::class.java)
     }
 }
