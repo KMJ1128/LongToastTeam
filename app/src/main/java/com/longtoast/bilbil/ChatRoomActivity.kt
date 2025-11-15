@@ -1,4 +1,4 @@
-// com.longtoast.bilbil.ChatRoomActivity.kt
+// com.longtoast.bilbil.ChatRoomActivity.kt (완전 대체용)
 package com.longtoast.bilbil
 
 import android.os.Bundle
@@ -34,8 +34,7 @@ class ChatRoomActivity : AppCompatActivity() {
 
     private val chatMessages = mutableListOf<ChatMessage>()
 
-    //private val WEBSOCKET_URL = "ws://192.168.0.211:8080/stomp/chat"
-    private val WEBSOCKET_URL = "wss://unpaneled-jennette-phonily.ngrok-free.dev/stomp/chat"
+    private val WEBSOCKET_URL = "wss://unpaneled-jennette-phonily.ngrok-free.dev/stomp/chat" // 고객님 URL 유지
     private val roomId by lazy { intent.getStringExtra("ROOM_ID") ?: "1" }
 
     private val senderId: String by lazy {
@@ -43,7 +42,7 @@ class ChatRoomActivity : AppCompatActivity() {
         if (actualId == null) {
             Log.e("CHAT_AUTH_CRITICAL", "❌ 현재 사용자 ID 로드 실패! '1' 사용.")
         }
-        actualId ?: "1"
+        actualId ?: "1" // DB에 존재하는 유효한 사용자 ID (String)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,7 +69,6 @@ class ChatRoomActivity : AppCompatActivity() {
         }
     }
 
-    // ... (fetchChatHistory 함수는 이전과 동일) ...
     private fun fetchChatHistory() {
         RetrofitClient.getApiService().getChatHistory(roomId)
             .enqueue(object : Callback<MsgEntity> {
@@ -102,7 +100,6 @@ class ChatRoomActivity : AppCompatActivity() {
     }
 
 
-    // ... (connectWebSocket 함수는 이전과 동일) ...
     private fun connectWebSocket() {
         val token = AuthTokenManager.getToken()
         val client = OkHttpClient.Builder()
@@ -174,9 +171,14 @@ class ChatRoomActivity : AppCompatActivity() {
                         val gson = Gson()
                         val message = gson.fromJson(payload, ChatMessage::class.java)
 
-                        // 💡 [핵심 복구] 서버에서 브로드캐스트된 메시지(상대방 메시지)를 화면에 추가
-                        // 이 로직은 상대방이 보낸 메시지를 실시간으로 표시합니다.
+                        // 🔑 [핵심 수정 1] 내가 보낸 메시지인지 확인 (중복 방지)
+                        if (message.senderId.toString() == senderId) {
+                            // 내가 보낸 메시지라면, 로컬 에코를 사용했으므로 이 브로드캐스트는 무시합니다.
+                            Log.d("STOMP_WS", "🚫 내 메시지 브로드캐스트 수신, 로컬 에코로 인해 무시됨.")
+                            return
+                        }
 
+                        // 🔑 [핵심 수정 2] 상대방이 보낸 메시지일 때만 화면에 추가 (실시간 표시)
                         chatMessages.add(message)
                         chatAdapter.notifyItemInserted(chatMessages.size - 1)
                         recyclerChat.scrollToPosition(chatMessages.size - 1)
@@ -209,7 +211,7 @@ class ChatRoomActivity : AppCompatActivity() {
         webSocket.send(messageFrame)
         Log.d("STOMP_SEND", "📤 메시지 전송 완료 → /app/signal/$roomId: $content")
 
-        // 2. 🔑 로컬 에코 복원 (메시지 전송 시 즉시 화면에 표시)
+        // 2. 🔑 로컬 에코 복원 (메시지 전송 시 즉시 화면에 표시) - 이 부분이 중복 해결의 기반
         val tempMessage = ChatMessage(
             id = System.currentTimeMillis(),
             roomId = roomId,
