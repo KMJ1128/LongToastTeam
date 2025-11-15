@@ -37,13 +37,12 @@ class ChatRoomActivity : AppCompatActivity() {
     private val WEBSOCKET_URL = "ws://192.168.0.211:8080/stomp/chat"
     private val roomId by lazy { intent.getStringExtra("ROOM_ID") ?: "1" }
 
-    // 💡 [수정] senderId는 String으로 유지. AuthTokenManager가 Int를 반환하므로 String으로 변환.
     private val senderId: String by lazy {
         val actualId = AuthTokenManager.getUserId()?.toString()
         if (actualId == null) {
             Log.e("CHAT_AUTH_CRITICAL", "❌ 현재 사용자 ID 로드 실패! '1' 사용.")
         }
-        actualId ?: "1" // DB에 존재하는 유효한 사용자 ID (String)
+        actualId ?: "1"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,7 +69,7 @@ class ChatRoomActivity : AppCompatActivity() {
         }
     }
 
-    // ... (fetchChatHistory 함수 유지) ...
+    // ... (fetchChatHistory 함수는 이전과 동일) ...
     private fun fetchChatHistory() {
         RetrofitClient.getApiService().getChatHistory(roomId)
             .enqueue(object : Callback<MsgEntity> {
@@ -102,7 +101,7 @@ class ChatRoomActivity : AppCompatActivity() {
     }
 
 
-    // ... (connectWebSocket 함수 유지) ...
+    // ... (connectWebSocket 함수는 이전과 동일) ...
     private fun connectWebSocket() {
         val token = AuthTokenManager.getToken()
         val client = OkHttpClient.Builder()
@@ -174,10 +173,14 @@ class ChatRoomActivity : AppCompatActivity() {
                         val gson = Gson()
                         val message = gson.fromJson(payload, ChatMessage::class.java)
 
-                        // 💡 [핵심] 브로드캐스트 메시지 수신 시 로컬 에코를 방지하기 위해 무시 (중복 표시 방지)
-                        // 이 로직이 작동하려면, sendMessage에서 로컬 에코를 활성화해야 합니다.
-                        // 현재는 로컬 에코를 사용하므로, 이 부분은 무시하고 로컬 에코만 사용합니다.
-                        Log.d("STOMP_WS", "🔄 서버 브로드캐스트 수신 완료. 로컬 에코 사용 중이므로 무시합니다.")
+                        // 💡 [핵심 복구] 서버에서 브로드캐스트된 메시지(상대방 메시지)를 화면에 추가
+                        // 이 로직은 상대방이 보낸 메시지를 실시간으로 표시합니다.
+
+                        chatMessages.add(message)
+                        chatAdapter.notifyItemInserted(chatMessages.size - 1)
+                        recyclerChat.scrollToPosition(chatMessages.size - 1)
+                        Log.d("STOMP_WS_UPDATE", "실시간 메시지 추가 완료: Sender ${message.senderId}")
+
                     } catch (e: Exception) {
                         Log.e("STOMP_MSG", "ChatMessage JSON 파싱 오류", e)
                     }
@@ -194,7 +197,7 @@ class ChatRoomActivity : AppCompatActivity() {
     private fun sendMessage(content: String) {
         val escapedContent = content.replace("\"", "\\\"")
 
-        // 1. STOMP 프레임 전송 (senderId는 String으로 전송)
+        // 1. STOMP 프레임 전송
         val messageFrame = "SEND\n" +
                 "destination:/app/signal/$roomId\n" +
                 "content-type:application/json\n" +
@@ -205,11 +208,10 @@ class ChatRoomActivity : AppCompatActivity() {
         webSocket.send(messageFrame)
         Log.d("STOMP_SEND", "📤 메시지 전송 완료 → /app/signal/$roomId: $content")
 
-        // 2. 🔑 [핵심] 로컬 에코 복원 (메시지 전송 시 즉시 화면에 표시)
+        // 2. 🔑 로컬 에코 복원 (메시지 전송 시 즉시 화면에 표시)
         val tempMessage = ChatMessage(
             id = System.currentTimeMillis(),
             roomId = roomId,
-            // 💡 [수정] DTO 타입에 맞춰 String을 Int로 변환하여 임시 메시지 생성
             senderId = senderId.toIntOrNull() ?: 0,
             content = content,
             imageUrl = null,
