@@ -1,4 +1,3 @@
-// com.longtoast.bilbil.MessageFragment.kt (완전 대체용)
 package com.longtoast.bilbil
 
 import android.content.Intent
@@ -36,11 +35,12 @@ class MessageFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.recyclerViewChatRooms.layoutManager = LinearLayoutManager(context)
-        // 💡 onViewCreated에서는 초기화만 수행
-        // fetchChatRoomLists() // 여기서는 제거
+        // 💡 [수정] onViewCreated에서는 초기화만 수행하고 로드는 onResume에서 합니다.
     }
 
-    // 🔑 [핵심 추가] 화면에 나타날 때마다 목록을 새로고침
+    /**
+     * 🔑 [핵심 수정] Fragment가 화면에 나타날 때마다(재진입 시) 목록을 새로고침합니다.
+     */
     override fun onResume() {
         super.onResume()
         fetchChatRoomLists()
