@@ -28,7 +28,7 @@ class MessageFragment : Fragment() {
 
     // 🔑 [핵심 추가] 주기적인 작업을 위한 Handler 및 Runnable
     private val handler = Handler(Looper.getMainLooper())
-    private val refreshInterval: Long = 1500 // 3초마다 새로고침
+    private val refreshInterval: Long = 500 // 3초마다 새로고침
 
     private val refreshRunnable = object : Runnable {
         override fun run() {
