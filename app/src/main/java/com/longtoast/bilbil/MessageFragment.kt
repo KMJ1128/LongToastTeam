@@ -35,8 +35,17 @@ class MessageFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.recyclerViewChatRooms.layoutManager = LinearLayoutManager(context)
+        // 💡 [수정] onViewCreated에서는 초기화만 수행하고 로드는 onResume에서 합니다.
+    }
+
+    /**
+     * 🔑 [핵심 수정] Fragment가 화면에 나타날 때마다(재진입 시) 목록을 새로고침합니다.
+     */
+    override fun onResume() {
+        super.onResume()
         fetchChatRoomLists()
     }
+
 
     /**
      * 서버에서 현재 사용자의 채팅방 목록을 불러옵니다.
@@ -49,7 +58,7 @@ class MessageFragment : Fragment() {
 
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (!response.isSuccessful || response.body()?.data == null) {
-                        Log.e("CHAT_LIST", "조회 실패: ${response.code()}")
+                        Log.e("CHAT_LIST", "조회 실패: ${response.code()}. 메시지: ${response.errorBody()?.string()}")
                         Toast.makeText(context, "채팅방 목록을 불러올 수 없습니다.", Toast.LENGTH_SHORT).show()
                         return
                     }
@@ -79,6 +88,7 @@ class MessageFragment : Fragment() {
                         binding.recyclerViewChatRooms.adapter = adapter
                     } else {
                         Log.i("CHAT_LIST", "조회 결과 없음 또는 파싱된 리스트가 비어있음.")
+                        binding.recyclerViewChatRooms.adapter = ChatRoomListAdapter(emptyList()) {}
                         Toast.makeText(context, "참여 중인 채팅방이 없습니다.", Toast.LENGTH_SHORT).show()
                     }
                 }
