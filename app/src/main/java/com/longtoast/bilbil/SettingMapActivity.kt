@@ -271,7 +271,7 @@ class SettingMapActivity : AppCompatActivity() {
                 putExtra("USER_ID", userId)
             }
             startActivity(newIntent)
-            finish()
+            //finish()
         } else {
             // 💡 일반적인 위치 설정 모드일 때: 결과를 호출한 Activity (예: NewPostFragment)로 반환
             Toast.makeText(this, "위치 설정이 완료되었습니다.", Toast.LENGTH_SHORT).show()

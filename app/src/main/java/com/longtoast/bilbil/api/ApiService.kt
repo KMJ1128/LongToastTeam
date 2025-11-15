@@ -22,6 +22,12 @@ interface ApiService {
     fun loginWithKakaoToken(@Body request: KakaoTokenRequest): Call<MsgEntity>
 
     /**
+     * 네이버 토큰으로 로그인하는 API 정의
+     */
+    @POST("/naver/login/token")
+    fun loginWithNaverToken(@Body request: NaverTokenRequest): Call<MsgEntity>
+
+    /**
      * ✅ [핵심 수정] 상품 생성 API.
      * NewPostFragment에서 호출하는 메서드 정의가 명확하게 포함되어야 합니다.
      */

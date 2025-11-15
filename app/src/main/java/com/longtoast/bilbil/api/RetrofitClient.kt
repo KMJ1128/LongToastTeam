@@ -12,6 +12,8 @@ object RetrofitClient {
 
     // 🚨 중요: 여기에 Spring Boot 서버의 주소를 입력하세요!
     private const val BASE_URL="https://unpaneled-jennette-phonily.ngrok-free.dev/"
+    //"http://192.168.45.105:8080/"
+    //"https://unpaneled-jennette-phonily.ngrok-free.dev/"
     // 🚨 1. [추가됨] Authorization 헤더를 자동으로 추가하는 Interceptor
     private class AuthInterceptor : Interceptor {
         override fun intercept(chain: Interceptor.Chain): Response {

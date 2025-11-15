@@ -19,15 +19,9 @@ import com.kakao.sdk.user.UserApiClient // 카카오 SDK import
 import com.kakao.sdk.auth.model.OAuthToken // 카카오 토큰 모델
 import com.navercorp.nid.NaverIdLoginSDK // ✅ 이 줄을 추가합니다.
 import com.navercorp.nid.oauth.OAuthLoginCallback // ✅ 이 줄을 추가합니다.
-import com.longtoast.bilbil.api.RetrofitClient
-import com.longtoast.bilbil.dto.KakaoTokenRequest
-import com.longtoast.bilbil.dto.MsgEntity
-import com.kakao.sdk.user.UserApiClient
-import com.kakao.sdk.auth.model.OAuthToken
 import com.longtoast.bilbil.dto.MemberTokenResponse
 import com.google.gson.Gson
 import com.longtoast.bilbil.dto.NaverTokenRequest
-import com.google.gson.Gson // 🚨 Gson 임포트 추가
 import java.security.MessageDigest
 import retrofit2.Call
 import retrofit2.Callback
@@ -58,10 +52,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-      //   💡 [임시 조치] 신규 회원가입 플로우 테스트를 위해 저장된 토큰 강제 초기화
-      if (AuthTokenManager.getToken() != null) {
-          AuthTokenManager.clearToken()
-          AuthTokenManager.clearUserId()
+        // 💡 [임시 조치] 신규 회원가입 플로우 테스트를 위해 저장된 토큰 강제 초기화
+        if (AuthTokenManager.getToken() != null) {
+            AuthTokenManager.clearToken()
+            AuthTokenManager.clearUserId()
             Log.w("JWT_CLEAN", "JWT 토큰 강제 초기화 완료. 신규 회원가입 플로우 시작.")       }
         // 1. JWT 토큰 상태 확인 및 자동 이동 (가장 먼저 실행)
         val token = AuthTokenManager.getToken()
@@ -74,7 +68,7 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(this, HomeHostActivity::class.java)
             startActivity(intent)
             finish()
-            return // 이후 로그인 UI 로직을 건너뜁니다.
+            return // 이후 로그인 UI 로직을 건너뛰도록 return
         }
 
         // 2. 토큰이 없는 경우에만 로그인 UI 로드
@@ -116,8 +110,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
-
     private fun handleKakaoLoginResult(token: OAuthToken?, error: Throwable?) {
         if (error != null) {
             Log.e("KAKAO", "카카오 로그인 실패", error)
@@ -128,9 +120,6 @@ class MainActivity : AppCompatActivity() {
             sendTokenToServer(token.accessToken)
         }
     }
-
-
-
 
     private fun startNaverLogin() {
         // 🚨 [Naver SDK 실제 연동 코드]
@@ -176,7 +165,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     // -----------------------------------------------------
-    // ✅ [추가/재활용] 서버 인증 응답 공통 처리 함수
+    // ✅ [수정] 서버 인증 응답 공통 처리 함수 (네이버 로그인 경로)
     // -----------------------------------------------------
     private fun handleServerAuthResponse(response: Response<MsgEntity>) {
         if (response.isSuccessful && response.body() != null) {
@@ -193,13 +182,14 @@ class MainActivity : AppCompatActivity() {
             if (memberTokenResponse != null) {
                 Log.d("SERVER_AUTH", "✅ 서버 인증 성공! 응답: $memberTokenResponse")
 
-                if (memberTokenResponse.serviceToken != null) {
+                // 🚨 [수정 2-1: 토큰 저장 제거] 신규 회원 플로우에서는 토큰 저장 코드를 제거합니다.
+                /* if (memberTokenResponse.serviceToken != null) {
                     AuthTokenManager.saveToken(memberTokenResponse.serviceToken)
-                    // userId 저장 (Long을 Int로 변환해서 저장)
                     AuthTokenManager.saveUserId(memberTokenResponse.userId.toInt())
                 } else {
                     Log.w("SERVER_AUTH", "⚠️ 서버가 serviceToken을 null로 보냈습니다. (로그인은 성공)")
                 }
+                */
 
                 // 주소 정보 확인 및 화면 이동
                 val isAddressMissing = memberTokenResponse.address.isNullOrEmpty() ||
@@ -208,12 +198,27 @@ class MainActivity : AppCompatActivity() {
 
                 if (isAddressMissing) {
                     Log.d("SERVER_AUTH", "🚨 주소 정보 누락! 지도 설정 필요.")
+
+                    // ⭐ [수정 1: 인증 정보 전달] 네이버 로그인 시에도 토큰 및 ID를 전달합니다.
                     val intent = Intent(this@MainActivity, SettingMapActivity::class.java).apply {
                         putExtra("USER_NICKNAME", memberTokenResponse.nickname)
+                        putExtra("SETUP_MODE", true) // 초기 설정 모드 플래그 추가
+                        putExtra("SERVICE_TOKEN", memberTokenResponse.serviceToken) // JWT 토큰 전달
+                        putExtra("USER_ID", memberTokenResponse.userId.toInt()) // User ID 전달
+
                         putExtra("SETUP_ADDRESS_NEEDED", true)
                     }
                     startActivity(intent)
                 } else {
+                    // 💡 [기존 회원] 주소 설정이 완료된 경우, 토큰 저장 후 메인 화면으로 이동
+                    val tempServiceToken = memberTokenResponse.serviceToken
+                    val tempUserId = memberTokenResponse.userId.toInt()
+
+                    if (tempServiceToken != null) {
+                        AuthTokenManager.saveToken(tempServiceToken)
+                        AuthTokenManager.saveUserId(tempUserId)
+                    }
+
                     Log.d("SERVER_AUTH", "✅ 로그인 성공! 기존 회원 메인 화면 이동.")
                     Toast.makeText(this@MainActivity, "${memberTokenResponse.nickname}님 환영합니다.", Toast.LENGTH_LONG).show()
                     val intent = Intent(this@MainActivity, HomeHostActivity::class.java)
@@ -232,10 +237,9 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-
-
-
-    // 서버 통신 (Retrofit 사용)
+    // -----------------------------------------------------
+    // ✅ [카카오 전용] 서버 통신 함수 (카카오 로그인 경로)
+    // -----------------------------------------------------
     private fun sendTokenToServer(kakaoAccessToken: String) {
         val requestBody = KakaoTokenRequest(kakaoAccessToken)
         val call = RetrofitClient.getApiService().loginWithKakaoToken(requestBody)
@@ -271,8 +275,8 @@ class MainActivity : AppCompatActivity() {
                             val intent = Intent(this@MainActivity, SettingMapActivity::class.java).apply {
                                 putExtra("USER_NICKNAME", memberTokenResponse.nickname)
                                 putExtra("SETUP_MODE", true)
-                                putExtra("SERVICE_TOKEN", tempServiceToken)
-                                putExtra("USER_ID", tempUserId)
+                                putExtra("SERVICE_TOKEN", memberTokenResponse.serviceToken)
+                                putExtra("USER_ID", memberTokenResponse.userId.toInt())
                             }
                             startActivity(intent)
 
