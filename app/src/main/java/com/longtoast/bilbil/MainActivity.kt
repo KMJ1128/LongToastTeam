@@ -48,12 +48,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // 💡 [임시 조치] 신규 회원가입 플로우 테스트를 위해 저장된 토큰 강제 초기화
-        if (AuthTokenManager.getToken() != null) {
-            AuthTokenManager.clearToken()
-            AuthTokenManager.clearUserId()
-            Log.w("JWT_CLEAN", "JWT 토큰 강제 초기화 완료. 신규 회원가입 플로우 시작.")
-        }
+      //   💡 [임시 조치] 신규 회원가입 플로우 테스트를 위해 저장된 토큰 강제 초기화
+      if (AuthTokenManager.getToken() != null) {
+          AuthTokenManager.clearToken()
+          AuthTokenManager.clearUserId()
+            Log.w("JWT_CLEAN", "JWT 토큰 강제 초기화 완료. 신규 회원가입 플로우 시작.")       }
         // 1. JWT 토큰 상태 확인 및 자동 이동 (가장 먼저 실행)
         val token = AuthTokenManager.getToken()
 
