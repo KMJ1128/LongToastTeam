@@ -16,7 +16,7 @@ object RetrofitClient {
     // "http://172.16.102.73:8080/"
     //"http://172.16.114.31:8080/"
     //private const val BASE_URL = "http://172.16.102.73:8080/"
-    private const val BASE_URL="http://192.168.0.211:8080/"
+    private const val BASE_URL= "https://unpaneled-jennette-phonily.ngrok-free.dev/"
 
     // 🚨 1. [추가됨] Authorization 헤더를 자동으로 추가하는 Interceptor
     private class AuthInterceptor : Interceptor {
