@@ -5,7 +5,7 @@ import android.util.Log
 import com.kakao.sdk.common.KakaoSdk
 import com.kakao.vectormap.KakaoMapSdk
 // 🚨 [추가] 네이버 SDK Import
-import com.navercorp.nid.NaverIdLoginSDK
+//import com.navercorp.nid.NaverIdLoginSDK
 
 class MyApplication : Application() {
 
@@ -27,7 +27,7 @@ class MyApplication : Application() {
 
         // 🚨 3. [추가] 네이버 SDK 초기화
         // 이 코드가 없어서 SDKNotInitializedException이 발생했습니다.
-        NaverIdLoginSDK.initialize(this, NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_CLIENT_NAME)
+        //NaverIdLoginSDK.initialize(this, NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_CLIENT_NAME)
 
         // 4. AuthTokenManager 초기화
         AuthTokenManager.init(this)
