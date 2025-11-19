@@ -5,13 +5,15 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.CAMERA"
+        />
 
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
 
     <application
+
         android:name=".MyApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -41,12 +43,10 @@
             android:name=".SettingMapActivity"
             android:exported="false" />
 
-        <meta-data
-            android:name="com.kakao.sdk.AppKey"
-            android:value="7a3a72c388ba6dfc6df8ca9715f284ff" />
-        <meta-data
-            android:name="com.kakao.vectormap.appKey"
-            android:value="7a3a72c388ba6dfc6df8ca9715f284ff" />
+
+
+        <meta-data android:name="com.kakao.sdk.AppKey" android:value="7a3a72c388ba6dfc6df8ca9715f284ff" />
+        <meta-data android:name="com.kakao.vectormap.appKey" android:value="7a3a72c388ba6dfc6df8ca9715f284ff" />
 
         <activity
             android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
@@ -79,6 +79,7 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
     </application>
 
 </manifest>

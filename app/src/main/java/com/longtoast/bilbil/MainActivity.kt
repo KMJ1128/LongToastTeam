@@ -19,10 +19,10 @@ import com.kakao.sdk.user.UserApiClient
 import com.kakao.sdk.auth.model.OAuthToken
 import com.longtoast.bilbil.dto.MemberTokenResponse
 import com.google.gson.Gson
-import java.security.MessageDigest
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.security.MessageDigest
 
 class MainActivity : AppCompatActivity() {
 
@@ -48,28 +48,23 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-      //   💡 [임시 조치] 신규 회원가입 플로우 테스트를 위해 저장된 토큰 강제 초기화
-      if (AuthTokenManager.getToken() != null) {
-          AuthTokenManager.clearToken()
-          AuthTokenManager.clearUserId()
+        // 💡 [임시 조치] 신규 회원가입 플로우 테스트를 위해 저장된 토큰 강제 초기화
+        if (AuthTokenManager.getToken() != null) {
+            AuthTokenManager.clearToken()
+            AuthTokenManager.clearUserId()
             Log.w("JWT_CLEAN", "JWT 토큰 강제 초기화 완료. 신규 회원가입 플로우 시작.")       }
-        // 1. JWT 토큰 상태 확인 및 자동 이동 (가장 먼저 실행)
+
+
+        // 1) 기존 토큰 있으면 바로 메인 이동
         val token = AuthTokenManager.getToken()
-
         if (token != null) {
-            val shortToken = token.substring(0, Math.min(token.length, 20)) + "..."
-            Log.i("APP_AUTH_STATE", "✅ JWT 토큰 존재: $shortToken. 홈 화면으로 이동.")
-
-            // 🔑 토큰이 유효하면 바로 홈 화면으로 이동
-            val intent = Intent(this, HomeHostActivity::class.java)
-            startActivity(intent)
+            Log.i("APP_AUTH", "JWT 존재 → 홈 이동")
+            startActivity(Intent(this, HomeHostActivity::class.java))
             finish()
-            return // 이후 로그인 UI 로직을 건너뜁니다.
+            return
         }
 
-        // 2. 토큰이 없는 경우에만 로그인 UI 로드
-        Log.w("APP_AUTH_STATE", "⚠️ JWT 토큰 없음. 로그인 UI 로드.")
-
+        // 2) 로그인 화면 표시
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -85,12 +80,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupLoginButtons() {
         binding.buttonKakaoLogin.setOnClickListener {
-            Toast.makeText(this, "카카오 로그인 시작...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "카카오 로그인 시작…", Toast.LENGTH_SHORT).show()
             startKakaoLogin()
-        }
-        binding.buttonNaverLogin.setOnClickListener {
-            Toast.makeText(this, "네이버 로그인 시작...", Toast.LENGTH_SHORT).show()
-            startNaverLogin()
         }
     }
 
@@ -108,16 +99,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleKakaoLoginResult(token: OAuthToken?, error: Throwable?) {
         if (error != null) {
-            Log.e("KAKAO", "카카오 로그인 실패", error)
-            Toast.makeText(this, "카카오 로그인 실패: ${error.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "카카오 로그인 실패", Toast.LENGTH_LONG).show()
         } else if (token != null) {
-            Log.i("KAKAO", "카카오 로그인 성공, Access Token 획득")
-            Toast.makeText(this, "카카오 토큰 획득 성공", Toast.LENGTH_SHORT).show()
             sendTokenToServer(token.accessToken)
         }
     }
 
-    // 서버 통신 (Retrofit 사용)
     private fun sendTokenToServer(kakaoAccessToken: String) {
         val requestBody = KakaoTokenRequest(kakaoAccessToken)
         val call = RetrofitClient.getApiService().loginWithKakaoToken(requestBody)
@@ -125,71 +112,81 @@ class MainActivity : AppCompatActivity() {
         call.enqueue(object : Callback<MsgEntity> {
 
             override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                if (response.isSuccessful && response.body() != null) {
 
-                    // 1. data 필드를 MemberTokenResponse로 안전하게 파싱
-                    val rawData = response.body()?.data
-                    val gson = Gson()
-                    val memberTokenResponse: MemberTokenResponse? = try {
-                        gson.fromJson(gson.toJsonTree(rawData), MemberTokenResponse::class.java)
-                    } catch (e: Exception) {
-                        Log.e("SERVER_AUTH", "MemberTokenResponse 파싱 실패", e)
-                        null
+                if (!response.isSuccessful || response.body() == null) {
+                    Toast.makeText(this@MainActivity, "서버 응답 오류", Toast.LENGTH_LONG).show()
+                    return
+                }
+
+                val rawData = response.body()!!.data
+                val gson = Gson()
+
+                val memberTokenResponse: MemberTokenResponse? = try {
+                    gson.fromJson(gson.toJsonTree(rawData), MemberTokenResponse::class.java)
+                } catch (e: Exception) {
+                    null
+                }
+
+                if (memberTokenResponse == null) {
+                    Toast.makeText(this@MainActivity, "데이터 파싱 오류", Toast.LENGTH_LONG).show()
+                    return
+                }
+
+                val tempToken = memberTokenResponse.serviceToken
+                val tempUserId = memberTokenResponse.userId.toInt()
+                val nickname = memberTokenResponse.nickname
+
+                // 🚨 [수정된 핵심 로직] address 및 nickname 유무 확인
+                val hasAddress = !memberTokenResponse.address.isNullOrEmpty()
+                val hasNickname = !nickname.isNullOrEmpty()
+
+                // 1. address가 없는 경우 (무조건 지도 설정부터)
+                if (!hasAddress) {
+                    Log.d("SERVER_AUTH", "신규 회원: 주소 설정 필요 → SettingMapActivity로 이동")
+
+                    val intent = Intent(this@MainActivity, SettingMapActivity::class.java).apply {
+                        putExtra("USER_NICKNAME", nickname)
+                        putExtra("SETUP_MODE", true)
+                        putExtra("USER_ID", tempUserId)
+                        putExtra("SERVICE_TOKEN", tempToken)
+                    }
+                    startActivity(intent)
+                    finish()
+                }
+                // 2. address는 있는데 nickname이 없는 경우 (Map 건너뛰고 Profile 설정)
+                else if (hasAddress && !hasNickname) {
+                    Log.d("SERVER_AUTH", "기존 회원: 주소는 있으나 닉네임 설정 필요 → SettingProfileActivity로 이동")
+
+                    val intent = Intent(this@MainActivity, SettingProfileActivity::class.java).apply {
+                        putExtra("USER_NICKNAME", nickname)
+                        putExtra("USER_ID", tempUserId)
+                        putExtra("SERVICE_TOKEN", tempToken)
+
+                        // MapActivity를 건너뛰기 위해 서버에서 받은 위치 정보를 전달
+                        putExtra("LATITUDE", memberTokenResponse.locationLatitude ?: 0.0)
+                        putExtra("LONGITUDE", memberTokenResponse.locationLongitude ?: 0.0)
+                        putExtra("ADDRESS", memberTokenResponse.address)
+                    }
+                    startActivity(intent)
+                    finish()
+                }
+                // 3. address, nickname 모두 있는 경우 (기존 회원, 설정 완료)
+                else {
+                    // 기존 회원 → 토큰 저장 후 메인 이동
+                    if (tempToken != null) {
+                        AuthTokenManager.saveToken(tempToken)
+                        AuthTokenManager.saveUserId(tempUserId)
                     }
 
-                    if (memberTokenResponse != null) {
-                        Log.d("SERVER_AUTH", "✅ 서버 인증 성공! 응답: $memberTokenResponse")
-
-                        val tempServiceToken = memberTokenResponse.serviceToken
-                        val tempUserId = memberTokenResponse.userId.toInt() // Long -> Int 변환
-
-                        // 2. 주소 정보 확인 및 화면 이동 (회원가입/로그인 구분)
-                        val isSetupNeeded = memberTokenResponse.address.isNullOrEmpty()
-
-                        if (isSetupNeeded) {
-                            Log.d("SERVER_AUTH", "🚨 신규 회원 또는 주소 정보 누락! 지도 설정 필요.")
-
-                            // 🔑 SettingMapActivity 호출 시 JWT 및 ID, SETUP_MODE=true 전달
-                            val intent = Intent(this@MainActivity, SettingMapActivity::class.java).apply {
-                                putExtra("USER_NICKNAME", memberTokenResponse.nickname)
-                                putExtra("SETUP_MODE", true)
-                                putExtra("SERVICE_TOKEN", tempServiceToken)
-                                putExtra("USER_ID", tempUserId)
-                            }
-                            startActivity(intent)
-
-                        } else {
-                            // 💡 [기존 회원] 주소 설정이 완료된 경우, 바로 토큰 저장 후 메인 화면으로 이동
-                            if (tempServiceToken != null) {
-                                AuthTokenManager.saveToken(tempServiceToken)
-                                AuthTokenManager.saveUserId(tempUserId)
-                            }
-
-                            Log.d("SERVER_AUTH", "✅ 로그인 성공! 기존 회원 메인 화면 이동.")
-                            Toast.makeText(this@MainActivity, "${memberTokenResponse.nickname}님 환영합니다.", Toast.LENGTH_LONG).show()
-                            val intent = Intent(this@MainActivity, HomeHostActivity::class.java)
-                            startActivity(intent)
-                            finish() // 로그인 화면 종료
-                        }
-
-                    } else {
-                        Log.e("SERVER_AUTH", "서버 응답 data를 MemberTokenResponse로 변환 실패. rawData: $rawData")
-                        Toast.makeText(this@MainActivity, "서버 인증 실패 (응답 형식 오류)", Toast.LENGTH_LONG).show()
-                    }
-                } else {
-                    Log.e("SERVER_AUTH", "서버 응답 실패: ${response.code()}. 메시지: ${response.errorBody()?.string()}")
-                    Toast.makeText(this@MainActivity, "서버 인증 실패: ${response.code()}", Toast.LENGTH_LONG).show()
+                    Log.d("SERVER_AUTH", "기존 회원: 설정 완료 → HomeHostActivity로 이동")
+                    startActivity(Intent(this@MainActivity, HomeHostActivity::class.java))
+                    finish()
                 }
             }
 
             override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                Log.e("SERVER_AUTH", "서버 통신 오류", t)
-                Toast.makeText(this@MainActivity, "로컬호스트 서버 접속 오류", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@MainActivity, "서버 접속 실패", Toast.LENGTH_LONG).show()
             }
         })
-    }
-
-    private fun startNaverLogin() {
-        // ... (네이버 로그인 로직은 나중에 구현)
     }
 }

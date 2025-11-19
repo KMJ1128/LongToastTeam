@@ -1,126 +1,111 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="16dp">
 
-    <!-- 제목 -->
     <TextView
-        android:id="@+id/text_title"
+        android:id="@+id/txtTitle"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="내 활동 지역 설정"
-        android:textSize="24sp"
+        android:textSize="22sp"
         android:textStyle="bold"
-        android:paddingBottom="8dp"
-        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
 
-    <!-- 검색창 영역 -->
     <LinearLayout
-        android:id="@+id/layout_search"
+        android:id="@+id/layoutSearch"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:padding="6dp"
         android:background="@android:drawable/edit_text"
-        android:padding="4dp"
-        app:layout_constraintTop_toBottomOf="@id/text_title"
+        android:layout_marginTop="10dp"
+        app:layout_constraintTop_toBottomOf="@id/txtTitle"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="8dp">
+        app:layout_constraintEnd_toEndOf="parent">
 
         <EditText
-            android:id="@+id/edit_search_address"
+            android:id="@+id/editSearch"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="주소 검색 (예: 구일역)"
-            android:textSize="16sp"
+            android:hint="주소 검색"
             android:padding="8dp"
-            android:background="@android:color/transparent"
             android:imeOptions="actionSearch"
-            android:inputType="text"
-            android:maxLines="1" />
+            android:inputType="text" />
 
         <Button
-            android:id="@+id/button_search"
+            android:id="@+id/btnSearch"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="검색"
-            android:textSize="14sp"
-            android:padding="8dp"
-            style="?attr/materialButtonOutlinedStyle" />
+            android:text="검색" />
     </LinearLayout>
 
-    <!-- 현재 위치 버튼 -->
     <Button
-        android:id="@+id/button_current_location"
+        android:id="@+id/btnCurrentLocation"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="📍 현재 위치"
-        android:textSize="14sp"
-        android:padding="8dp"
-        app:layout_constraintTop_toBottomOf="@id/layout_search"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="8dp"
-        style="?attr/materialButtonOutlinedStyle" />
+        android:layout_marginTop="10dp"
+        app:layout_constraintTop_toBottomOf="@id/layoutSearch"
+        app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- 지도 영역 -->
     <com.kakao.vectormap.MapView
-        android:id="@+id/map_view"
+        android:id="@+id/mapView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="#E0E0E0"
-        app:layout_constraintTop_toBottomOf="@id/button_current_location"
-        app:layout_constraintBottom_toTopOf="@id/text_selected_address"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="10dp"
+        app:layout_constraintTop_toBottomOf="@id/btnCurrentLocation"
+        app:layout_constraintBottom_toTopOf="@id/txtSelectedAddress"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="8dp" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- 화면 가운데 고정 핀 -->
     <ImageView
-        android:id="@+id/iv_pin"
+        android:id="@+id/imgPin"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:src="@drawable/ic_map_pin"
-        android:layout_marginBottom="24dp"
-        app:layout_constraintBottom_toBottomOf="@id/map_view"
-        app:layout_constraintStart_toStartOf="@id/map_view"
-        app:layout_constraintEnd_toEndOf="@id/map_view"
-        app:layout_constraintTop_toTopOf="@id/map_view"
-        android:adjustViewBounds="true"
-        android:contentDescription="지도 중심 핀" />
+        android:contentDescription="center pin"
+        app:layout_constraintStart_toStartOf="@id/mapView"
+        app:layout_constraintEnd_toEndOf="@id/mapView"
+        app:layout_constraintTop_toTopOf="@id/mapView"
+        app:layout_constraintBottom_toBottomOf="@id/mapView" />
 
-    <!-- 선택된 주소 표시 -->
     <TextView
-        android:id="@+id/text_selected_address"
+        android:id="@+id/txtSelectedAddress"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="지도를 움직여 위치를 선택하세요"
-        android:textSize="14sp"
-        android:textColor="#666666"
-        android:padding="8dp"
         android:gravity="center"
-        app:layout_constraintBottom_toTopOf="@id/button_confirm_location"
+        android:textColor="#666"
+        android:padding="8dp"
+        app:layout_constraintBottom_toTopOf="@id/btnConfirm"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginBottom="8dp" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- 확인 버튼 -->
     <Button
-        android:id="@+id/button_confirm_location"
+        android:id="@+id/btnConfirm"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="이 위치로 설정"
-        android:textSize="16sp"
         android:padding="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_search_result"
+        android:layout_width="0dp"
+        android:layout_height="200dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/layoutSearch"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
 </androidx.constraintlayout.widget.ConstraintLayout>

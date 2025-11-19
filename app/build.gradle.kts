@@ -96,4 +96,11 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     implementation("com.github.bumptech.glide:glide:4.15.1")
+
+    // Play Services Location
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.2")
 }

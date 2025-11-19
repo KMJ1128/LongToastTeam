@@ -9,9 +9,11 @@ import com.longtoast.bilbil.dto.ProductCreateRequest
 import com.longtoast.bilbil.dto.ChatMessage
 import com.longtoast.bilbil.dto.MemberDTO // 💡 MemberDTO Import
 import retrofit2.Call
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.POST
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.PUT // 💡 PUT 메서드 Import
 import retrofit2.http.Path
 
@@ -26,7 +28,8 @@ interface ApiService {
     ): Call<MsgEntity>
 
     @POST("/location/update")
-    suspend fun sendLocation(@Body request: LocationRequest): retrofit2.Response<Void>
+    suspend fun sendLocation(@Body request: LocationRequest): Response<MsgEntity>
+
 
     @POST("/api/chat/room")
     fun createChatRoom(
