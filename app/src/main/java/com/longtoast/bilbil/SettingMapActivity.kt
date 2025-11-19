@@ -137,6 +137,10 @@ class SettingMapActivity : AppCompatActivity() {
             if (q.isNotEmpty()) searchAddress(q)
         }
 
+        editSearch.setOnClickListener {
+            editSearch.text.clear()
+        }
+
         editSearch.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 val q = editSearch.text.toString().trim()
