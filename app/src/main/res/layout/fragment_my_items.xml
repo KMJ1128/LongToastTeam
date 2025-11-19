@@ -8,7 +8,20 @@
     android:background="#F0F0F0"
     tools:context=".MyItemsFragment">
 
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view_my_items"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@android:color/white"
+        android:visibility="gone" app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:listitem="@layout/item_product_list"
+        tools:visibility="visible" />
+
     <TextView
+        android:id="@+id/text_empty_state"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="나의 물품 관리 화면 (내용을 채워주세요)"
