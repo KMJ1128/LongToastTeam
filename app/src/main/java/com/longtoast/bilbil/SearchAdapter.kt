@@ -12,7 +12,8 @@ class SearchAdapter(private var list: List<SearchItem>, private val onClick: (Se
     inner class Holder(v: View) : RecyclerView.ViewHolder(v) {
         private val text: TextView = v.findViewById(R.id.tvSearchName)
         fun bind(item: SearchItem) {
-            text.text = item.name
+            // 🚨 [수정] 주소와 장소 이름을 조합하여 표시 (예: 서울 강서구 등촌동 365-125 | 등촌중학교)
+            text.text = "${item.address} | ${item.name}"
             itemView.setOnClickListener { onClick(item) }
         }
     }
