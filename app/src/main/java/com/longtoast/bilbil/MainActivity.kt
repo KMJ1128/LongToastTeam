@@ -89,7 +89,7 @@ class MainActivity : AppCompatActivity() {
         if (UserApiClient.instance.isKakaoTalkLoginAvailable(this)) {
             UserApiClient.instance.loginWithKakaoTalk(this) { token, error ->
                 handleKakaoLoginResult(token, error)
-            }
+            }//
         } else {
             UserApiClient.instance.loginWithKakaoAccount(this) { token, error ->
                 handleKakaoLoginResult(token, error)
