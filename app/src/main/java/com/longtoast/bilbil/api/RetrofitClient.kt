@@ -1,63 +1,79 @@
 package com.longtoast.bilbil.api
 
-import com.longtoast.bilbil.AuthTokenManager // 🚨 AuthTokenManager 임포트
+import com.longtoast.bilbil.AuthTokenManager
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
-import android.util.Log // 🚨 Log 임포트 추가
+import android.util.Log
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
 
-    // 🚨 중요: 여기에 Spring Boot 서버의 주소를 입력하세요!
-    private const val BASE_URL="https://unpaneled-jennette-phonily.ngrok-free.dev/"
-    //private  const val BASE_URL="http://192.168.0.211:8080/"
-    // 🚨 1. [추가됨] Authorization 헤더를 자동으로 추가하는 Interceptor
+    // 🔥 Spring Boot 서버 주소 (Wi-Fi 동일 네트워크)
+    private const val BASE_URL = "http://172.16.104.55:8080/"
+    // 필요할 때 아래 주소로 변경 가능:
+    //private const val BASE_URL = "http://172.16.104.55:8080/"
+    //private const val BASE_URL = "http://192.168.45.105:8080/"
+    // "https://unpaneled-jennette-phonily.ngrok-free.dev/"
+
+    // ------------------------------------------------------------------
+    // 🔐 1. Authorization 헤더 자동 추가 Interceptor
+    // ------------------------------------------------------------------
     private class AuthInterceptor : Interceptor {
         override fun intercept(chain: Interceptor.Chain): Response {
             val originalRequest = chain.request()
 
-            // 저장된 토큰 가져오기
             val token = AuthTokenManager.getToken()
 
-            // 로그인 요청에는 헤더를 추가하지 않음 (토큰이 아직 없으므로)
-            if (originalRequest.url.encodedPath.contains("/kakao/login/token")) {
+            // ❗ 소셜 로그인 요청은 토큰 헤더 붙이면 안 됨
+            val path = originalRequest.url.encodedPath
+
+            if (path.contains("/kakao/login/token") ||
+                path.contains("/naver/login/token")
+            ) {
+                Log.d("Retrofit", "소셜 로그인 요청 → Authorization 헤더 제거")
                 return chain.proceed(originalRequest)
             }
 
-            // 토큰이 있는 경우
+            // JWT 토큰이 존재하면 Authorization 헤더 추가
             if (token != null) {
-                Log.d("RetrofitClient", "Authorization 헤더에 토큰 추가: Bearer $token")
                 val newRequest = originalRequest.newBuilder()
-                    .addHeader("Authorization", "Bearer $token") // "Bearer " 접두사 사용
+                    .header("Authorization", "Bearer $token") // 기존 헤더 덮어쓰기
                     .build()
+
+                Log.d("Retrofit", "Authorization 추가됨 → Bearer $token")
                 return chain.proceed(newRequest)
             }
 
-            // 토큰이 없는 경우 (로그인 안 됨)
-            Log.w("RetrofitClient", "토큰이 없어 Authorization 헤더 없이 요청")
+            Log.w("Retrofit", "JWT 토큰 없음 → 기본 요청으로 진행")
             return chain.proceed(originalRequest)
         }
     }
 
-    // 🚨 2. [추가됨] AuthInterceptor를 포함하는 OkHttpClient 생성
+    // ------------------------------------------------------------------
+    // 2. OkHttpClient (Interceptor 포함)
+    // ------------------------------------------------------------------
     private val okHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
-            .addInterceptor(AuthInterceptor()) // 위에서 만든 인터셉터 추가
+            .addInterceptor(AuthInterceptor())
             .build()
     }
 
-    // 🚨 3. [수정됨] Retrofit 빌더가 OkHttpClient를 사용하도록 변경
+    // ------------------------------------------------------------------
+    // 3. Retrofit Builder
+    // ------------------------------------------------------------------
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .client(okHttpClient) // ⬅️ Interceptor가 포함된 Client 설정
-            .addConverterFactory(GsonConverterFactory.create()) // JSON 자동 변환
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
 
-    // ApiService 인턴스를 얻는 함수
+    // ------------------------------------------------------------------
+    // 4. ApiService 인스턴스 반환
+    // ------------------------------------------------------------------
     fun getApiService(): ApiService {
         return retrofit.create(ApiService::class.java)
     }

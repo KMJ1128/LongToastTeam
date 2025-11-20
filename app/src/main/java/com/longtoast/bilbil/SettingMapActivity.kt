@@ -346,9 +346,14 @@ class SettingMapActivity : AppCompatActivity() {
         return try {
             val response = RetrofitClient.getApiService().sendLocation(body)
 
-            if (response.isSuccessful) true
-            else false
+            Log.d("LOCATION_SAVE", "응답 코드 = ${response.code()}, 성공 여부 = ${response.isSuccessful}")
+            if (!response.isSuccessful) {
+                Log.e("LOCATION_SAVE", "에러 바디 = ${response.errorBody()?.string()}")
+            }
+
+            response.isSuccessful
         } catch (e: Exception) {
+            Log.e("LOCATION_SAVE", "예외 발생", e)
             false
         }
     }

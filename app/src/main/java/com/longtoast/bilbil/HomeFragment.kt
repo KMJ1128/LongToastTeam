@@ -35,26 +35,8 @@ class HomeFragment : Fragment() {
 
         // 2. 지역 설정 텍스트 리스너 (Fragment에서 Activity 실행)
         binding.locationText.setOnClickListener {
-// 🚨 [핵심 수정] AuthTokenManager를 통해 USER_ID와 SERVICE_TOKEN을 가져옵니다.
-            val currentUserId = AuthTokenManager.getUserId()
-            val serviceToken = AuthTokenManager.getToken()
-
-            // 🚨 [수정된 핵심 로직] USER_ID가 null이거나 -1(기본값)인 경우 진입 차단
-            if (currentUserId == null || currentUserId == -1 || serviceToken == null) {
-                // 토큰이나 ID가 없으면 오류 메시지를 띄우고 로그아웃 화면(MainActivity)으로 유도하는 것이 안전합니다.
-                Toast.makeText(requireContext(), "로그인 정보가 유효하지 않습니다. 다시 로그인해주세요.", Toast.LENGTH_LONG).show()
-                // 필요하다면: startActivity(Intent(requireContext(), MainActivity::class.java))
-                return@setOnClickListener
-            }
-
-            val intent = Intent(requireContext(), SettingMapActivity::class.java).apply {
-                // 🚨 Intent에 USER_ID와 SERVICE_TOKEN을 담아 전달합니다.
-                putExtra("USER_ID", currentUserId)
-                putExtra("SERVICE_TOKEN", serviceToken)
-
-                // 🔑 [수정된 부분] HomeFragment에서 이동하는 것은 '업데이트'이므로 SETUP_MODE를 false로 명시합니다.
-                putExtra("SETUP_MODE", false)
-            }
+            // Fragment에서는 'this' 대신 'requireContext()'를 사용하여 Context를 가져옵니다.
+            val intent = Intent(requireContext(), SettingMapActivity::class.java)
             startActivity(intent)
             Toast.makeText(requireContext(), "지도 설정 화면으로 이동", Toast.LENGTH_SHORT).show()
         }
