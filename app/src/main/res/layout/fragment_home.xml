@@ -43,9 +43,9 @@
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@id/bottom_navigation"
         app:layout_constraintTop_toBottomOf="@id/topBar"
         app:layout_constraintVertical_bias="0.0">
+        <!--app:layout_constraintBottom_toTopOf="@id/bottom_navigation"-->
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -53,16 +53,12 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <EditText
+            <SearchView
                 android:id="@+id/search_bar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="24dp"
-                android:background="@drawable/rounded_edittext_background"
-                android:hint="🔍 메뉴를 검색하세요"
-                android:imeOptions="actionSearch"
-                android:inputType="text"
-                android:padding="12dp" />
+                android:layout_marginBottom="20dp"
+                android:background="@drawable/rounded_edittext_background"/>
 
             <TextView
                 android:layout_width="wrap_content"
