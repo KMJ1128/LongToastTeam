@@ -1,3 +1,5 @@
+// com.longtoast.bilbil.dto/ProductDTO.kt (안드로이드)
+
 package com.longtoast.bilbil.dto
 
 data class ProductDTO(
@@ -12,5 +14,8 @@ data class ProductDTO(
     val category: String?,
     val status: String?,        // AVAILABLE, RESERVED, RENTED, UNAVAILABLE
     val createdAt: String?,
-    val mainImageUrl: String?   // 대표 이미지
+    // 🚨 [핵심 수정] 서버에서 전송하는 Base64 문자열 리스트를 받을 필드 추가
+    val imageUrls: List<String>?,
+    // 기존의 mainImageUrl은 이제 imageUrls의 첫 번째 요소가 됩니다.
+    val mainImageUrl: String? = null // 기존 필드 유지 (호환성)
 )

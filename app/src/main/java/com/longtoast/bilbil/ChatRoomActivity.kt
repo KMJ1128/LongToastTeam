@@ -1,6 +1,6 @@
-// com.longtoast.bilbil.ChatRoomActivity.kt (완전 대체용)
 package com.longtoast.bilbil
 
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.util.Log
 import android.widget.EditText
@@ -23,6 +23,16 @@ import retrofit2.Response
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import android.util.Base64
+import android.graphics.BitmapFactory
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ChatRoomActivity : AppCompatActivity() {
 
@@ -30,19 +40,29 @@ class ChatRoomActivity : AppCompatActivity() {
     private lateinit var recyclerChat: RecyclerView
     private lateinit var editMessage: EditText
     private lateinit var buttonSend: ImageButton
+    private lateinit var buttonAttachImage: ImageButton
     private lateinit var chatAdapter: ChatAdapter
 
-    private val chatMessages = mutableListOf<ChatMessage>()
+    private var selectedImageUri: Uri? = null
 
-    private val WEBSOCKET_URL = "wss://unpaneled-jennette-phonily.ngrok-free.dev/stomp/chat" // 고객님 URL 유지
+    private val chatMessages = mutableListOf<ChatMessage>()
+    private val tempMessageMap = mutableMapOf<Long, ChatMessage>() // 🔑 로컬 메시지 매핑
+
+    private val WEBSOCKET_URL = "ws://172.16.101.190:8080/stomp/chat"
     private val roomId by lazy { intent.getStringExtra("ROOM_ID") ?: "1" }
 
-    private val senderId: String by lazy {
-        val actualId = AuthTokenManager.getUserId()?.toString()
-        if (actualId == null) {
-            Log.e("CHAT_AUTH_CRITICAL", "❌ 현재 사용자 ID 로드 실패! '1' 사용.")
+    private val senderId: Int by lazy { AuthTokenManager.getUserId() ?: 1 }
+
+    private var nextTempId = -1L // 로컬 임시 ID 시작
+
+    private val pickImageLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            selectedImageUri = it
+            sendMessage(editMessage.text.toString().trim(), it)
+            editMessage.text.clear()
         }
-        actualId ?: "1" // DB에 존재하는 유효한 사용자 ID (String)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,20 +72,28 @@ class ChatRoomActivity : AppCompatActivity() {
         recyclerChat = findViewById(R.id.recycler_view_chat)
         editMessage = findViewById(R.id.edit_text_message)
         buttonSend = findViewById(R.id.button_send)
+        buttonAttachImage = findViewById(R.id.button_attach_image)
 
-        chatAdapter = ChatAdapter(chatMessages, senderId)
+        chatAdapter = ChatAdapter(chatMessages, senderId.toString())
         recyclerChat.adapter = chatAdapter
         recyclerChat.layoutManager = LinearLayoutManager(this)
 
         fetchChatHistory()
         connectWebSocket()
+        setupListeners()
+    }
 
+    private fun setupListeners() {
         buttonSend.setOnClickListener {
             val messageText = editMessage.text.toString().trim()
-            if (messageText.isNotEmpty()) {
-                sendMessage(messageText)
+            if (messageText.isNotEmpty() || selectedImageUri != null) {
+                sendMessage(messageText, selectedImageUri)
                 editMessage.text.clear()
             }
+        }
+
+        buttonAttachImage.setOnClickListener {
+            pickImageLauncher.launch("image/*")
         }
     }
 
@@ -77,7 +105,10 @@ class ChatRoomActivity : AppCompatActivity() {
                         try {
                             val gson = Gson()
                             val listType = object : TypeToken<List<ChatMessage>>() {}.type
-                            val historyList: List<ChatMessage> = gson.fromJson(gson.toJson(response.body()?.data), listType)
+                            val historyList: List<ChatMessage> = gson.fromJson(
+                                gson.toJson(response.body()?.data),
+                                listType
+                            )
 
                             chatMessages.addAll(historyList)
                             chatAdapter.notifyDataSetChanged()
@@ -85,20 +116,22 @@ class ChatRoomActivity : AppCompatActivity() {
                                 recyclerChat.scrollToPosition(chatMessages.size - 1)
                             }
                             Log.d("CHAT_HISTORY", "✅ 채팅 내역 ${historyList.size}개 로드 성공. Current User ID: $senderId")
-
                         } catch (e: Exception) {
                             Log.e("CHAT_HISTORY", "채팅 내역 파싱 중 오류 발생", e)
                         }
                     } else {
                         Log.e("CHAT_HISTORY", "내역 조회 실패: ${response.code()}. 메시지: ${response.errorBody()?.string()}")
+                        if (response.code() == 401 || response.code() == 403) {
+                            Toast.makeText(this@ChatRoomActivity, "세션 만료: 로그인을 다시 해주세요.", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
+
                 override fun onFailure(call: retrofit2.Call<MsgEntity>, t: Throwable) {
                     Log.e("CHAT_HISTORY", "네트워크 오류", t)
                 }
             })
     }
-
 
     private fun connectWebSocket() {
         val token = AuthTokenManager.getToken()
@@ -120,8 +153,7 @@ class ChatRoomActivity : AppCompatActivity() {
                         "accept-version:1.2\n" +
                         "heart-beat:10000,10000\n" +
                         "Authorization:Bearer $token\n" +
-                        "\n" +
-                        "\u0000"
+                        "\n\u0000"
                 webSocket.send(connectFrame)
             }
 
@@ -144,86 +176,115 @@ class ChatRoomActivity : AppCompatActivity() {
         })
     }
 
-    /**
-     * STOMP 프레임 처리 (CONNECTED, MESSAGE)
-     */
     private fun handleStompFrame(frame: String) {
         when {
             frame.startsWith("CONNECTED") -> {
                 Log.d("STOMP_WS", "🟢 CONNECTED 수신")
-
                 val subscribeFrame = "SUBSCRIBE\n" +
                         "id:sub-0\n" +
                         "destination:/topic/signal/$roomId\n" +
-                        "\n" +
-                        "\u0000"
+                        "\n\u0000"
                 webSocket.send(subscribeFrame)
-                Log.d("STOMP_WS", "📡 채팅방 구독 완료: /topic/signal/$roomId")
+                Log.d("STOMP_WS", "📡 채팅방 구독 완료")
             }
-
             frame.startsWith("MESSAGE") -> {
                 val parts = frame.split("\n\n")
                 if (parts.size > 1) {
                     val payload = parts[1].replace("\u0000", "")
                     Log.d("STOMP_MSG", "💬 서버 메시지 본문: $payload")
-
                     try {
                         val gson = Gson()
-                        val message = gson.fromJson(payload, ChatMessage::class.java)
+                        val receivedMessage = gson.fromJson(payload, ChatMessage::class.java)
 
-                        // 🔑 [핵심 수정 1] 내가 보낸 메시지인지 확인 (중복 방지)
-                        if (message.senderId.toString() == senderId) {
-                            // 내가 보낸 메시지라면, 로컬 에코를 사용했으므로 이 브로드캐스트는 무시합니다.
-                            Log.d("STOMP_WS", "🚫 내 메시지 브로드캐스트 수신, 로컬 에코로 인해 무시됨.")
-                            return
+                        if (receivedMessage.senderId == senderId) {
+                            // 로컬 메시지와 매칭
+                            val matchEntry = tempMessageMap.entries.firstOrNull { it.value.content == receivedMessage.content }
+                            if (matchEntry != null) {
+                                val index = chatMessages.indexOf(matchEntry.value)
+                                if (index != -1) {
+                                    chatMessages[index] = receivedMessage
+                                    chatAdapter.notifyItemChanged(index)
+                                    tempMessageMap.remove(matchEntry.key)
+                                    Log.d("CHAT_WS", "✅ 로컬 에코 교체 완료")
+                                }
+                            } else {
+                                chatMessages.add(receivedMessage)
+                                chatAdapter.notifyItemInserted(chatMessages.size - 1)
+                                recyclerChat.scrollToPosition(chatMessages.size - 1)
+                                Log.d("CHAT_WS", "로컬 메시지 미발견, 새로 추가")
+                            }
+                        } else {
+                            chatMessages.add(receivedMessage)
+                            chatAdapter.notifyItemInserted(chatMessages.size - 1)
+                            recyclerChat.scrollToPosition(chatMessages.size - 1)
+                            Log.d("STOMP_WS_UPDATE", "실시간 메시지 추가: Sender ${receivedMessage.senderId}")
                         }
-
-                        // 🔑 [핵심 수정 2] 상대방이 보낸 메시지일 때만 화면에 추가 (실시간 표시)
-                        chatMessages.add(message)
-                        chatAdapter.notifyItemInserted(chatMessages.size - 1)
-                        recyclerChat.scrollToPosition(chatMessages.size - 1)
-                        Log.d("STOMP_WS_UPDATE", "실시간 메시지 추가 완료: Sender ${message.senderId}")
-
                     } catch (e: Exception) {
                         Log.e("STOMP_MSG", "ChatMessage JSON 파싱 오류", e)
                     }
                 }
             }
-
             else -> Log.d("STOMP_WS", "ℹ️ 기타 프레임: $frame")
         }
     }
 
-    /**
-     * 메시지 전송 (STOMP SEND)
-     */
-    private fun sendMessage(content: String) {
-        val escapedContent = content.replace("\"", "\\\"")
+    private fun sendMessage(content: String, imageUri: Uri? = null) {
+        lifecycleScope.launch {
+            val finalImageUri = imageUri ?: selectedImageUri
+            val base64Image = if (finalImageUri != null) {
+                withContext(Dispatchers.IO) { convertUriToBase64(finalImageUri, 40) }
+            } else null
 
-        // 1. STOMP 프레임 전송
-        val messageFrame = "SEND\n" +
-                "destination:/app/signal/$roomId\n" +
-                "content-type:application/json\n" +
-                "\n" +
-                "{\"senderId\":\"$senderId\",\"content\":\"$escapedContent\"}" +
-                "\u0000"
+            if (content.isEmpty() && base64Image.isNullOrEmpty()) return@launch
 
-        webSocket.send(messageFrame)
-        Log.d("STOMP_SEND", "📤 메시지 전송 완료 → /app/signal/$roomId: $content")
+            val escapedContent = content.replace("\"", "\\\"")
+            val payloadJson = if (base64Image.isNullOrEmpty()) {
+                "{\"senderId\":$senderId,\"content\":\"$escapedContent\"}"
+            } else {
+                "{\"senderId\":$senderId,\"content\":\"$escapedContent\",\"base64Image\":\"$base64Image\"}"
+            }
 
-        // 2. 🔑 로컬 에코 복원 (메시지 전송 시 즉시 화면에 표시) - 이 부분이 중복 해결의 기반
-        val tempMessage = ChatMessage(
-            id = System.currentTimeMillis(),
-            roomId = roomId,
-            senderId = senderId.toIntOrNull() ?: 0,
-            content = content,
-            imageUrl = null,
-            sentAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
-        )
+            val messageFrame = "SEND\n" +
+                    "destination:/app/signal/$roomId\n" +
+                    "content-type:application/json\n" +
+                    "\n$payloadJson\u0000"
 
-        chatMessages.add(tempMessage)
-        chatAdapter.notifyItemInserted(chatMessages.size - 1)
-        recyclerChat.scrollToPosition(chatMessages.size - 1)
+            webSocket.send(messageFrame)
+            Log.d("STOMP_SEND", "📤 메시지 전송 완료. 텍스트 길이: ${content.length}, 이미지 존재: ${base64Image != null}")
+
+            val tempMessage = ChatMessage(
+                id = nextTempId--,
+                roomId = roomId,
+                senderId = senderId,
+                content = content,
+                imageUrl = base64Image,
+                sentAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
+            )
+
+            chatMessages.add(tempMessage)
+            tempMessageMap[tempMessage.id] = tempMessage
+            chatAdapter.notifyItemInserted(chatMessages.size - 1)
+            recyclerChat.scrollToPosition(chatMessages.size - 1)
+            selectedImageUri = null
+        }
+    }
+
+    private fun convertUriToBase64(uri: Uri, quality: Int): String? {
+        return try {
+            val inputStream: InputStream? = contentResolver.openInputStream(uri)
+            val bitmap = BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
+            if (bitmap != null) {
+                val outputStream = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+                val bytes = outputStream.toByteArray()
+                outputStream.close()
+                Base64.encodeToString(bytes, Base64.NO_WRAP)
+            } else null
+        } catch (e: Exception) {
+            Log.e("BASE64_CONV", "URI to Base64 failed for $uri", e)
+            null
+        }
     }
 
     override fun onDestroy() {

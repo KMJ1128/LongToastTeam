@@ -1,4 +1,4 @@
-// com.longtoast.bilbil.dto/ChatRoomListDTO.kt
+// com.longtoast.bilbil.dto/ChatRoomListDTO.kt (안드로이드)
 
 package com.longtoast.bilbil.dto
 
@@ -15,7 +15,7 @@ data class ChatRoomListDTO(
     // 3. 물품 정보
     val itemId: Int?,
     val itemTitle: String?,
-    val itemMainImageUrl: String?, // 물품의 대표 이미지 URL
+    val itemMainImageUrl: String?, // 💡 [유지] 물품의 대표 이미지 URL (목록 썸네일)
     val itemPrice: Int?,
 
     // 4. 마지막 메시지 내용

@@ -1,3 +1,4 @@
+// com.longtoast.bilbil.SettingProfileActivity.kt (전체)
 package com.longtoast.bilbil
 
 import android.Manifest
@@ -28,12 +29,7 @@ import java.io.IOException
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import okhttp3.Interceptor
-import okhttp3.OkHttpClient
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.TimeUnit
-import com.longtoast.bilbil.api.RetrofitClient // BASE_URL을 가져오기 위해 유지
+import com.longtoast.bilbil.api.RetrofitClient
 
 class SettingProfileActivity : AppCompatActivity() {
 
@@ -54,6 +50,8 @@ class SettingProfileActivity : AppCompatActivity() {
 
     private var serviceToken: String? = null
     private var userId: Int = 0
+
+    private var userName: String? = null // 💡 [추가] MemberDTO.kt에 username 필드가 추가되었다는 가정
 
     private val CAMERA_PERMISSION_CODE = 100
 
@@ -95,6 +93,7 @@ class SettingProfileActivity : AppCompatActivity() {
 
         serviceToken = intent.getStringExtra("SERVICE_TOKEN")
         userId = intent.getIntExtra("USER_ID", 0)
+        userName = intent.getStringExtra("USER_NAME")
 
 
         Log.d("SettingProfile", "받은 데이터 - 위도: $latitude, 경도: $longitude")
@@ -244,10 +243,11 @@ class SettingProfileActivity : AppCompatActivity() {
             return
         }
 
-        // 1. DTO 생성 (MemberDTO는 8개 필드를 String? 타입으로 가정)
+        // 1. DTO 생성
         val updateRequest = MemberDTO(
             id = userId,
             nickname = nickname,
+            username = userName, // 💡 [수정] username 필드 포함
             address = address,
             locationLatitude = latitude,
             locationLongitude = longitude,
@@ -257,15 +257,15 @@ class SettingProfileActivity : AppCompatActivity() {
         )
 
         // 2. 🔑 [핵심] API 호출 전에 AuthTokenManager에 토큰/ID를 저장합니다.
+        // RetrofitClient의 Interceptor가 이 저장된 토큰을 즉시 사용합니다.
         AuthTokenManager.saveToken(serviceToken!!)
         AuthTokenManager.saveUserId(userId)
         Log.d("PROFILE_COMPLETE", "✅ JWT 및 User ID 저장 완료. API 호출 시작.")
 
 
-        // 3. 🔑 [최종 해결책] 토큰을 헤더에 직접 주입하는 임시 Retrofit 클라이언트 생성 및 호출
-        val tempApiService = createTempApiServiceWithToken(serviceToken!!)
-
-        tempApiService.updateProfile(updateRequest)
+        // 3. 🔑 [수정] RetrofitClient의 기본 ApiService를 사용합니다.
+        // 불필요한 임시 클라이언트 생성 로직이 제거됩니다.
+        RetrofitClient.getApiService().updateProfile(updateRequest)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (response.isSuccessful) {
@@ -295,42 +295,5 @@ class SettingProfileActivity : AppCompatActivity() {
                     Toast.makeText(this@SettingProfileActivity, "서버 연결 오류", Toast.LENGTH_LONG).show()
                 }
             })
-    }
-
-
-    /**
-     * 🔑 [핵심 메서드] API 호출 시점에 토큰을 직접 주입하는 임시 Retrofit 인스턴스 생성
-     */
-    private fun createTempApiServiceWithToken(token: String): ApiService {
-        val authInterceptor = Interceptor { chain ->
-            val newRequest = chain.request().newBuilder()
-                .addHeader("Authorization", "Bearer $token")
-                .build()
-            chain.proceed(newRequest)
-        }
-
-        // 💡 BASE_URL을 RetrofitClient.kt에서 직접 참조합니다. (하드코딩 방지)
-        val BASE_URL_TEMP = try {
-            val field = RetrofitClient::class.java.getDeclaredField("BASE_URL")
-            field.isAccessible = true
-            field.get(RetrofitClient) as String
-        } catch (e: Exception) {
-            // Reflection이 실패하면, 현재 알려주신 IP를 사용합니다.
-            Log.e("RETROFIT_INIT", "BASE_URL Reflection 실패, 하드코딩된 주소 사용.")
-            "http://172.16.102.73:8080/"
-        }
-
-        val okHttpClient = OkHttpClient.Builder()
-            .addInterceptor(authInterceptor)
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .build()
-
-        val retrofit = Retrofit.Builder()
-            .baseUrl(BASE_URL_TEMP)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-
-        return retrofit.create(ApiService::class.java)
     }
 }

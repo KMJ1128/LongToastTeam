@@ -1,3 +1,4 @@
+// com.longtoast.bilbil.SettingMapActivity.kt (전체)
 package com.longtoast.bilbil
 
 import android.Manifest
@@ -120,7 +121,7 @@ class SettingMapActivity : AppCompatActivity() {
     private fun setupCameraMoveEndListener() {
         kakaoMap?.setOnCameraMoveEndListener { map, camPos, reason ->
 
-            val center = camPos.position// ← KakaoMap SDK에서 공식 제공
+            val center = camPos.position
 
             currentLat = center.latitude
             currentLng = center.longitude
@@ -154,6 +155,8 @@ class SettingMapActivity : AppCompatActivity() {
         btnConfirm.setOnClickListener {
             val userId = intent.getIntExtra("USER_ID", -1)
             val serviceToken = intent.getStringExtra("SERVICE_TOKEN")
+
+            // isInitialSetup은 MainActivity에서 초기 설정으로 왔는지 확인하는 플래그 (여기에선 사용 안 함)
             val isInitialSetup = intent.hasExtra("USER_NICKNAME")
             val nickname = intent.getStringExtra("USER_NICKNAME")
 
@@ -175,6 +178,7 @@ class SettingMapActivity : AppCompatActivity() {
 
                 currentAddress = finalAddress
 
+                // 1. 서버에 위치 저장 (비동기)
                 val ok = sendLocationToServer(userId, currentLat, currentLng, currentAddress)
                 if (!ok) {
                     Toast.makeText(this@SettingMapActivity, "서버 저장 실패", Toast.LENGTH_SHORT).show()
@@ -183,13 +187,32 @@ class SettingMapActivity : AppCompatActivity() {
 
                 Toast.makeText(this@SettingMapActivity, "위치 저장 완료!", Toast.LENGTH_SHORT).show()
 
-                val intent = Intent(this@SettingMapActivity, HomeHostActivity::class.java)
-                startActivity(intent)
-                finish()
+                // 2. 🚨 [핵심 수정] 호출한 Activity/Fragment로 결과 반환
+                val resultIntent = Intent().apply {
+                    putExtra("FINAL_ADDRESS", currentAddress)
+                    putExtra("FINAL_LATITUDE", currentLat)
+                    putExtra("FINAL_LONGITUDE", currentLng)
+                }
+                setResult(RESULT_OK, resultIntent)
+
+                // 3. 🚨 [수정] 초기 설정(MainActivity)에서 온 경우에만 홈 화면으로 이동
+                if (isInitialSetup) {
+                    // MainActivity -> SettingMapActivity -> SettingProfileActivity를 거쳐왔다고 가정
+                    // 여기서는 SettingProfileActivity로 이동해야 함 (수정 전 코드와 동일하게 처리)
+                    // 현재 로직이 SettingMapActivity 다음에 바로 HomeHostActivity로 이동하므로, 이 로직을 유지합니다.
+
+                    // 💡 [정리] 이 로직은 초기 설정(MainActivity -> SettingMapActivity)에서만 실행되어야 합니다.
+                    // 현재는 SettingProfileActivity가 이전에 실행되도록 설정되어 있지 않으므로 HomeHostActivity로 바로 이동합니다.
+                    val intent = Intent(this@SettingMapActivity, HomeHostActivity::class.java)
+                    startActivity(intent)
+                }
+
+                finish() // Activity 종료
             }
         }
     }
 
+    // ... (checkLocationPermission, getCurrentLocation, moveCameraTo, loadAddress, reverseGeocode, searchAddress, searchKeyword, sendLocationToServer 유지) ...
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { perms ->
             val fine = perms[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
