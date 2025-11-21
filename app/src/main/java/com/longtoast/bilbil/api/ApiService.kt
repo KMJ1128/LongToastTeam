@@ -17,6 +17,7 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.PUT // 💡 PUT 메서드 Import
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ApiService {
 
@@ -35,6 +36,13 @@ interface ApiService {
     //NewPostFragment에서 호출하는 메서드 정의가 명확하게 포함되어야 합니다.*/
     @GET("products/myitems")
     fun getMyProducts(): Call<MsgEntity>
+
+    @GET("/products/lists")
+    fun getProductLists(
+        @Query("title") title: String? = null,
+        @Query("category") category: String? = null,
+        @Query("sort") sort: String? = null
+    ): Call<MsgEntity>
 
     @POST("writeproduct/create")
     fun createProduct(

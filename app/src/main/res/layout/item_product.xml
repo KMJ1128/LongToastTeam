@@ -13,7 +13,7 @@
         android:scaleType="centerCrop"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        android:contentDescription="상품 이미지" />삼성
+        android:contentDescription="상품 이미지" />
 
     <TextView
         android:id="@+id/title_text"

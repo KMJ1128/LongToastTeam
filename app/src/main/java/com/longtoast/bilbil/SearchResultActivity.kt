@@ -1,122 +1,137 @@
-// com.longtoast.bilbil.SearchResultActivity.kt
 package com.longtoast.bilbil
 
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Button
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import com.longtoast.bilbil.api.RetrofitClient
-import com.longtoast.bilbil.dto.ChatRoomCreateRequest
-import com.longtoast.bilbil.dto.MsgEntity // 💡 MsgEntity 사용
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.longtoast.bilbil.api.RetrofitClient
+import com.longtoast.bilbil.databinding.ActivitySearchResultBinding
+import com.longtoast.bilbil.dto.MsgEntity
+import com.longtoast.bilbil.dto.ProductListDTO
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
 class SearchResultActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivitySearchResultBinding
+    private lateinit var adapter: ProductAdapter
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
 
-        // ‼️ 임시 레이아웃(activity_setting_profile)을 사용합니다.
-        setContentView(R.layout.activity_setting_profile)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
+        Log.d("DEBUG_FLOW", "🔥 SearchResultActivity.onCreate() 실행됨")
+
+        binding = ActivitySearchResultBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        Log.d("DEBUG_FLOW", "UI 바인딩 완료")
+
+        // RecyclerView
+        adapter = ProductAdapter(emptyList()) { itemId ->
+            Log.d("DEBUG_FLOW", "아이템 클릭됨 → itemId=$itemId")
+            val intent = Intent(this, ProductDetailActivity::class.java)
+            intent.putExtra("ITEM_ID", itemId)
+            startActivity(intent)
         }
 
-        val testChatButton: Button = findViewById(R.id.button_complete)
-        testChatButton.text = "채팅방 생성 테스트 버튼"
+        binding.recyclerView.layoutManager = LinearLayoutManager(this)
+        binding.recyclerView.adapter = adapter
 
-        testChatButton.setOnClickListener {
-            createChatRoomAndStartActivity()
+        // 전달된 검색 값 확인
+        val query = intent.getStringExtra("SEARCH_QUERY")
+        val isCategory = intent.getBooleanExtra("SEARCH_IS_CATEGORY", false)
+
+        Log.d("DEBUG_FLOW", "전달 받은 검색 정보 → query=$query | isCategory=$isCategory")
+
+        if (query == null) {
+            Log.e("DEBUG_FLOW", "❌ query=null → SearchResultActivity 오류 발생 가능!")
         }
-    }
 
-    /**
-     * 1. (테스트) 채팅방 생성 API를 호출하고
-     * 2. (성공 시) ChatRoomActivity를 시작하는 함수
-     */
-    private fun createChatRoomAndStartActivity() {
-        Log.d("CHAT_TEST", "채팅방 생성 API 호출 시작...")
-
-        // 테스트용 ID 값들 (Int)
-        val testItemId = 1
-        val testLenderId = 1
-        val testBorrowerId = 2
-        val testSellerNickname = "테스트 판매자"
-
-        // DTO 생성
-        val request = ChatRoomCreateRequest(
-            itemId = testItemId,
-            lenderId = testLenderId,
-            borrowerId = testBorrowerId
-        )
+        binding.queryText.text = if (isCategory) {
+            "\"$query\" 카테고리"
+        } else {
+            "\"$query\" 검색 결과"
+        }
 
         // API 호출
-        // 💡 [수정] ChatMsgEntity 대신 MsgEntity를 사용합니다. (MsgEntity는 data: Any?를 가짐)
-        RetrofitClient.getApiService().createChatRoom(request)
-            .enqueue(object : Callback<MsgEntity> {
-
-                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                    // 1. 서버 응답 실패 처리
-                    if (!response.isSuccessful || response.body() == null) {
-                        val errorMsg = response.errorBody()?.string() ?: "알 수 없는 오류"
-                        Log.e("CHAT_API", "채팅방 생성 실패 (서버 응답 오류): ${response.code()} / $errorMsg")
-                        Toast.makeText(this@SearchResultActivity, "채팅방 생성 실패: ${response.code()} / $errorMsg", Toast.LENGTH_LONG).show()
-                        return
-                    }
-
-                    // -------------------------------------------------
-                    // 🚨 [핵심 수정] - Map 파싱을 통해 roomId 추출 (백엔드 응답이 {roomId: "1"} 형태인 경우)
-                    // -------------------------------------------------
-                    val rawData = response.body()?.data
-                    var roomIdString: String? = null
-
-                    try {
-                        val gson = Gson()
-                        // data 필드를 Map<String, String>으로 파싱하여 "roomId" 키의 값을 추출
-                        val type = object : TypeToken<Map<String, String>>() {}.type
-                        val mapData: Map<String, String>? = gson.fromJson(gson.toJson(rawData), type)
-                        roomIdString = mapData?.get("roomId")
-                    } catch (e: Exception) {
-                        // 파싱 오류는 GSON 임포트 문제 또는 DTO 필드명 불일치에서 옵니다.
-                        Log.e("CHAT_API", "Room ID 파싱 실패. 원인: ${e.message}", e)
-                    }
+        loadSearchResults(query, isCategory)
+    }
 
 
-                    // 2. roomId 검증 및 다음 단계로 진행
-                    if (roomIdString.isNullOrEmpty()) {
-                        Log.e("CHAT_API", "Room ID 획득 실패. 최종 파싱 결과: $roomIdString")
-                        Toast.makeText(this@SearchResultActivity, "Room ID 획득 실패", Toast.LENGTH_LONG).show()
-                        return
-                    }
+    private fun loadSearchResults(query: String?, isCategory: Boolean) {
 
-                    // 3. roomId 파싱 성공
-                    Log.d("CHAT_API", "채팅방 생성 성공. Room ID: $roomIdString")
-                    Toast.makeText(this@SearchResultActivity, "채팅방이 생성되었습니다. ID: $roomIdString", Toast.LENGTH_SHORT).show()
+        Log.d("DEBUG_FLOW", "loadSearchResults() 호출됨")
 
-                    // 4. ChatRoomActivity 시작 (roomId 전달)
-                    val intent = Intent(this@SearchResultActivity, ChatRoomActivity::class.java).apply {
-                        putExtra("PRODUCT_ID", testItemId.toString())
-                        putExtra("SELLER_NICKNAME", testSellerNickname)
-                        putExtra("ROOM_ID", roomIdString) // 유효한 roomId 전달
-                    }
-                    startActivity(intent)
+        binding.progressBar.visibility = View.VISIBLE
+
+        val titleParam = if (!isCategory) query else null
+        val categoryParam = if (isCategory) query else null
+
+        Log.d("DEBUG_FLOW", "API 호출 파라미터 → title=$titleParam | category=$categoryParam")
+
+        RetrofitClient.getApiService().getProductLists(
+            title = titleParam,
+            category = categoryParam,
+            sort = null
+        ).enqueue(object : Callback<MsgEntity> {
+
+            override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+
+                Log.d("DEBUG_FLOW", "API 응답 도착. 성공 여부=${response.isSuccessful}")
+
+                binding.progressBar.visibility = View.GONE
+
+                if (!response.isSuccessful) {
+                    Log.e("DEBUG_FLOW", "❌ API 실패: code=${response.code()} | body=${response.errorBody()?.string()}")
+                    binding.emptyText.visibility = View.VISIBLE
+                    return
                 }
 
-                // 💡 [수정] MsgEntity에 맞춰 Call<MsgEntity>로 변경
-                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                    Log.e("CHAT_API", "서버 통신 오류", t)
-                    Toast.makeText(this@SearchResultActivity, "네트워크 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
+                val rawData = response.body()?.data
+                Log.d("DEBUG_FLOW", "rawData=$rawData")
+
+                if (rawData == null) {
+                    Log.e("DEBUG_FLOW", "❌ rawData=null (서버 문제 가능)")
+                    binding.emptyText.visibility = View.VISIBLE
+                    return
                 }
-            })
+
+                try {
+                    val gson = Gson()
+                    val listType = object : TypeToken<List<ProductListDTO>>() {}.type
+                    val json = gson.toJson(rawData)
+
+                    Log.d("DEBUG_FLOW", "rawData JSON=$json")
+
+                    val productList: List<ProductListDTO> = gson.fromJson(json, listType)
+
+                    Log.d("DEBUG_FLOW", "파싱된 productList size=${productList.size}")
+
+                    if (productList.isEmpty()) {
+                        binding.emptyText.visibility = View.VISIBLE
+                    } else {
+                        adapter.updateList(productList)
+                        binding.emptyText.visibility = View.GONE
+                    }
+
+                } catch (e: Exception) {
+                    Log.e("DEBUG_FLOW", "❌ JSON 파싱 오류", e)
+                    binding.emptyText.visibility = View.VISIBLE
+                }
+            }
+
+            override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                Log.e("DEBUG_FLOW", "❌ 네트워크 실패", t)
+                binding.progressBar.visibility = View.GONE
+                binding.emptyText.visibility = View.VISIBLE
+            }
+        })
     }
 }

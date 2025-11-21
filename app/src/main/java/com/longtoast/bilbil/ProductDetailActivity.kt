@@ -1,13 +1,23 @@
-// ProductDetailActivity.kt (임시 파일)
-
 package com.longtoast.bilbil
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import com.longtoast.bilbil.databinding.ActivityProductDetailBinding
 
 class ProductDetailActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityProductDetailBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // TODO: 상세 보기 레이아웃 설정 및 ITEM_ID 받아서 상세 정보 API 호출 로직 구현
+
+        binding = ActivityProductDetailBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        val itemId = intent.getIntExtra("ITEM_ID", -1)
+
+        binding.textItemId.text = "상품 ID: $itemId"
+
+        // 여기서 API 호출 → 상세정보 불러오면 됨
     }
 }

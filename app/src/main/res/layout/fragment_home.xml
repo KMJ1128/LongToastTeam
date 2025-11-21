@@ -53,12 +53,15 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <SearchView
+            <androidx.appcompat.widget.SearchView
                 android:id="@+id/search_bar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="20dp"
-                android:background="@drawable/rounded_edittext_background"/>
+                android:background="@drawable/rounded_edittext_background"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                />
 
             <TextView
                 android:layout_width="wrap_content"

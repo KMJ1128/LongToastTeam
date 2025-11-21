@@ -14,7 +14,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.longtoast.bilbil.databinding.FragmentMyItemsBinding
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.dto.MsgEntity
-import com.longtoast.bilbil.dto.ProductListDTO
+import com.longtoast.bilbil.dto.ProductDTO
+
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import retrofit2.Call
@@ -79,12 +80,12 @@ class MyItemsFragment : Fragment() {
                     }
 
                     val rawData = response.body()?.data
-                    var productList: List<ProductListDTO>? = null
+                    var productList: List<ProductDTO>? = null
 
                     try {
                         val gson = Gson()
                         // List<ProductListDTO>로 파싱
-                        val listType = object : TypeToken<List<ProductListDTO>>() {}.type
+                        val listType = object : TypeToken<List<ProductDTO>>() {}.type
                         val dataJson = gson.toJson(rawData)
                         productList = gson.fromJson(dataJson, listType)
                     } catch (e: Exception) {
@@ -99,7 +100,7 @@ class MyItemsFragment : Fragment() {
                         binding.textEmptyState.visibility = View.GONE
 
                         val adapter = MyItemsAdapter(productList) { product ->
-                            // TODO: 상품 클릭 시 상세 화면으로 이동하는 로직 구현
+                        // TODO: 상품 클릭 시 상세 화면으로 이동하는 로직 구현
                             Toast.makeText(context, "${product.title} 상세 보기", Toast.LENGTH_SHORT).show()
                         }
                         binding.recyclerViewMyItems.adapter = adapter

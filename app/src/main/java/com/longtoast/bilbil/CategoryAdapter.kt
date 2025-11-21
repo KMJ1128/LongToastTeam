@@ -1,30 +1,53 @@
-//package com.longtoast.bilbil
-//
-//import android.view.LayoutInflater
-//import android.view.View
-//import android.view.ViewGroup
-//import android.widget.TextView
-//import androidx.recyclerview.widget.RecyclerView
-//
-//class CategoryAdapter(
-//    private val items: List<String>,
-//    private val onClick: (String) -> Unit
-//) : RecyclerView.Adapter<CategoryAdapter.VH>() {
-//    inner class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
-//        val title: TextView = itemView.findViewById(android.R.id.text1)
-//        init {
-//            itemView.setOnClickListener {
-//                val pos = bindingAdapterPosition
-//                if (pos != RecyclerView.NO_POSITION) onClick(items[pos])
-//            }
-//        }
-//    }
-//    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-//        val v = LayoutInflater.from(parent.context).inflate(android.R.layout.simple_list_item_1, parent, false)
-//        return VH(v)
-//    }
-//    override fun onBindViewHolder(holder: VH, position: Int) {
-//        holder.title.text = items[position]
-//    }
-//    override fun getItemCount(): Int = items.size
-//}
+package com.longtoast.bilbil.adapter
+
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import com.longtoast.bilbil.R
+
+class CategoryAdapter(
+    private val categories: List<String>,
+    private val onCategoryClick: (String) -> Unit
+) : RecyclerView.Adapter<CategoryAdapter.CategoryViewHolder>() {
+
+    inner class CategoryViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val icon: ImageView = view.findViewById(R.id.category_icon)
+        val textName: TextView = view.findViewById(R.id.category_name)
+
+        fun bind(name: String) {
+            textName.text = name
+
+            // 🔥 카테고리별 아이콘 매핑
+            val iconRes = when (name) {
+                "자전거" -> R.drawable.ic_bike
+                "가구" -> R.drawable.ic_furniture
+                "캠핑" -> R.drawable.ic_camping
+                "전자제품" -> R.drawable.ic_digital
+                "운동" -> R.drawable.ic_default_category
+                "의류" -> R.drawable.ic_default_category
+                else -> R.drawable.ic_default_category
+            }
+
+            icon.setImageResource(iconRes)
+
+            itemView.setOnClickListener {
+                onCategoryClick(name)
+            }
+        }
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CategoryViewHolder {
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_category_grid, parent, false)
+        return CategoryViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: CategoryViewHolder, position: Int) {
+        holder.bind(categories[position])
+    }
+
+    override fun getItemCount(): Int = categories.size
+}

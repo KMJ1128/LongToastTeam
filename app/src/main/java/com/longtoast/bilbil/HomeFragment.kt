@@ -2,15 +2,18 @@ package com.longtoast.bilbil
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.SearchView
-import android.widget.Toast
+import android.view.inputmethod.EditorInfo
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import com.longtoast.bilbil.adapter.CategoryAdapter
 import com.longtoast.bilbil.databinding.FragmentHomeBinding
+import android.widget.EditText
+import androidx.appcompat.widget.SearchView
 
 class HomeFragment : Fragment() {
 
@@ -28,34 +31,49 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        setupCategoryRecyclerView()
+        Log.d("DEBUG_FLOW", "HomeFragment.onViewCreated() 실행됨")
 
-        binding.locationText.setOnClickListener {
-            val intent = Intent(requireContext(), SettingMapActivity::class.java)
-            startActivity(intent)
-            Toast.makeText(requireContext(), "지도 설정 화면으로 이동", Toast.LENGTH_SHORT).show()
+        // -----------------------------------------------------------------------------------------
+        // 🔥 SearchView 내부 EditText 가져오기
+        // -----------------------------------------------------------------------------------------
+        val searchEditTextId = binding.searchBar.context.resources
+            .getIdentifier("search_src_text", "id", binding.searchBar.context.packageName)
+
+        val searchEditText = binding.searchBar.findViewById<EditText>(searchEditTextId)
+
+        // 🔥 IME 옵션 강제 설정
+        searchEditText.imeOptions = EditorInfo.IME_ACTION_SEARCH
+        searchEditText.setSingleLine(true)
+
+        // -----------------------------------------------------------------------------------------
+        // 🔥 Enter 입력 시 검색 수행
+        // -----------------------------------------------------------------------------------------
+        searchEditText.setOnEditorActionListener { _, actionId, event ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH ||
+                (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
+            ) {
+
+                val query = binding.searchBar.query.toString()
+                Log.d("DEBUG_FLOW", "Enter 감지! 즉시 검색 실행 → $query")
+
+                if (query.isNotEmpty()) {
+                    val intent = Intent(requireContext(), SearchResultActivity::class.java)
+                    intent.putExtra("SEARCH_QUERY", query)
+                    intent.putExtra("SEARCH_IS_CATEGORY", false)
+
+                    Log.d("DEBUG_FLOW", "SearchResultActivity 이동 → query=$query")
+
+                    startActivity(intent)
+                    binding.searchBar.clearFocus()
+                }
+                true
+            } else {
+                false
+            }
         }
 
-        binding.menuButton.setOnClickListener {
-            val drawerLayout = activity?.findViewById<androidx.drawerlayout.widget.DrawerLayout>(R.id.drawer_layout)
-            drawerLayout?.openDrawer(androidx.core.view.GravityCompat.END)
-        }
-
-        // SearchView 처리
-        val searchView: SearchView = binding.searchBar
-        searchView.queryHint = "검색어를 입력하세요"
-        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+        binding.searchBar.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
-                val q = query?.trim()
-                if (q.isNullOrEmpty()) {
-                    Toast.makeText(requireContext(), "검색어를 입력해주세요.", Toast.LENGTH_SHORT).show()
-                    return true
-                }
-                val intent = Intent(requireContext(), SearchResultFragment::class.java).apply {
-                    putExtra("SEARCH_QUERY", q)
-                    putExtra("SEARCH_IS_CATEGORY", false)
-                }
-                startActivity(intent)
                 return true
             }
 
@@ -63,72 +81,39 @@ class HomeFragment : Fragment() {
                 return false
             }
         })
+
+        // -----------------------------------------------------------------------------------------
+        // 🔥 카테고리 RecyclerView 설정 (이게 없어서 카테고리가 안 보였음)
+        // -----------------------------------------------------------------------------------------
+        setupCategoryRecycler()
     }
 
-    private fun setupCategoryRecyclerView() {
-        // Category 타입이 명확히 정의되어 있으므로 타입 추론 오류가 발생하지 않습니다.
-        val categoryList: List<Category> = listOf(
-            Category("자전거", R.drawable.ic_bike, "자전거"),
-            Category("캠핑용품", R.drawable.ic_camping, "캠핑용품"),
-            Category("디지털", R.drawable.ic_digital, "디지털/가전"),
-            Category("도서", R.drawable.ic_book, "도서/티켓"),
-            Category("생활가구", R.drawable.ic_furniture, "생활가구"),
-            Category("반려동물", R.drawable.ic_pet, "반려동물")
-        )
+    private fun setupCategoryRecycler() {
+        val categoryList = listOf("자전거", "가구", "캠핑", "전자제품", "운동", "의류")
 
-        val layoutManager = GridLayoutManager(requireContext(), 3)
-        binding.categoryRecyclerView.layoutManager = layoutManager
+        Log.d("DEBUG_FLOW", "카테고리 리스트 로드 완료: $categoryList")
 
-        val adapter = CategoryAdapter(categoryList) { category: Category ->
-            val intent = Intent(requireContext(), SearchResultActivity::class.java).apply {
-                putExtra("SEARCH_QUERY", category.searchQuery)
-                putExtra("SEARCH_IS_CATEGORY", true)
+        binding.categoryRecyclerView.layoutManager =
+            GridLayoutManager(requireContext(), 3)
+
+        binding.categoryRecyclerView.adapter =
+            CategoryAdapter(categoryList) { categoryName ->
+
+                Log.d("DEBUG_FLOW", "카테고리 클릭됨 → $categoryName")
+
+                val intent = Intent(requireContext(), SearchResultActivity::class.java)
+                intent.putExtra("SEARCH_QUERY", categoryName)
+                intent.putExtra("SEARCH_IS_CATEGORY", true)
+
+                Log.d("DEBUG_FLOW", "SearchResultActivity 로 이동 시작")
+                Log.d("DEBUG_FLOW", "putExtra 확인 → SEARCH_QUERY=$categoryName, SEARCH_IS_CATEGORY=true")
+
+                startActivity(intent)
             }
-            startActivity(intent)
-            Toast.makeText(requireContext(), "${category.name} 검색", Toast.LENGTH_SHORT).show()
-        }
-
-        binding.categoryRecyclerView.adapter = adapter
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
-}
-
-/** 카테고리 데이터 모델 */
-data class Category(
-    val name: String,
-    val iconResId: Int,
-    val searchQuery: String
-)
-
-/** 카테고리 어댑터 */
-class CategoryAdapter(
-    private val categories: List<Category>,
-    private val onItemClicked: (Category) -> Unit
-) : RecyclerView.Adapter<CategoryAdapter.CategoryViewHolder>() {
-
-    class CategoryViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val icon: android.widget.ImageView = view.findViewById(R.id.category_icon)
-        val name: android.widget.TextView = view.findViewById(R.id.category_name)
-    }
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CategoryViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_category_grid, parent, false)
-        return CategoryViewHolder(view)
-    }
-
-    override fun onBindViewHolder(holder: CategoryViewHolder, position: Int) {
-        val category = categories[position]
-        holder.name.text = category.name
-        holder.icon.setImageResource(category.iconResId)
-        holder.itemView.setOnClickListener {
-            onItemClicked(category)
-        }
-    }
-
-    override fun getItemCount(): Int = categories.size
 }
