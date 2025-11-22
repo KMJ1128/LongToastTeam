@@ -33,6 +33,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.longtoast.bilbil.ServerConfig
 
 class ChatRoomActivity : AppCompatActivity() {
 
@@ -48,8 +49,7 @@ class ChatRoomActivity : AppCompatActivity() {
     private val chatMessages = mutableListOf<ChatMessage>()
     private val tempMessageMap = mutableMapOf<Long, ChatMessage>() // 🔑 로컬 메시지 매핑
 
-    private val WEBSOCKET_URL ="wss://unpaneled-jennette-phonily.ngrok-free.dev/stomp/chat"
-   // private val WEBSOCKET_URL = "ws://192.168.0.211:8080/stomp/chat"
+    private val WEBSOCKET_URL = ServerConfig.WEBSOCKET_URL
     private val roomId by lazy { intent.getStringExtra("ROOM_ID") ?: "1" }
 
     private val senderId: Int by lazy { AuthTokenManager.getUserId() ?: 1 }
