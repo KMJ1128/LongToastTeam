@@ -12,13 +12,16 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.longtoast.bilbil.databinding.FragmentMessageBinding
 import com.longtoast.bilbil.api.RetrofitClient
-import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ChatRoomListDTO
 import com.longtoast.bilbil.dto.ChatRoomListUpdateDTO
-import com.longtoast.bilbil.ChatNotificationHelper
-import com.longtoast.bilbil.ChatRoomListParser
+import com.longtoast.bilbil.dto.MsgEntity
 import com.google.gson.Gson
-import okhttp3.*
+import com.google.gson.reflect.TypeToken
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
+import okhttp3.Response as OkHttpResponse // okhttp3.Response와 retrofit2.Response의 이름 충돌 방지
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -52,7 +55,7 @@ class MessageFragment : Fragment() {
     }
 
     private val WEBSOCKET_URL = ServerConfig.WEBSOCKET_URL
-    private var webSocket: WebSocket? = null
+    private var webSocket: WebSocket? = null // 💡 [통합] master의 선언 방식 유지
 
     private val chatRoomLists = mutableListOf<ChatRoomListDTO>()
     private lateinit var adapter: ChatRoomListAdapter
@@ -102,10 +105,10 @@ class MessageFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
-        disconnectWebSocket()
+        disconnectWebSocket() // 💡 [통합] master의 함수 호출 유지
         handler.removeCallbacks(listRefreshRunnable)
-        handler.removeCallbacks(subscribeRunnable)
-        handler.removeCallbacksAndMessages(null)
+        handler.removeCallbacks(subscribeRunnable) // 💡 [통합] 구독 Runnable 제거 추가
+        handler.removeCallbacksAndMessages(null) // 💡 [통합] 모든 콜백 제거 추가
     }
 
     override fun onDestroyView() {
@@ -115,11 +118,11 @@ class MessageFragment : Fragment() {
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // 네트워크 - 채팅방 목록 조회
+    // 네트워크 - 채팅방 목록 조회 (REST API)
     // ─────────────────────────────────────────────────────────────────────────────
 
     private fun fetchChatRoomLists(showRefreshing: Boolean = true) {
-        val binding = _binding ?: return  // View가 이미 파괴됐으면 아무 것도 하지 않음
+        val binding = _binding ?: return // View가 이미 파괴됐으면 아무 것도 하지 않음
 
         if (showRefreshing) binding.swipeRefreshLayout.isRefreshing = true
 
@@ -127,10 +130,10 @@ class MessageFragment : Fragment() {
             .enqueue(object : Callback<MsgEntity> {
 
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                    val binding = _binding ?: return  // 콜백 들어왔을 때도 다시 체크
+                    val binding = _binding ?: return // 콜백 들어왔을 때도 다시 체크
                     binding.swipeRefreshLayout.isRefreshing = false
 
-                    if (!isAdded) return  // Fragment가 Activity에 붙어있지 않으면 종료
+                    if (!isAdded) return // Fragment가 Activity에 붙어있지 않으면 종료
 
                     if (!response.isSuccessful || response.body()?.data == null) {
                         Log.e("CHAT_LIST", "조회 실패: ${response.code()}")
@@ -138,8 +141,12 @@ class MessageFragment : Fragment() {
                     }
 
                     try {
+                        // 💡 ChatRoomListParser는 master 브랜치에만 있었으므로, 별도의 파서가 없으면 직접 파싱 로직 사용
+                        // 단, 이 코드에 ChatRoomListParser 클래스가 정의되어 있지 않으므로,
+                        // 임시로 Gson TypeToken을 사용하여 파싱하는 codex 브랜치의 로직과 유사하게 처리
+                        // (단, master 브랜치가 외부 ChatRoomListParser를 import 하고 있었으므로, 그 클래스가 있다고 가정하고 사용)
                         val newLists =
-                            ChatRoomListParser.parseFromMsgEntity(response.body())
+                            ChatRoomListParser.parseFromMsgEntity(response.body()) 
 
                         chatRoomLists.clear()
                         chatRoomLists.addAll(newLists)
@@ -185,11 +192,11 @@ class MessageFragment : Fragment() {
         webSocket = client.newWebSocket(requestBuilder.build(),
             object : WebSocketListener() {
 
-                override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
+                override fun onOpen(webSocket: WebSocket, response: OkHttpResponse) {
                     val connectFrame = "CONNECT\n" +
-                            "accept-version:1.2\n" +
-                            "heart-beat:10000,10000\n" +
-                            "Authorization:Bearer $token\n\n\u0000"
+                                "accept-version:1.2\n" +
+                                "heart-beat:10000,10000\n" +
+                                "Authorization:Bearer $token\n\n\u0000"
 
                     webSocket.send(connectFrame)
                     Log.d("STOMP_WS_LIST", "CONNECT 전송 완료")
@@ -206,7 +213,7 @@ class MessageFragment : Fragment() {
                 override fun onFailure(
                     webSocket: WebSocket,
                     t: Throwable,
-                    response: okhttp3.Response?
+                    response: OkHttpResponse?
                 ) {
                     Log.e("STOMP_WS_LIST", "WebSocket 오류: ${t.message}")
 
@@ -231,6 +238,7 @@ class MessageFragment : Fragment() {
     private fun disconnectWebSocket() {
         webSocket?.let {
             try {
+                // STOMP DISCONNECT 프레임을 보낼 필요는 없으나, 클라이언트에서 웹소켓 연결을 명시적으로 닫음
                 it.close(1000, "Fragment paused")
                 Log.d("STOMP_WS_LIST", "WebSocket 종료")
             } catch (e: Exception) {

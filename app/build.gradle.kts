@@ -4,7 +4,6 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
-//d
 android {
     namespace = "com.longtoast.bilbil"
     compileSdk = 36
@@ -23,8 +22,8 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        //웹소켓 주소ss
-        buildConfigField("String", "WebSocket_URL", """ "ws://192.168.0.211:8080/stomp/chat" """)
+        // 웹소켓 주소
+        buildConfigField("String", "WebSocket_URL", "\"ws://192.168.0.211:8080/stomp/chat\"")
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -37,10 +36,6 @@ android {
         }
 
     }
-
-//이제 보이시나요
-
-
 
     buildTypes {
         release {

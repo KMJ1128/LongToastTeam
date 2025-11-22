@@ -52,12 +52,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // 💡 [임시 조치] 신규 회원가입 플로우 테스트를 위해 저장된 토큰 강제 초기화
-                if (AuthTokenManager.getToken() != null) {
-                    AuthTokenManager.clearToken()
-                    AuthTokenManager.clearUserId()
-                    Log.w("JWT_CLEAN", "JWT 토큰 강제 초기화 완료. 신규 회원가입 플로우 시작.")       }
-
         val token = AuthTokenManager.getToken()
         if (token != null) {
             Log.i("APP_AUTH_STATE", "JWT 존재 → 홈 이동")
@@ -171,8 +165,8 @@ class MainActivity : AppCompatActivity() {
 
             val isAddressMissing =
                 memberTokenResponse.address.isNullOrEmpty() ||
-                        memberTokenResponse.locationLatitude == null ||
-                        memberTokenResponse.locationLongitude == null
+                            memberTokenResponse.locationLatitude == null ||
+                            memberTokenResponse.locationLongitude == null
 
             if (isAddressMissing) {
                 // ⭐ MUST HAVE: 신규 유저 주소 설정 전에 JWT 저장
@@ -185,6 +179,8 @@ class MainActivity : AppCompatActivity() {
                 val intent = Intent(this@MainActivity, SettingProfileActivity::class.java).apply {
                     putExtra("USER_ID", userId)
                     putExtra("SERVICE_TOKEN", token)
+                    // 충돌 해결: USER_NAME 추가 유지
+                    putExtra("USER_NAME", memberTokenResponse.username) 
                     putExtra("SETUP_MODE", true)
                     putExtra("USER_NICKNAME", nickname)
                 }

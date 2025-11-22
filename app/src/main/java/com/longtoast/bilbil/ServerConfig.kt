@@ -6,6 +6,7 @@ package com.longtoast.bilbil
  */
 object ServerConfig {
     /** HTTP(S) API 기본 주소는 반드시 `/` 로 끝나야 합니다. */
+    // 현재 사용 중인 ngrok 주소를 그대로 유지
     const val HTTP_BASE_URL = "https://unpaneled-jennette-phonily.ngrok-free.dev/"
 
     /**
@@ -16,7 +17,7 @@ object ServerConfig {
         get() {
             val normalizedBase = HTTP_BASE_URL.removeSuffix("/")
 
-            // http → ws, https → wss 로 변환
+            // 💡 [통합] master 브랜치의 안전한 프로토콜 변환 로직 채택 (https -> wss, http -> ws)
             val wsBase = when {
                 normalizedBase.startsWith("https://") ->
                     normalizedBase.replaceFirst("https://", "wss://")
