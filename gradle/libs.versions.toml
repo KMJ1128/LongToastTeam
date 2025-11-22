@@ -17,7 +17,7 @@ navigationUiKtx = "2.9.5"
 
 playServicesLocation = "21.3.0"
 playServicesAnalyticsImpl = "18.2.0"
-#d
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -38,4 +38,3 @@ play-services-analytics-impl = { group = "com.google.android.gms", name = "play-
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-

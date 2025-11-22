@@ -2,12 +2,10 @@ package com.longtoast.bilbil
 
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
 import com.longtoast.bilbil.databinding.ActivityHomeHostBinding
 import com.longtoast.bilbil.dto.ChatRoomCreateRequest
 import com.longtoast.bilbil.dto.MsgEntity
@@ -88,23 +86,6 @@ class HomeHostActivity : AppCompatActivity() {
                 .commit()
         }
 
-        // 4. [신규 추가] 채팅 테스트 버튼 리스너
-        binding.fabTestChat.setOnClickListener {
-            //createChatRoomAndStartActivity()
-            val intent = Intent(this, ReviewActivity::class.java)
-            intent.putExtra("TRANSACTION_ID", 1)
-            startActivity(intent)
-        }
-    }
-
-    // Fragment 교체 함수 (Bottom Nav 항목 선택 시 사용)
-    private fun replaceFragment(fragment: Fragment): Boolean {
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.main_fragment_container, fragment)
-            .commit()
-        return true
-    }
-
         binding.fabTestChat.setOnClickListener { createChatRoomAndStartActivity() }
     }
 
@@ -136,9 +117,6 @@ class HomeHostActivity : AppCompatActivity() {
         }
 
         val testItemId = 1
-        val testLenderId = 2
-        val testBorrowerId = currentUserId
-        val testSellerNickname = "테스트 판매자"
         val testLenderId = 1 // 이 아이템의 판매자 ID
         val testBorrowerId = currentUserId // 현재 로그인한 사용자
         val testSellerNickname = "테스트 판매자 닉네임 (Lender 1)"
