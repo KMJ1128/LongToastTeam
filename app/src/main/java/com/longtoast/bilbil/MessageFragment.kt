@@ -12,18 +12,18 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.longtoast.bilbil.databinding.FragmentMessageBinding
 import com.longtoast.bilbil.api.RetrofitClient
-import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ChatRoomListDTO
 import com.longtoast.bilbil.dto.ChatRoomListUpdateDTO
+import com.longtoast.bilbil.dto.MsgEntity
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import okhttp3.WebSocket
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.WebSocketListener
 
 class MessageFragment : Fragment() {
 
@@ -39,9 +39,16 @@ class MessageFragment : Fragment() {
         subscribeToChatListUpdate()
     }
 
+    // 목록 화면에 머무는 동안 주기적으로 최신 데이터를 불러오기 위한 Runnable
+    private val listRefreshRunnable = object : Runnable {
+        override fun run() {
+            fetchChatRoomLists(showRefreshing = false)
+            handler.postDelayed(this, 10_000)
+        }
+    }
 
-   // private val WEBSOCKET_URL = "ws://192.168.0.211:8080/stomp/chat"
-    private val WEBSOCKET_URL = "wss://unpaneled-jennette-phonily.ngrok-free.dev/stomp/chat"
+
+    private val WEBSOCKET_URL = ServerConfig.WEBSOCKET_URL
     private lateinit var webSocket: WebSocket // 💡 [수정] Fragment가 직접 웹소켓 객체를 관리
     // 🚨 ChatWebSocketManager 의존성 제거
 
@@ -82,6 +89,7 @@ class MessageFragment : Fragment() {
         fetchChatRoomLists()
         // 💡 [수정] Fragment가 직접 연결을 시작합니다.
         connectWebSocket()
+        handler.postDelayed(listRefreshRunnable, 10_000)
     }
 
     override fun onPause() {
@@ -91,14 +99,17 @@ class MessageFragment : Fragment() {
             webSocket.close(1000, "Fragment paused")
             Log.d("STOMP_WS_LIST", "WebSocket 종료: Fragment Paused")
         }
+        handler.removeCallbacks(listRefreshRunnable)
         handler.removeCallbacksAndMessages(null)
     }
 
     // ---------------------------------------------------------------------
     // REST API 호출 로직
     // ---------------------------------------------------------------------
-    private fun fetchChatRoomLists() {
-        binding.swipeRefreshLayout.isRefreshing = true
+    private fun fetchChatRoomLists(showRefreshing: Boolean = true) {
+        if (showRefreshing) {
+            binding.swipeRefreshLayout.isRefreshing = true
+        }
 
         RetrofitClient.getApiService().getMyChatRooms()
             .enqueue(object : Callback<MsgEntity> {

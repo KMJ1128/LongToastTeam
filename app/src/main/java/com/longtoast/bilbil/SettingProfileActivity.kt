@@ -21,7 +21,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.longtoast.bilbil.api.ApiService
 import com.longtoast.bilbil.dto.MemberDTO
 import com.longtoast.bilbil.dto.MsgEntity
 import java.io.File
@@ -43,15 +42,13 @@ class SettingProfileActivity : AppCompatActivity() {
     private var profileBitmap: Bitmap? = null
 
     // Intent로 받은 데이터
-    private var latitude: Double = 0.0
-    private var longitude: Double = 0.0
-    private var address: String = ""
     private var userNickname: String = ""
 
     private var serviceToken: String? = null
     private var userId: Int = 0
 
     private var userName: String? = null // 💡 [추가] MemberDTO.kt에 username 필드가 추가되었다는 가정
+    private var pendingNickname: String = ""
 
     private val CAMERA_PERMISSION_CODE = 100
 
@@ -80,25 +77,28 @@ class SettingProfileActivity : AppCompatActivity() {
         setContentView(R.layout.activity_setting_profile)
 
         getIntentData()
+
+        // 신규 회원의 초기 진입 시 토큰이 누락되지 않도록 안전하게 보관
+        serviceToken?.let { AuthTokenManager.saveToken(it) }
+        if (userId != 0) {
+            AuthTokenManager.saveUserId(userId)
+        }
         initViews()
         displayData()
         setupListeners()
     }
 
     private fun getIntentData() {
-        latitude = intent.getDoubleExtra("LATITUDE", 0.0)
-        longitude = intent.getDoubleExtra("LONGITUDE", 0.0)
-        address = intent.getStringExtra("ADDRESS") ?: ""
         userNickname = intent.getStringExtra("USER_NICKNAME") ?: ""
 
         serviceToken = intent.getStringExtra("SERVICE_TOKEN")
         userId = intent.getIntExtra("USER_ID", 0)
         userName = intent.getStringExtra("USER_NAME")
 
-
-        Log.d("SettingProfile", "받은 데이터 - 위도: $latitude, 경도: $longitude")
-        Log.d("SettingProfile", "주소: $address, 닉네임: $userNickname")
-        Log.d("SettingProfile", "인증 정보 - USER_ID: $userId, SERVICE_TOKEN: ${serviceToken?.substring(0, Math.min(serviceToken?.length ?: 0, 10))}...")
+        Log.d(
+            "SettingProfile",
+            "인증 정보 - USER_ID: $userId, SERVICE_TOKEN: ${serviceToken?.substring(0, Math.min(serviceToken?.length ?: 0, 10))}..."
+        )
     }
 
     private fun initViews() {
@@ -111,12 +111,7 @@ class SettingProfileActivity : AppCompatActivity() {
 
     private fun displayData() {
         editNickname.setText(userNickname)
-
-        if (address.isNotEmpty()) {
-            textLocationInfo.text = address
-        } else {
-            textLocationInfo.text = "위도: $latitude, 경도: $longitude"
-        }
+        textLocationInfo.text = "지역 선택 단계에서 설정됩니다."
     }
 
     private fun setupListeners() {
@@ -223,7 +218,7 @@ class SettingProfileActivity : AppCompatActivity() {
     }
 
     /**
-     * 완료 버튼 클릭 시, 서버 통신 후 홈 화면으로 이동하며 스택 정리
+     * 완료 버튼 클릭 시, 지역 선택 화면으로 이동한 뒤 위치까지 설정해 저장합니다.
      */
     private fun onCompleteButtonClicked() {
         val nickname = editNickname.text.toString().trim()
@@ -243,10 +238,34 @@ class SettingProfileActivity : AppCompatActivity() {
             return
         }
 
+        pendingNickname = nickname
+
+        val intent = Intent(this, RegionSelectionActivity::class.java).apply {
+            putExtra("USER_ID", userId)
+            putExtra("SERVICE_TOKEN", serviceToken)
+            putExtra("USER_NICKNAME", nickname)
+        }
+        regionSelectionLauncher.launch(intent)
+    }
+
+    private val regionSelectionLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode != RESULT_OK || result.data == null) return@registerForActivityResult
+
+            val address = result.data?.getStringExtra("FINAL_ADDRESS") ?: return@registerForActivityResult
+            val latitude = result.data?.getDoubleExtra("FINAL_LATITUDE", 0.0) ?: 0.0
+            val longitude = result.data?.getDoubleExtra("FINAL_LONGITUDE", 0.0) ?: 0.0
+
+            textLocationInfo.text = address
+
+            submitProfile(address, latitude, longitude)
+        }
+
+    private fun submitProfile(address: String, latitude: Double, longitude: Double) {
         // 1. DTO 생성
         val updateRequest = MemberDTO(
             id = userId,
-            nickname = nickname,
+            nickname = pendingNickname,
             username = userName, // 💡 [수정] username 필드 포함
             address = address,
             locationLatitude = latitude,
@@ -258,13 +277,12 @@ class SettingProfileActivity : AppCompatActivity() {
 
         // 2. 🔑 [핵심] API 호출 전에 AuthTokenManager에 토큰/ID를 저장합니다.
         // RetrofitClient의 Interceptor가 이 저장된 토큰을 즉시 사용합니다.
-        AuthTokenManager.saveToken(serviceToken!!)
+        serviceToken?.let { AuthTokenManager.saveToken(it) }
         AuthTokenManager.saveUserId(userId)
         Log.d("PROFILE_COMPLETE", "✅ JWT 및 User ID 저장 완료. API 호출 시작.")
 
 
         // 3. 🔑 [수정] RetrofitClient의 기본 ApiService를 사용합니다.
-        // 불필요한 임시 클라이언트 생성 로직이 제거됩니다.
         RetrofitClient.getApiService().updateProfile(updateRequest)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
@@ -276,7 +294,6 @@ class SettingProfileActivity : AppCompatActivity() {
                         startActivity(intent)
                         finishAffinity()
                     } else if (response.code() == 403 || response.code() == 401) {
-                        // 🚨 [403/401 에러 감지] 토큰이 무효하거나 만료됨.
                         Log.e("PROFILE_API", "프로필 업데이트 실패: 인증 거부 (403/401). 토큰 무효화.")
                         Toast.makeText(this@SettingProfileActivity, "인증 오류. 다시 로그인해주세요.", Toast.LENGTH_LONG).show()
                         AuthTokenManager.clearToken()
@@ -286,7 +303,11 @@ class SettingProfileActivity : AppCompatActivity() {
                     else {
                         val errorBody = response.errorBody()?.string()
                         Log.e("PROFILE_API", "프로필 업데이트 실패: ${response.code()}, 메시지: $errorBody")
-                        Toast.makeText(this@SettingProfileActivity, "닉네임 등록 실패: ${response.code()}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            this@SettingProfileActivity,
+                            "프로필 저장 실패: ${response.code()}",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                 }
 
