@@ -175,14 +175,15 @@ class MainActivity : AppCompatActivity() {
                 if (token != null) {
                     AuthTokenManager.saveToken(token)
                     AuthTokenManager.saveUserId(userId)
-                    Log.d("AUTH", "JWT 저장 완료: 신규 유저 주소 설정 단계")
+                    Log.d("AUTH", "JWT 저장 완료: 신규 유저 프로필/지역 설정 단계")
                 }
 
-                val intent = Intent(this@MainActivity, SettingMapActivity::class.java).apply {
+                val intent = Intent(this@MainActivity, SettingProfileActivity::class.java).apply {
                     putExtra("USER_ID", userId)
                     putExtra("SERVICE_TOKEN", token)
-                    putExtra("USER_NICKNAME", nickname)
+                    putExtra("USER_NAME", memberTokenResponse.username)
                     putExtra("SETUP_MODE", true)
+                    putExtra("USER_NICKNAME", nickname)
                 }
                 startActivity(intent)
                 return
