@@ -2,7 +2,7 @@ package com.longtoast.bilbil
 
 /**
  * 서버 엔드포인트를 한 곳에서 관리합니다.
- * BASE_HTTP_URL만 실제 서버 주소로 맞춰주면 Retrofit과 WebSocket 모두 동일하게 적용됩니다.
+ * HTTP_BASE_URL만 실제 서버 주소로 맞춰주면 Retrofit과 WebSocket 모두 동일하게 적용됩니다.
  */
 object ServerConfig {
     /** HTTP(S) API 기본 주소는 반드시 `/` 로 끝나야 합니다. */
@@ -15,7 +15,16 @@ object ServerConfig {
     val WEBSOCKET_URL: String
         get() {
             val normalizedBase = HTTP_BASE_URL.removeSuffix("/")
-            val wsBase = normalizedBase.replaceFirst(prefix = "http", replacement = "ws")
+
+            // http → ws, https → wss 로 변환
+            val wsBase = when {
+                normalizedBase.startsWith("https://") ->
+                    normalizedBase.replaceFirst("https://", "wss://")
+                normalizedBase.startsWith("http://") ->
+                    normalizedBase.replaceFirst("http://", "ws://")
+                else -> normalizedBase
+            }
+
             return "$wsBase/stomp/chat/websocket"
         }
 }
