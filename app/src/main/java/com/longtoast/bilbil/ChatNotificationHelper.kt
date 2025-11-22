@@ -110,13 +110,13 @@ object ChatNotificationHelper {
     }
 
     private fun canPostNotifications(context: Context): Boolean {
-        val hasSystemPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val permissionState = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            )
+            if (permissionState != PackageManager.PERMISSION_GRANTED) return false
         }
-
-        if (!hasSystemPermission) return false
 
         return NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
