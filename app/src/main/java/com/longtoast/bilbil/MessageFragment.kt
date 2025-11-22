@@ -15,8 +15,9 @@ import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ChatRoomListDTO
 import com.longtoast.bilbil.dto.ChatRoomListUpdateDTO
+import com.longtoast.bilbil.ChatNotificationHelper
+import com.longtoast.bilbil.ChatRoomListParser
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -37,6 +38,13 @@ class MessageFragment : Fragment() {
     private val subscribeRunnable = Runnable {
         // 명시적인 UNSUBSCRIBE는 제거했습니다.
         subscribeToChatListUpdate()
+    }
+
+    private val listRefreshRunnable = object : Runnable {
+        override fun run() {
+            fetchChatRoomLists(showRefreshing = false)
+            handler.postDelayed(this, 10_000)
+        }
     }
 
 
@@ -82,6 +90,7 @@ class MessageFragment : Fragment() {
         fetchChatRoomLists()
         // 💡 [수정] Fragment가 직접 연결을 시작합니다.
         connectWebSocket()
+        handler.postDelayed(listRefreshRunnable, 10_000)
     }
 
     override fun onPause() {
@@ -97,8 +106,10 @@ class MessageFragment : Fragment() {
     // ---------------------------------------------------------------------
     // REST API 호출 로직
     // ---------------------------------------------------------------------
-    private fun fetchChatRoomLists() {
-        binding.swipeRefreshLayout.isRefreshing = true
+    private fun fetchChatRoomLists(showRefreshing: Boolean = true) {
+        if (showRefreshing) {
+            binding.swipeRefreshLayout.isRefreshing = true
+        }
 
         RetrofitClient.getApiService().getMyChatRooms()
             .enqueue(object : Callback<MsgEntity> {
@@ -112,15 +123,13 @@ class MessageFragment : Fragment() {
                     }
 
                     try {
-                        val gson = Gson()
-                        val listType = object : TypeToken<List<ChatRoomListDTO>>() {}.type
-                        val dataJson = gson.toJson(response.body()?.data)
-                        val newLists: List<ChatRoomListDTO> = gson.fromJson(dataJson, listType)
+                        val newLists: List<ChatRoomListDTO> = ChatRoomListParser.parseFromMsgEntity(response.body())
 
                         chatRoomLists.clear()
                         chatRoomLists.addAll(newLists)
                         adapter.notifyDataSetChanged()
                         binding.recyclerViewChatRooms.scrollToPosition(0)
+                        ChatNotificationHelper.saveSnapshot(requireContext().applicationContext, chatRoomLists)
                         Log.d("CHAT_LIST", "✅ 채팅방 목록 최초 로드 성공. 개수: ${chatRoomLists.size}")
 
                     } catch (e: Exception) {
@@ -253,6 +262,7 @@ class MessageFragment : Fragment() {
             adapter.notifyItemRemoved(existingIndex)
             adapter.notifyItemInserted(0)
             binding.recyclerViewChatRooms.scrollToPosition(0)
+            ChatNotificationHelper.saveSnapshot(requireContext().applicationContext, chatRoomLists)
 
             Log.d("CHAT_LIST_UPDATE", "Room ID $targetRoomId 실시간 업데이트 및 최상단 이동 완료.")
 

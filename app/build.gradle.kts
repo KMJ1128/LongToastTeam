@@ -106,4 +106,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.2")
     implementation("com.navercorp.nid:oauth:5.8.0")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+
+    // Background work & notifications
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 }
