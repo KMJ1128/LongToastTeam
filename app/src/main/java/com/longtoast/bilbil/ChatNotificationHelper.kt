@@ -41,8 +41,11 @@ object ChatNotificationHelper {
 
         val newRooms = rooms.filter { room ->
             val roomId = room.roomId?.toString() ?: return@filter false
-            val lastTime = room.lastMessageTime ?: return@filter false
-            previous[roomId] != lastTime
+            val lastTime = room.lastMessageTime
+            val previousTime = previous[roomId]
+
+            // 새로 등장한 방이거나, 마지막 메시지 시각이 변경된 경우 신규 메시지로 판단
+            previousTime == null || (lastTime != null && previousTime != lastTime)
         }
 
         saveSnapshot(prefs, rooms)
@@ -107,11 +110,15 @@ object ChatNotificationHelper {
     }
 
     private fun canPostNotifications(context: Context): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val permissionState = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            )
+            if (permissionState != PackageManager.PERMISSION_GRANTED) return false
         }
+
+        return NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 
     private fun getPrefs(context: Context): SharedPreferences {

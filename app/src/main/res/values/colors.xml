@@ -2,4 +2,14 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Chat palette -->
+    <color name="carrot_primary">#FF8A3D</color>
+    <color name="carrot_primary_dark">#E66F1E</color>
+    <color name="carrot_surface">#FFF6EF</color>
+    <color name="carrot_card">#FFFFFFFF</color>
+    <color name="carrot_stroke">#FFE1CC</color>
+    <color name="carrot_text_primary">#2E1A11</color>
+    <color name="carrot_text_secondary">#7A5F4B</color>
+    <color name="carrot_chip_bg">#FFF0E3</color>
 </resources>
