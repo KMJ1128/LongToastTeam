@@ -80,6 +80,7 @@ interface ApiService {
     ✅ [핵심 추가] 프로필 업데이트 API (MemberController의 PUT /member/profile과 일치)*/@PUT("member/profile")
     fun updateProfile(@Body memberDTO: MemberDTO): Call<MsgEntity> // 💡 @Body 파라미터와 반환 타입 일치
 
-
+    @GET("/search/popular")
+    fun getPopularSearches(): Call<MsgEntity>
 
 }
