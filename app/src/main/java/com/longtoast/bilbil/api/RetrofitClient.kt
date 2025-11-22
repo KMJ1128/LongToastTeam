@@ -1,6 +1,7 @@
 package com.longtoast.bilbil.api
 
 import com.longtoast.bilbil.AuthTokenManager
+import com.longtoast.bilbil.ServerConfig
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
@@ -11,11 +12,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 object RetrofitClient {
 
     // 🔥 Spring Boot 서버 주소 (Wi-Fi 동일 네트워크)
-
-    // 필요할 때 아래 주소로 변경 가능:
-    //private const val BASE_URL = "http://172.16.104.55:8080/"
-    //private const val BASE_URL = "http://192.168.0.211:8080/"
-      private const val BASE_URL =  "https://unpaneled-jennette-phonily.ngrok-free.dev"
+    // 실제 주소는 ServerConfig에서 한 번만 수정해 모두에 적용합니다.
+    private const val BASE_URL = ServerConfig.HTTP_BASE_URL
 
     // ------------------------------------------------------------------
     // 🔐 1. Authorization 헤더 자동 추가 Interceptor
