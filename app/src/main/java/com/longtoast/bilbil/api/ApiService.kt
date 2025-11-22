@@ -1,4 +1,4 @@
-// com.longtoast.bilbil.api.ApiService.kt (수정된 전체 코드)
+// com.longtoast.bilbil.api.ApiService.kt
 package com.longtoast.bilbil.api
 
 import com.longtoast.bilbil.dto.ChatRoomCreateRequest
@@ -7,7 +7,9 @@ import com.longtoast.bilbil.dto.LocationRequest
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ChatMessage
 import com.longtoast.bilbil.dto.NaverTokenRequest
-import com.longtoast.bilbil.dto.MemberDTO
+import com.longtoast.bilbil.dto.MemberDTO // 💡 MemberDTO Import
+import com.longtoast.bilbil.dto.ReviewCreateRequest
+
 import com.longtoast.bilbil.dto.ProductCreateRequest
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -47,11 +49,23 @@ interface ApiService {
      */
     @POST("writeproduct/create")
     fun createProduct(
-        @Body request: ProductCreateRequest // 💡 [수정] DTO를 @Body로 직접 전송
+        @Body request: ProductCreateRequest
     ): Call<MsgEntity>
+
+    @GET("/products/{itemId}")
+    suspend fun getProductDetail(
+        @Path("itemId") itemId: Int
+    ): Response<MsgEntity>
+
+    @POST("/reviews")
+    fun createReview(
+        @Body request: ReviewCreateRequest
+    ): Call<MsgEntity>
+
 
     @POST("/location/update")
     suspend fun sendLocation(@Body request: LocationRequest): Response<MsgEntity>
+
 
     @POST("/api/chat/room")
     fun createChatRoom(
@@ -63,6 +77,13 @@ interface ApiService {
 
     @GET("/api/chat/history/{roomId}")
     fun getChatHistory(@Path("roomId") roomId: String): Call<MsgEntity>
+
+    /**
+    ✅ [핵심 추가] 프로필 업데이트 API (MemberController의 PUT /member/profile과 일치)*/@PUT("member/profile")
+    fun updateProfile(@Body memberDTO: MemberDTO): Call<MsgEntity> // 💡 @Body 파라미터와 반환 타입 일치
+
+    @GET("/search/popular")
+    fun getPopularSearches(): Call<MsgEntity>
 
     @PUT("member/profile")
     fun updateProfile(@Body memberDTO: MemberDTO): Call<MsgEntity>

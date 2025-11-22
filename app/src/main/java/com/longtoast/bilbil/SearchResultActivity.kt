@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.gson.Gson
@@ -33,11 +32,22 @@ class SearchResultActivity : AppCompatActivity() {
 
         Log.d("DEBUG_FLOW", "UI 바인딩 완료")
 
-        // RecyclerView
+        // 🧷 툴바 뒤로가기 버튼
+        binding.toolbar.setNavigationOnClickListener {
+            finish()
+        }
+
+        // 🧷 하단 돌아가기 버튼
+        binding.contentRoot.findViewById<Button>(R.id.back_button).setOnClickListener {
+            finish()
+        }
+
+        // ✅ 여기서 adapter 먼저 생성해 줘야 함!
         adapter = ProductAdapter(emptyList()) { itemId ->
             Log.d("DEBUG_FLOW", "아이템 클릭됨 → itemId=$itemId")
-            val intent = Intent(this, ProductDetailActivity::class.java)
-            intent.putExtra("ITEM_ID", itemId)
+            val intent = Intent(this, ProductDetailActivity::class.java).apply {
+                putExtra("ITEM_ID", itemId)
+            }
             startActivity(intent)
         }
 
@@ -64,7 +74,6 @@ class SearchResultActivity : AppCompatActivity() {
         loadSearchResults(query, isCategory)
     }
 
-
     private fun loadSearchResults(query: String?, isCategory: Boolean) {
 
         Log.d("DEBUG_FLOW", "loadSearchResults() 호출됨")
@@ -89,7 +98,10 @@ class SearchResultActivity : AppCompatActivity() {
                 binding.progressBar.visibility = View.GONE
 
                 if (!response.isSuccessful) {
-                    Log.e("DEBUG_FLOW", "❌ API 실패: code=${response.code()} | body=${response.errorBody()?.string()}")
+                    Log.e(
+                        "DEBUG_FLOW",
+                        "❌ API 실패: code=${response.code()} | body=${response.errorBody()?.string()}"
+                    )
                     binding.emptyText.visibility = View.VISIBLE
                     return
                 }
