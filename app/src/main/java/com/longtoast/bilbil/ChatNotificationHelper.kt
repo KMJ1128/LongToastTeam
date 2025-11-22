@@ -44,7 +44,7 @@ object ChatNotificationHelper {
             val lastTime = room.lastMessageTime
             val previousTime = previous[roomId]
 
-            // 새로 등장한 방 혹은 마지막 메시지 시각이 변경된 경우 신규 메시지로 간주
+            // 새로 등장한 방이거나, 마지막 메시지 시각이 변경된 경우 신규 메시지로 판단
             previousTime == null || (lastTime != null && previousTime != lastTime)
         }
 
