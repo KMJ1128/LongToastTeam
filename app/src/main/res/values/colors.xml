@@ -3,13 +3,20 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- Chat palette -->
-    <color name="carrot_primary">#FF8A3D</color>
-    <color name="carrot_primary_dark">#E66F1E</color>
-    <color name="carrot_surface">#FFF6EF</color>
+    <!-- 신뢰감 있는 청록/블루 톤 팔레트 -->
+    <color name="carrot_primary">#2F80ED</color>
+    <color name="carrot_primary_dark">#1B4F8C</color>
+    <color name="carrot_surface">#F4F8FB</color>
     <color name="carrot_card">#FFFFFFFF</color>
-    <color name="carrot_stroke">#FFE1CC</color>
-    <color name="carrot_text_primary">#2E1A11</color>
-    <color name="carrot_text_secondary">#7A5F4B</color>
-    <color name="carrot_chip_bg">#FFF0E3</color>
+    <color name="carrot_stroke">#CDE3F5</color>
+    <color name="carrot_text_primary">#0F2940</color>
+    <color name="carrot_text_secondary">#4A6378</color>
+    <color name="carrot_chip_bg">#E3F2FF</color>
+
+    <!-- App-wide additions -->
+    <color name="carrot_gradient_start">#7EDFD7</color>
+    <color name="carrot_gradient_end">#2F80ED</color>
+    <color name="carrot_glow">#262F80ED</color>
+    <color name="carrot_chip_border">#CBE3F5</color>
+    <color name="carrot_muted_bg">#F6FBFF</color>
 </resources>
