@@ -1,5 +1,6 @@
 package com.longtoast.bilbil
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -8,6 +9,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import com.longtoast.bilbil.adapter.CategoryAdapter
@@ -46,6 +48,18 @@ class HomeFragment : Fragment() {
         searchEditText.setSingleLine(true)
 
         // -----------------------------------------------------------------------------------------
+        // ⭐⭐ 방법 1 적용: SearchView 클릭 시 자동으로 확장 + 포커스 + 키보드 표시
+        // -----------------------------------------------------------------------------------------
+        binding.searchBar.setOnClickListener {
+            binding.searchBar.isIconified = false      // SearchView 강제 펼치기
+            binding.searchBar.requestFocus()           // 포커스 주기
+            searchEditText.requestFocus()
+
+            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(searchEditText, InputMethodManager.SHOW_IMPLICIT)
+        }
+
+        // -----------------------------------------------------------------------------------------
         // 🔥 Enter 입력 시 검색 수행
         // -----------------------------------------------------------------------------------------
         searchEditText.setOnEditorActionListener { _, actionId, event ->
@@ -54,7 +68,7 @@ class HomeFragment : Fragment() {
             ) {
 
                 val query = binding.searchBar.query.toString()
-                Log.d("DEBUG_FLOW", "Enter 감지! 즉시 검색 실행 → $query")
+                Log.d("DEBUG_FLOW", "Enter 감지! 검색 실행 → $query")
 
                 if (query.isNotEmpty()) {
                     val intent = Intent(requireContext(), SearchResultActivity::class.java)
@@ -67,9 +81,7 @@ class HomeFragment : Fragment() {
                     binding.searchBar.clearFocus()
                 }
                 true
-            } else {
-                false
-            }
+            } else false
         }
 
         binding.searchBar.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
@@ -83,7 +95,7 @@ class HomeFragment : Fragment() {
         })
 
         // -----------------------------------------------------------------------------------------
-        // 🔥 카테고리 RecyclerView 설정 (이게 없어서 카테고리가 안 보였음)
+        // 🔥 카테고리 RecyclerView 설정
         // -----------------------------------------------------------------------------------------
         setupCategoryRecycler()
     }
@@ -104,9 +116,6 @@ class HomeFragment : Fragment() {
                 val intent = Intent(requireContext(), SearchResultActivity::class.java)
                 intent.putExtra("SEARCH_QUERY", categoryName)
                 intent.putExtra("SEARCH_IS_CATEGORY", true)
-
-                Log.d("DEBUG_FLOW", "SearchResultActivity 로 이동 시작")
-                Log.d("DEBUG_FLOW", "putExtra 확인 → SEARCH_QUERY=$categoryName, SEARCH_IS_CATEGORY=true")
 
                 startActivity(intent)
             }

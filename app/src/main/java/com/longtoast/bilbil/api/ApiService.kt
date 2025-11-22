@@ -9,6 +9,7 @@ import com.longtoast.bilbil.dto.ProductCreateRequest
 import com.longtoast.bilbil.dto.ChatMessage
 import com.longtoast.bilbil.dto.NaverTokenRequest
 import com.longtoast.bilbil.dto.MemberDTO // 💡 MemberDTO Import
+import com.longtoast.bilbil.dto.ReviewCreateRequest
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
@@ -49,6 +50,17 @@ interface ApiService {
         @Body request: ProductCreateRequest
     ): Call<MsgEntity>
 
+    @GET("/products/{itemId}")
+    suspend fun getProductDetail(
+        @Path("itemId") itemId: Int
+    ): Response<MsgEntity>
+
+    @POST("/reviews")
+    fun createReview(
+        @Body request: ReviewCreateRequest
+    ): Call<MsgEntity>
+
+
     @POST("/location/update")
     suspend fun sendLocation(@Body request: LocationRequest): Response<MsgEntity>
 
@@ -65,7 +77,9 @@ interface ApiService {
     fun getChatHistory(@Path("roomId") roomId: String): Call<MsgEntity>
 
     /**
-
     ✅ [핵심 추가] 프로필 업데이트 API (MemberController의 PUT /member/profile과 일치)*/@PUT("member/profile")
     fun updateProfile(@Body memberDTO: MemberDTO): Call<MsgEntity> // 💡 @Body 파라미터와 반환 타입 일치
+
+
+
 }

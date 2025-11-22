@@ -37,9 +37,15 @@
         <activity
             android:name=".HomeHostActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".ReviewActivity"
+            android:exported="false" />
+
         <activity
             android:name=".SettingMapActivity"
             android:exported="false" />
+
 
         <meta-data
             android:name="com.kakao.sdk.AppKey"

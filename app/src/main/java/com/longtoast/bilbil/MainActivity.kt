@@ -161,6 +161,10 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
+
+            Log.d("SERVER_AUTH", "✅ serviceToken = ${memberTokenResponse.serviceToken}")
+            Log.d("SERVER_AUTH", "✅ full MemberTokenResponse = $memberTokenResponse")
+
             val token = memberTokenResponse.serviceToken
             val userId = memberTokenResponse.userId.toInt()
             val nickname = memberTokenResponse.nickname

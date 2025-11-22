@@ -1,3 +1,4 @@
+// com.longtoast.bilbil.SearchResultActivity.kt (온전한 파일)
 package com.longtoast.bilbil
 
 import android.content.Intent
@@ -18,6 +19,9 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
+
+import kotlin.jvm.java
+
 class SearchResultActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySearchResultBinding
@@ -33,12 +37,14 @@ class SearchResultActivity : AppCompatActivity() {
 
         Log.d("DEBUG_FLOW", "UI 바인딩 완료")
 
-        // RecyclerView
-        adapter = ProductAdapter(emptyList()) { itemId ->
-            Log.d("DEBUG_FLOW", "아이템 클릭됨 → itemId=$itemId")
-            val intent = Intent(this, ProductDetailActivity::class.java)
-            intent.putExtra("ITEM_ID", itemId)
-            startActivity(intent)
+        // 툴바 뒤로가기 버튼 설정
+        binding.toolbar.setNavigationOnClickListener {
+            finish()
+        }
+
+        // 하단 돌아가기 버튼 설정 (activity_search_result.xml 참조)
+        binding.contentRoot.findViewById<Button>(R.id.back_button).setOnClickListener {
+            finish()
         }
 
         binding.recyclerView.layoutManager = LinearLayoutManager(this)

@@ -70,7 +70,10 @@ class HomeHostActivity : AppCompatActivity() {
 
         // 4. [신규 추가] 채팅 테스트 버튼 리스너
         binding.fabTestChat.setOnClickListener {
-            createChatRoomAndStartActivity()
+            //createChatRoomAndStartActivity()
+            val intent = Intent(this, ReviewActivity::class.java)
+            intent.putExtra("TRANSACTION_ID", 1)
+            startActivity(intent)
         }
     }
 
@@ -129,7 +132,7 @@ class HomeHostActivity : AppCompatActivity() {
 
         // 테스트용 ID 값들 (Int)
         val testItemId = 1
-        val testLenderId = 2 // 이 아이템의 판매자 ID
+        val testLenderId = 1 // 이 아이템의 판매자 ID
         val testBorrowerId = currentUserId // 현재 로그인한 사용자
         val testSellerNickname = "테스트 판매자 닉네임 (Lender 1)"
 
