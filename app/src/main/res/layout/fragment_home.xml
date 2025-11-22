@@ -8,6 +8,7 @@
     android:background="@color/trust_surface"
     tools:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
 
+    <!-- 상단 바 -->
     <LinearLayout
         android:id="@+id/topBar"
         android:layout_width="0dp"
@@ -46,7 +47,7 @@
                 android:background="@drawable/bg_circle_transparent"
                 android:contentDescription="메뉴 버튼"
                 android:scaleType="fitCenter"
-                android:tint="@android:color/white"
+                app:tint="@android:color/white"
                 android:src="@drawable/hamburger"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
@@ -63,6 +64,7 @@
             android:layout_marginTop="8dp" />
     </LinearLayout>
 
+    <!-- 메인 스크롤 영역 -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
@@ -76,6 +78,7 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- 요즘 많이 찾는 검색어 카드 -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -107,8 +110,8 @@
                         <com.google.android.material.chip.ChipGroup
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:chipSpacingHorizontal="10dp"
-                            android:chipSpacingVertical="8dp">
+                            app:chipSpacingHorizontal="10dp"
+                            app:chipSpacingVertical="8dp">
 
                             <com.google.android.material.chip.Chip
                                 style="@style/Widget.MaterialComponents.Chip.Filter"
@@ -136,12 +139,13 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:background="@drawable/bg_chip"
-                                android:text="접이식 의자 " />
+                                android:text="접이식 의자" />
                         </com.google.android.material.chip.ChipGroup>
                     </HorizontalScrollView>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- 인기 카테고리 카드 -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -175,6 +179,8 @@
                         tools:listitem="@layout/item_category_grid" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
+
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -181,7 +181,6 @@ class MainActivity : AppCompatActivity() {
                 val intent = Intent(this@MainActivity, SettingProfileActivity::class.java).apply {
                     putExtra("USER_ID", userId)
                     putExtra("SERVICE_TOKEN", token)
-                    putExtra("USER_NAME", memberTokenResponse.username)
                     putExtra("SETUP_MODE", true)
                     putExtra("USER_NICKNAME", nickname)
                 }
