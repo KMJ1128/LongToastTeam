@@ -1,4 +1,3 @@
-// com.longtoast.bilbil.SettingProfileActivity.kt (전체)
 package com.longtoast.bilbil
 
 import android.Manifest
@@ -303,11 +302,8 @@ class SettingProfileActivity : AppCompatActivity() {
                     else {
                         val errorBody = response.errorBody()?.string()
                         Log.e("PROFILE_API", "프로필 업데이트 실패: ${response.code()}, 메시지: $errorBody")
-                        Toast.makeText(
-                            this@SettingProfileActivity,
-                            "프로필 저장 실패: ${response.code()}",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        // 💡 충돌 해결: 한 줄 코드 방식 채택
+                        Toast.makeText(this@SettingProfileActivity, "프로필 저장 실패: ${response.code()}", Toast.LENGTH_LONG).show()
                     }
                 }
 

@@ -6,6 +6,12 @@ import com.kakao.sdk.common.KakaoSdk
 import com.kakao.vectormap.KakaoMapSdk
 // 🚨 [추가] 네이버 SDK Import
 import com.navercorp.nid.NaverIdLoginSDK
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import java.util.concurrent.TimeUnit
 
 class MyApplication : Application() {
 
@@ -31,5 +37,24 @@ class MyApplication : Application() {
 
         // 4. AuthTokenManager 초기화
         AuthTokenManager.init(this)
+
+        // 5. 채팅 알림 워커 등록
+        scheduleChatRefreshWorker()
+    }
+
+    private fun scheduleChatRefreshWorker() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val request = PeriodicWorkRequestBuilder<ChatRefreshWorker>(15, TimeUnit.MINUTES)
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "chat_refresh_worker",
+            ExistingPeriodicWorkPolicy.KEEP,
+            request
+        )
     }
 }

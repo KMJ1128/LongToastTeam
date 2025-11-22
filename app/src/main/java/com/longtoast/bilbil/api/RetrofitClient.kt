@@ -12,8 +12,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 object RetrofitClient {
 
     // 🔥 Spring Boot 서버 주소 (Wi-Fi 동일 네트워크)
-    // 실제 주소는 ServerConfig에서 한 번만 수정해 모두에 적용합니다.
-    private const val BASE_URL = ServerConfig.HTTP_BASE_URL
+    // 💡 [통합] ServerConfig에서 주소를 가져와 중앙 관리합니다.
+    private const val BASE_URL = ServerConfig.HTTP_BASE_URL 
 
     // ------------------------------------------------------------------
     // 🔐 1. Authorization 헤더 자동 추가 Interceptor

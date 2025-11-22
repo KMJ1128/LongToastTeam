@@ -107,8 +107,8 @@
                         <com.google.android.material.chip.ChipGroup
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:chipSpacingHorizontal="10dp"
-                            android:chipSpacingVertical="8dp">
+                            app:chipSpacingHorizontal="10dp"
+                            app:chipSpacingVertical="8dp">
 
                             <com.google.android.material.chip.Chip
                                 style="@style/Widget.MaterialComponents.Chip.Filter"
@@ -136,7 +136,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:background="@drawable/bg_chip"
-                                android:text="접이식 의자 " />
+                                android:text="접이식 의자" />
                         </com.google.android.material.chip.ChipGroup>
                     </HorizontalScrollView>
                 </LinearLayout>

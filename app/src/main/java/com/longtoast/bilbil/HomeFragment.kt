@@ -1,5 +1,6 @@
 package com.longtoast.bilbil
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -8,12 +9,22 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
-import androidx.fragment.app.Fragment
-import androidx.recyclerview.widget.GridLayoutManager
-import com.longtoast.bilbil.adapter.CategoryAdapter
-import com.longtoast.bilbil.databinding.FragmentHomeBinding
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import androidx.appcompat.widget.SearchView
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.GridLayoutManager
+import com.google.android.material.chip.Chip
+import com.longtoast.bilbil.adapter.CategoryAdapter
+import com.longtoast.bilbil.api.RetrofitClient
+import com.longtoast.bilbil.databinding.FragmentHomeBinding
+import com.longtoast.bilbil.dto.MsgEntity
+import com.longtoast.bilbil.dto.PopularSearchDTO
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 class HomeFragment : Fragment() {
 
@@ -33,37 +44,46 @@ class HomeFragment : Fragment() {
 
         Log.d("DEBUG_FLOW", "HomeFragment.onViewCreated() 실행됨")
 
-        // -----------------------------------------------------------------------------------------
-        // 🔥 SearchView 내부 EditText 가져오기
-        // -----------------------------------------------------------------------------------------
+        setupSearchBar()
+        setupCategoryRecycler()
+        loadPopularSearches()
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // 🔍 검색 바 설정
+    // -----------------------------------------------------------------------------------------
+    private fun setupSearchBar() {
+        // SearchView 내부 EditText 가져오기
         val searchEditTextId = binding.searchBar.context.resources
             .getIdentifier("search_src_text", "id", binding.searchBar.context.packageName)
 
         val searchEditText = binding.searchBar.findViewById<EditText>(searchEditTextId)
 
-        // 🔥 IME 옵션 강제 설정
+        // IME 옵션 강제 설정
         searchEditText.imeOptions = EditorInfo.IME_ACTION_SEARCH
         searchEditText.setSingleLine(true)
 
-        // -----------------------------------------------------------------------------------------
-        // 🔥 Enter 입력 시 검색 수행
-        // -----------------------------------------------------------------------------------------
+        // SearchView 클릭 시 자동 확장 + 키보드 표시
+        binding.searchBar.setOnClickListener {
+            binding.searchBar.isIconified = false
+            binding.searchBar.requestFocus()
+            searchEditText.requestFocus()
+
+            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(searchEditText, InputMethodManager.SHOW_IMPLICIT)
+        }
+
+        // Enter / 액션버튼으로 검색 실행
         searchEditText.setOnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH ||
                 (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
             ) {
 
                 val query = binding.searchBar.query.toString()
-                Log.d("DEBUG_FLOW", "Enter 감지! 즉시 검색 실행 → $query")
+                Log.d("DEBUG_FLOW", "Enter 감지! 검색 실행 → $query")
 
                 if (query.isNotEmpty()) {
-                    val intent = Intent(requireContext(), SearchResultActivity::class.java)
-                    intent.putExtra("SEARCH_QUERY", query)
-                    intent.putExtra("SEARCH_IS_CATEGORY", false)
-
-                    Log.d("DEBUG_FLOW", "SearchResultActivity 이동 → query=$query")
-
-                    startActivity(intent)
+                    moveToSearchResult(query, isCategory = false)
                     binding.searchBar.clearFocus()
                 }
                 true
@@ -74,6 +94,7 @@ class HomeFragment : Fragment() {
 
         binding.searchBar.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
+                // Enter는 위에서 처리했으니 여기서는 막기
                 return true
             }
 
@@ -81,13 +102,23 @@ class HomeFragment : Fragment() {
                 return false
             }
         })
-
-        // -----------------------------------------------------------------------------------------
-        // 🔥 카테고리 RecyclerView 설정 (이게 없어서 카테고리가 안 보였음)
-        // -----------------------------------------------------------------------------------------
-        setupCategoryRecycler()
     }
 
+    // -----------------------------------------------------------------------------------------
+    // 🔍 검색 결과 화면으로 이동 공통 함수
+    // -----------------------------------------------------------------------------------------
+    private fun moveToSearchResult(keyword: String, isCategory: Boolean) {
+        val intent = Intent(requireContext(), SearchResultActivity::class.java).apply {
+            putExtra("SEARCH_QUERY", keyword)
+            putExtra("SEARCH_IS_CATEGORY", isCategory)
+        }
+        Log.d("DEBUG_FLOW", "SearchResultActivity 이동 → query=$keyword | isCategory=$isCategory")
+        startActivity(intent)
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // 🔥 카테고리 RecyclerView 설정
+    // -----------------------------------------------------------------------------------------
     private fun setupCategoryRecycler() {
         val categoryList = listOf("자전거", "가구", "캠핑", "전자제품", "운동", "의류")
 
@@ -100,16 +131,79 @@ class HomeFragment : Fragment() {
             CategoryAdapter(categoryList) { categoryName ->
 
                 Log.d("DEBUG_FLOW", "카테고리 클릭됨 → $categoryName")
-
-                val intent = Intent(requireContext(), SearchResultActivity::class.java)
-                intent.putExtra("SEARCH_QUERY", categoryName)
-                intent.putExtra("SEARCH_IS_CATEGORY", true)
-
-                Log.d("DEBUG_FLOW", "SearchResultActivity 로 이동 시작")
-                Log.d("DEBUG_FLOW", "putExtra 확인 → SEARCH_QUERY=$categoryName, SEARCH_IS_CATEGORY=true")
-
-                startActivity(intent)
+                moveToSearchResult(categoryName, isCategory = true)
             }
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // ⭐ 요즘 많이 찾는 검색어: 백엔드에서 받아와 ChipGroup에 뿌리기
+    // -----------------------------------------------------------------------------------------
+    private fun loadPopularSearches() {
+        Log.d("POPULAR_SEARCH", "인기 검색어 불러오기 시작")
+
+        RetrofitClient.getApiService().getPopularSearches()
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (!response.isSuccessful) {
+                        Log.e(
+                            "POPULAR_SEARCH",
+                            "API 실패: code=${response.code()} | body=${response.errorBody()?.string()}"
+                        )
+                        return
+                    }
+
+                    val rawData = response.body()?.data
+                    Log.d("POPULAR_SEARCH", "rawData=$rawData")
+
+                    if (rawData == null) {
+                        Log.e("POPULAR_SEARCH", "rawData=null")
+                        return
+                    }
+
+                    try {
+                        val gson = Gson()
+                        val listType = object : TypeToken<List<PopularSearchDTO>>() {}.type
+                        val json = gson.toJson(rawData)
+
+                        Log.d("POPULAR_SEARCH", "rawData JSON=$json")
+
+                        val popularList: List<PopularSearchDTO> = gson.fromJson(json, listType)
+
+                        if (popularList.isEmpty()) {
+                            Log.d("POPULAR_SEARCH", "인기 검색어 없음")
+                            // 필요하면 라벨/ChipGroup 숨기기 처리도 가능
+                            return
+                        }
+
+                        Log.d("POPULAR_SEARCH", "인기 검색어 개수=${popularList.size}")
+                        renderPopularChips(popularList)
+                    } catch (e: Exception) {
+                        Log.e("POPULAR_SEARCH", "JSON 파싱 오류", e)
+                    }
+                }
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Log.e("POPULAR_SEARCH", "네트워크 실패", t)
+                }
+            })
+    }
+
+    private fun renderPopularChips(popularList: List<PopularSearchDTO>) {
+        val chipGroup = binding.chipGroupPopular
+        chipGroup.removeAllViews()
+
+        for (item in popularList) {
+            val chip = Chip(requireContext()).apply {
+                text = item.keyword
+                isCheckable = false
+                isClickable = true
+                setOnClickListener {
+                    Log.d("POPULAR_SEARCH", "인기 검색어 클릭 → ${item.keyword}")
+                    moveToSearchResult(item.keyword, isCategory = false)
+                }
+            }
+            chipGroup.addView(chip)
+        }
     }
 
     override fun onDestroyView() {

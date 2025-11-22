@@ -155,14 +155,18 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
+
+            Log.d("SERVER_AUTH", "✅ serviceToken = ${memberTokenResponse.serviceToken}")
+            Log.d("SERVER_AUTH", "✅ full MemberTokenResponse = $memberTokenResponse")
+
             val token = memberTokenResponse.serviceToken
             val userId = memberTokenResponse.userId.toInt()
             val nickname = memberTokenResponse.nickname
 
             val isAddressMissing =
                 memberTokenResponse.address.isNullOrEmpty() ||
-                        memberTokenResponse.locationLatitude == null ||
-                        memberTokenResponse.locationLongitude == null
+                            memberTokenResponse.locationLatitude == null ||
+                            memberTokenResponse.locationLongitude == null
 
             if (isAddressMissing) {
                 // ⭐ MUST HAVE: 신규 유저 주소 설정 전에 JWT 저장
@@ -175,7 +179,8 @@ class MainActivity : AppCompatActivity() {
                 val intent = Intent(this@MainActivity, SettingProfileActivity::class.java).apply {
                     putExtra("USER_ID", userId)
                     putExtra("SERVICE_TOKEN", token)
-                    putExtra("USER_NAME", memberTokenResponse.username)
+                    // 충돌 해결: USER_NAME 추가 유지
+                    putExtra("USER_NAME", memberTokenResponse.username) 
                     putExtra("SETUP_MODE", true)
                     putExtra("USER_NICKNAME", nickname)
                 }
