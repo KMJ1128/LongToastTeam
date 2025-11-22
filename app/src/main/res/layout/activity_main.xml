@@ -58,7 +58,7 @@
                 android:layout_marginTop="16dp"
                 android:letterSpacing="0.02"
                 android:text="빌빌에 오신 것을 환영합니다!"
-                android:textColor="@color/carrot_text_primary"
+                android:textColor="@color/trust_text_primary"
                 android:textSize="22sp"
                 android:textStyle="bold" />
 
@@ -67,8 +67,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="당근 감성으로 따뜻하게 시작해요"
-                android:textColor="@color/carrot_text_secondary"
+                android:text="신뢰로 이어지는 따뜻한 대여를 시작해요"
+                android:textColor="@color/trust_text_secondary"
                 android:textSize="14sp" />
 
             <LinearLayout
@@ -130,7 +130,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:text="로그인 없이 둘러보기"
-                android:textColor="@color/carrot_primary"
+                android:textColor="@color/trust_primary"
                 android:textSize="14sp"
                 android:textStyle="bold" />
         </LinearLayout>

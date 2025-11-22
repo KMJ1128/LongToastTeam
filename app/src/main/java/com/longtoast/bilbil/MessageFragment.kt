@@ -11,7 +11,6 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.longtoast.bilbil.databinding.FragmentMessageBinding
-import com.longtoast.bilbil.ServerConfig
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ChatRoomListDTO
@@ -19,13 +18,10 @@ import com.longtoast.bilbil.dto.ChatRoomListUpdateDTO
 import com.longtoast.bilbil.ChatNotificationHelper
 import com.longtoast.bilbil.ChatRoomListParser
 import com.google.gson.Gson
+import okhttp3.*
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import okhttp3.WebSocket
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.WebSocketListener
 
 class MessageFragment : Fragment() {
 
@@ -34,12 +30,10 @@ class MessageFragment : Fragment() {
 
     private val handler = Handler(Looper.getMainLooper())
 
-    // 구독 실행 Runnable
     private val subscribeRunnable = Runnable {
         subscribeToChatListUpdate()
     }
 
-    // 목록 화면에 머무는 동안 주기적으로 최신 데이터를 불러오기 위한 Runnable
     private val listRefreshRunnable = object : Runnable {
         override fun run() {
             fetchChatRoomLists(showRefreshing = false)
@@ -75,7 +69,6 @@ class MessageFragment : Fragment() {
         binding.recyclerViewChatRooms.adapter = adapter
 
         binding.swipeRefreshLayout.setOnRefreshListener {
-            Log.d("CHAT_LIST", "사용자 수동 새로고침")
             fetchChatRoomLists()
         }
     }
@@ -89,19 +82,18 @@ class MessageFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
+
         if (::webSocket.isInitialized) {
             webSocket.close(1000, "Fragment paused")
             Log.d("STOMP_WS_LIST", "WebSocket 종료")
         }
+
         handler.removeCallbacks(listRefreshRunnable)
         handler.removeCallbacksAndMessages(null)
     }
 
-
     private fun fetchChatRoomLists(showRefreshing: Boolean = true) {
-        if (showRefreshing) {
-            binding.swipeRefreshLayout.isRefreshing = true
-        }
+        if (showRefreshing) binding.swipeRefreshLayout.isRefreshing = true
 
         RetrofitClient.getApiService().getMyChatRooms()
             .enqueue(object : Callback<MsgEntity> {
@@ -115,13 +107,18 @@ class MessageFragment : Fragment() {
                     }
 
                     try {
-                        val newLists = ChatRoomListParser.parseFromMsgEntity(response.body())
+                        val newLists =
+                            ChatRoomListParser.parseFromMsgEntity(response.body())
                         chatRoomLists.clear()
                         chatRoomLists.addAll(newLists)
                         adapter.notifyDataSetChanged()
 
                         binding.recyclerViewChatRooms.scrollToPosition(0)
-                        ChatNotificationHelper.saveSnapshot(requireContext().applicationContext, chatRoomLists)
+
+                        ChatNotificationHelper.saveSnapshot(
+                            requireContext().applicationContext,
+                            chatRoomLists
+                        )
 
                     } catch (e: Exception) {
                         Log.e("CHAT_LIST", "파싱 오류", e)
@@ -137,39 +134,45 @@ class MessageFragment : Fragment() {
 
     private fun connectWebSocket() {
         val token = AuthTokenManager.getToken()
-        val userId = AuthTokenManager.getUserId()
-        Log.d("AUTH_CHECK", "WS Connect Start: user=$userId token=$token")
-
         val client = OkHttpClient.Builder().build()
+
         val requestBuilder = Request.Builder().url(WEBSOCKET_URL)
 
         if (token != null) {
             requestBuilder.addHeader("Authorization", "Bearer $token")
         }
 
-        webSocket = client.newWebSocket(requestBuilder.build(), object : WebSocketListener() {
+        webSocket = client.newWebSocket(requestBuilder.build(),
+            object : WebSocketListener() {
 
-            override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
-                val connectFrame = "CONNECT\n" +
-                        "accept-version:1.2\n" +
-                        "heart-beat:10000,10000\n" +
-                        "Authorization:Bearer $token\n\n\u0000"
+                override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
+                    val connectFrame = "CONNECT\n" +
+                            "accept-version:1.2\n" +
+                            "heart-beat:10000,10000\n" +
+                            "Authorization:Bearer $token\n\n\u0000"
 
-                webSocket.send(connectFrame)
-                Log.d("STOMP_WS_LIST", "CONNECT 전송 완료")
-            }
+                    webSocket.send(connectFrame)
+                    Log.d("STOMP_WS_LIST", "CONNECT 전송 완료")
+                }
 
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                activity?.runOnUiThread { handleStompFrame(text) }
-            }
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    activity?.runOnUiThread {
+                        handleStompFrame(text)
+                    }
+                }
 
-            override fun onFailure(webSocket: WebSocket, t: Throwable, res: okhttp3.Response?) {
-                Log.e("STOMP_WS_LIST", "WebSocket 오류: ${t.message} → 재연결")
-                handler.postDelayed({
-                    if (isAdded && isVisible) connectWebSocket()
-                }, 5000)
-            }
-        })
+                override fun onFailure(
+                    webSocket: WebSocket,
+                    t: Throwable,
+                    response: okhttp3.Response?
+                ) {
+                    Log.e("STOMP_WS_LIST", "WebSocket 오류: ${t.message}")
+
+                    handler.postDelayed({
+                        if (isAdded && isVisible) connectWebSocket()
+                    }, 5000)
+                }
+            })
     }
 
     private fun handleStompFrame(frame: String) {
@@ -180,10 +183,12 @@ class MessageFragment : Fragment() {
             }
 
             frame.startsWith("MESSAGE") -> {
-                val payload = frame.split("\n\n").getOrNull(1)?.replace("\u0000", "") ?: return
+                val payload =
+                    frame.split("\n\n").getOrNull(1)?.replace("\u0000", "") ?: return
 
                 try {
-                    val updateDto = Gson().fromJson(payload, ChatRoomListUpdateDTO::class.java)
+                    val updateDto =
+                        Gson().fromJson(payload, ChatRoomListUpdateDTO::class.java)
                     updateChatRoomListUI(updateDto)
                 } catch (e: Exception) {
                     Log.e("STOMP_WS_LIST_MSG", "JSON 파싱 오류", e)
@@ -193,14 +198,14 @@ class MessageFragment : Fragment() {
     }
 
     private fun subscribeToChatListUpdate() {
+        if (!::webSocket.isInitialized) return
+
         val frame = "SUBSCRIBE\n" +
                 "id:sub-list-0\n" +
                 "destination:/user/queue/chat-list-update\n\n\u0000"
 
-        if (::webSocket.isInitialized) {
-            webSocket.send(frame)
-            Log.d("STOMP_WS_LIST", "큐 구독 완료")
-        }
+        webSocket.send(frame)
+        Log.d("STOMP_WS_LIST", "큐 구독 완료")
     }
 
     private fun updateChatRoomListUI(updateDto: ChatRoomListUpdateDTO) {
@@ -210,6 +215,7 @@ class MessageFragment : Fragment() {
 
         if (idx != -1) {
             val old = chatRoomLists[idx]
+
             val updated = old.copy(
                 lastMessageContent = updateDto.lastMessageContent ?: old.lastMessageContent,
                 lastMessageTime = updateDto.lastMessageTime ?: old.lastMessageTime
@@ -220,12 +226,17 @@ class MessageFragment : Fragment() {
 
             adapter.notifyItemRemoved(idx)
             adapter.notifyItemInserted(0)
+
             binding.recyclerViewChatRooms.scrollToPosition(0)
 
-            ChatNotificationHelper.saveSnapshot(requireContext().applicationContext, chatRoomLists)
+            ChatNotificationHelper.saveSnapshot(
+                requireContext().applicationContext,
+                chatRoomLists
+            )
 
         } else {
             Log.i("CHAT_LIST_UPDATE", "목록에 없는 Room → 전체 새로 로드 필요")
+            fetchChatRoomLists()
         }
     }
 
