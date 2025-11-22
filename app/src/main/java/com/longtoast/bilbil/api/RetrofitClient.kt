@@ -11,11 +11,11 @@ import retrofit2.converter.gson.GsonConverterFactory
 object RetrofitClient {
 
     // 🔥 Spring Boot 서버 주소 (Wi-Fi 동일 네트워크)
-    private const val BASE_URL = "http://172.16.101.190:8080/"
+
     // 필요할 때 아래 주소로 변경 가능:
     //private const val BASE_URL = "http://172.16.104.55:8080/"
-    //private const val BASE_URL = "http://192.168.45.105:8080/"
-    // "https://unpaneled-jennette-phonily.ngrok-free.dev/"
+    //private const val BASE_URL = "http://192.168.0.211:8080/"
+      private const val BASE_URL =  "https://unpaneled-jennette-phonily.ngrok-free.dev"
 
     // ------------------------------------------------------------------
     // 🔐 1. Authorization 헤더 자동 추가 Interceptor
