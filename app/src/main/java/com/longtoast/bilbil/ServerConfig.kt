@@ -15,7 +15,15 @@ object ServerConfig {
     val WEBSOCKET_URL: String
         get() {
             val normalizedBase = HTTP_BASE_URL.removeSuffix("/")
-            val wsBase = normalizedBase.replaceFirst(prefix = "http", replacement = "ws")
+
+            val wsBase = when {
+                normalizedBase.startsWith("https://") ->
+                    normalizedBase.replaceFirst("https://", "wss://")
+                normalizedBase.startsWith("http://") ->
+                    normalizedBase.replaceFirst("http://", "ws://")
+                else -> normalizedBase
+            }
+
             return "$wsBase/stomp/chat/websocket"
         }
 }

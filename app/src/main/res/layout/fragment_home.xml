@@ -46,10 +46,10 @@
                 android:background="@drawable/bg_circle_transparent"
                 android:contentDescription="메뉴 버튼"
                 android:scaleType="fitCenter"
-                android:tint="@android:color/white"
                 android:src="@drawable/hamburger"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="#FFFFFF" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <androidx.appcompat.widget.SearchView
@@ -76,6 +76,7 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- 요즘 많이 찾는 검색어 Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -107,8 +108,8 @@
                         <com.google.android.material.chip.ChipGroup
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:chipSpacingHorizontal="10dp"
-                            android:chipSpacingVertical="8dp">
+                            app:chipSpacingHorizontal="10dp"
+                            app:chipSpacingVertical="8dp">
 
                             <com.google.android.material.chip.Chip
                                 style="@style/Widget.MaterialComponents.Chip.Filter"
@@ -142,6 +143,7 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- 인기 카테고리 Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
