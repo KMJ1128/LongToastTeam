@@ -1,4 +1,3 @@
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,25 +5,22 @@ plugins {
 
 android {
     namespace = "com.longtoast.bilbil"
-    compileSdk = 36
+    compileSdk = 34
 
     buildFeatures {
-        viewBinding=true
+        viewBinding = true
         buildConfig = true
     }
-
-
 
     defaultConfig {
         applicationId = "com.longtoast.bilbil"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
         // 웹소켓 주소
         buildConfigField("String", "WebSocket_URL", "\"ws://192.168.0.211:8080/stomp/chat\"")
-
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -34,7 +30,6 @@ android {
             abiFilters.add("x86")
             abiFilters.add("x86_64")
         }
-
     }
 
     buildTypes {
@@ -71,24 +66,22 @@ dependencies {
     implementation(libs.androidx.navigation.ui.ktx)
     implementation(libs.play.services.analytics.impl)
 
-
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-
 
     implementation("com.kakao.sdk:v2-user:2.21.0")
 
     implementation("com.kakao.maps.open:android:2.12.17")
 
-    // ✅ [추가] Gson (JSON 직렬화/역직렬화용) - 유지
+    // Gson (JSON 직렬화/역직렬화용)
     implementation("com.google.code.gson:gson:2.10.1")
 
-    // Retrofit 및 OkHttp 의존성 - 유지
+    // Retrofit 및 OkHttp 의존성
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     // OkHttp (WebSocket 사용을 위해 필요)
-    implementation("com.squareup.okhttp3:okhttp:4.12.0") // 🚨 OkHttp 추가
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     implementation("com.github.bumptech.glide:glide:4.15.1")
