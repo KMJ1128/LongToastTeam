@@ -44,6 +44,12 @@
             android:name=".HomeHostActivity"
             android:exported="false" />
 
+        <activity android:name=".RentRequestActivity"
+            android:exported="false" />
+        
+        <activity android:name=".CartActivity"
+            android:exported="false" />
+
         <activity
             android:name=".ReviewActivity"
             android:exported="false" />

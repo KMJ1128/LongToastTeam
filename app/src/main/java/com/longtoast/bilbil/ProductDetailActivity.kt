@@ -55,14 +55,34 @@ class ProductDetailActivity : AppCompatActivity() {
         // 1. 채팅하기 버튼
         binding.btnStartChat.setOnClickListener { startChatting() }
 
-        // 2. 장바구니 버튼
+// 2. 장바구니 버튼 클릭 이벤트 수정
         binding.btnCart.setOnClickListener {
-            Toast.makeText(this, "장바구니에 담았습니다.", Toast.LENGTH_SHORT).show()
+            if (currentProduct != null) {
+                // 1. 매니저에 상품 추가
+                CartManager.addItem(currentProduct!!)
+
+                // 2. 사용자에게 알림
+                Toast.makeText(this, "장바구니에 담았습니다.", Toast.LENGTH_SHORT).show()
+
+                // (선택사항) 바로 장바구니로 이동하고 싶다면 아래 주석 해제
+                // val intent = Intent(this, CartActivity::class.java)
+                // startActivity(intent)
+            } else {
+                Toast.makeText(this, "상품 정보를 불러오는 중입니다.", Toast.LENGTH_SHORT).show()
+            }
         }
 
-        // 3. 대여하기 버튼
+// 3. 대여하기 버튼
         binding.btnRent.setOnClickListener {
-            Toast.makeText(this, "대여 신청 화면으로 이동합니다.", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, RentRequestActivity::class.java)
+
+            // 상세 정보를 넘겨줍니다 (옵션)
+            intent.putExtra("TITLE", binding.textTitle.text.toString())
+            intent.putExtra("PRICE", currentProduct?.price ?: 0)
+            intent.putExtra("DEPOSIT", currentProduct?.deposit ?: 0)
+            // intent.putExtra("IMAGE_URL", currentProduct?.imageUrls?.firstOrNull())
+
+            startActivity(intent)
         }
     }
 
