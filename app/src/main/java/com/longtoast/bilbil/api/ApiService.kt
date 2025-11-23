@@ -41,6 +41,8 @@ interface ApiService {
         @Body request: ProductCreateRequest
     ): Call<MsgEntity>
 
+    // 🔥 [수정됨] 백엔드: @GetMapping("/{itemId}") -> /products/{itemId} 라고 가정
+    // 만약 Controller 위에 @RequestMapping("/products")가 있다면 아래가 맞습니다.
     @GET("/products/{itemId}")
     suspend fun getProductDetail(
         @Path("itemId") itemId: Int

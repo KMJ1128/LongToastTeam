@@ -1,15 +1,211 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="20dp"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@android:color/white">
 
-    <TextView
-        android:id="@+id/textItemId"
-        android:layout_width="wrap_content"
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@android:color/transparent"
+        android:elevation="4dp"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:layout_constraintTop_toTopOf="parent"
+        app:title="" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/bottom_layout">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="40dp">
+
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/viewPager_images"
+                android:layout_width="match_parent"
+                android:layout_height="320dp"
+                android:background="#EEE" />
+
+            <TextView
+                android:id="@+id/text_image_indicator"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="-40dp"
+                android:background="#80000000"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="4dp"
+                android:text="1 / 1"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:layout_marginBottom="20dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp">
+
+                    <ImageView
+                        android:id="@+id/image_seller_profile"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:src="@drawable/ic_person"
+                        android:background="@drawable/chat_avatar_background"
+                        android:padding="8dp"/>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginStart="12dp">
+
+                        <TextView
+                            android:id="@+id/text_seller_nickname"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="판매자"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="#333333"/>
+
+                        <TextView
+                            android:id="@+id/text_address"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="거래 지역 정보"
+                            android:textSize="13sp"
+                            android:textColor="#666666"/>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#F0F0F0"
+                    android:layout_marginBottom="20dp"/>
+
+                <TextView
+                    android:id="@+id/text_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="상품 제목"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:textColor="#111111"
+                    android:layout_marginBottom="8dp"/>
+
+                <TextView
+                    android:id="@+id/text_category"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="카테고리"
+                    android:textSize="14sp"
+                    android:textColor="#888888"
+                    android:layout_marginBottom="24dp"/>
+
+                <TextView
+                    android:id="@+id/text_description"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="내용"
+                    android:textSize="16sp"
+                    android:lineSpacingExtra="6dp"
+                    android:textColor="#333333"
+                    android:layout_marginBottom="32dp"/>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="8dp"
+                    android:background="#F5F5F5"
+                    android:layout_marginBottom="24dp"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📅 대여 가능 날짜 확인"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="12dp"/>
+
+                <CalendarView
+                    android:id="@+id/calendar_availability"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/rounded_edittext_line"
+                    android:layout_marginBottom="24dp"/>
+
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/bottom_layout"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="상품 상세"
-        android:textSize="20sp"/>
+        android:padding="16dp"
+        android:background="@android:color/white"
+        android:elevation="20dp"
+        app:layout_constraintBottom_toBottomOf="parent">
 
-</LinearLayout>
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btn_start_chat"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <TextView
+                android:id="@+id/text_price"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₩ 10,000 / 일"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="#FF9800"/>
+
+            <TextView
+                android:id="@+id/text_deposit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="보증금 없음"
+                android:textSize="13sp"
+                android:textColor="#888888"/>
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btn_start_chat"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="채팅하기"
+            android:backgroundTint="#FF9800"
+            android:textColor="@android:color/white"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="12dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
