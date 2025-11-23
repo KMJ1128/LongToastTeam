@@ -31,6 +31,9 @@
             android:exported="false" />
 
         <activity
+            android:name=".ProductDetailActivity"
+            android:exported="false" />
+        <activity
             android:name=".SettingProfileActivity"
             android:exported="false" />
 

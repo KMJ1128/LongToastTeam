@@ -97,4 +97,5 @@ dependencies {
 
     // Background work & notifications
     implementation("androidx.work:work-runtime-ktx:2.9.1")
+    implementation("de.hdodenhof:circleimageview:3.1.0")
 }
