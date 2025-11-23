@@ -1,4 +1,3 @@
-// MainActivity.kt with JWT save fix inserted
 package com.longtoast.bilbil
 
 import android.content.Context
@@ -12,21 +11,21 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.longtoast.bilbil.databinding.ActivityMainBinding
-import com.longtoast.bilbil.api.RetrofitClient
-import com.longtoast.bilbil.dto.KakaoTokenRequest
-import com.longtoast.bilbil.dto.MsgEntity
-import com.kakao.sdk.user.UserApiClient
+import com.google.gson.Gson
 import com.kakao.sdk.auth.model.OAuthToken
+import com.kakao.sdk.user.UserApiClient
+import com.longtoast.bilbil.api.RetrofitClient
+import com.longtoast.bilbil.databinding.ActivityMainBinding
+import com.longtoast.bilbil.dto.KakaoTokenRequest
+import com.longtoast.bilbil.dto.MemberTokenResponse
+import com.longtoast.bilbil.dto.MsgEntity
+import com.longtoast.bilbil.dto.NaverTokenRequest
 import com.navercorp.nid.NaverIdLoginSDK
 import com.navercorp.nid.oauth.OAuthLoginCallback
-import com.longtoast.bilbil.dto.MemberTokenResponse
-import com.google.gson.Gson
-import com.longtoast.bilbil.dto.NaverTokenRequest
-import java.security.MessageDigest
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.security.MessageDigest
 
 class MainActivity : AppCompatActivity() {
 
@@ -52,6 +51,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        AuthTokenManager.clearToken()
         val token = AuthTokenManager.getToken()
         if (token != null) {
             Log.i("APP_AUTH_STATE", "JWT 존재 → 홈 이동")
@@ -155,7 +155,6 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
-
             Log.d("SERVER_AUTH", "✅ serviceToken = ${memberTokenResponse.serviceToken}")
             Log.d("SERVER_AUTH", "✅ full MemberTokenResponse = $memberTokenResponse")
 
@@ -165,11 +164,10 @@ class MainActivity : AppCompatActivity() {
 
             val isAddressMissing =
                 memberTokenResponse.address.isNullOrEmpty() ||
-                            memberTokenResponse.locationLatitude == null ||
-                            memberTokenResponse.locationLongitude == null
+                        memberTokenResponse.locationLatitude == null ||
+                        memberTokenResponse.locationLongitude == null
 
             if (isAddressMissing) {
-                // ⭐ MUST HAVE: 신규 유저 주소 설정 전에 JWT 저장
                 if (token != null) {
                     AuthTokenManager.saveToken(token)
                     AuthTokenManager.saveUserId(userId)
@@ -179,16 +177,14 @@ class MainActivity : AppCompatActivity() {
                 val intent = Intent(this@MainActivity, SettingProfileActivity::class.java).apply {
                     putExtra("USER_ID", userId)
                     putExtra("SERVICE_TOKEN", token)
-                    // 충돌 해결: USER_NAME 추가 유지
-                    putExtra("USER_NAME", memberTokenResponse.username) 
                     putExtra("SETUP_MODE", true)
                     putExtra("USER_NICKNAME", nickname)
+                    // USER_NAME은 더 이상 넘기지 않음 (username 필드 없음)
                 }
                 startActivity(intent)
                 return
             }
 
-            // 기존 유저 → 토큰 저장 후 홈 이동
             if (token != null) {
                 AuthTokenManager.saveToken(token)
                 AuthTokenManager.saveUserId(userId)

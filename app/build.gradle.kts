@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.longtoast.bilbil"
-    compileSdk = 34
+    compileSdk = 36
 
     buildFeatures {
         viewBinding = true
@@ -15,7 +15,7 @@ android {
     defaultConfig {
         applicationId = "com.longtoast.bilbil"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 

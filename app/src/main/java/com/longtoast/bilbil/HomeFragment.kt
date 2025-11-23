@@ -49,21 +49,16 @@ class HomeFragment : Fragment() {
         loadPopularSearches()
     }
 
-    // -----------------------------------------------------------------------------------------
     // 🔍 검색 바 설정
-    // -----------------------------------------------------------------------------------------
     private fun setupSearchBar() {
-        // SearchView 내부 EditText 가져오기
         val searchEditTextId = binding.searchBar.context.resources
             .getIdentifier("search_src_text", "id", binding.searchBar.context.packageName)
 
         val searchEditText = binding.searchBar.findViewById<EditText>(searchEditTextId)
 
-        // IME 옵션 강제 설정
         searchEditText.imeOptions = EditorInfo.IME_ACTION_SEARCH
         searchEditText.setSingleLine(true)
 
-        // SearchView 클릭 시 자동 확장 + 키보드 표시
         binding.searchBar.setOnClickListener {
             binding.searchBar.isIconified = false
             binding.searchBar.requestFocus()
@@ -73,12 +68,10 @@ class HomeFragment : Fragment() {
             imm.showSoftInput(searchEditText, InputMethodManager.SHOW_IMPLICIT)
         }
 
-        // Enter / 액션버튼으로 검색 실행
         searchEditText.setOnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH ||
                 (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
             ) {
-
                 val query = binding.searchBar.query.toString()
                 Log.d("DEBUG_FLOW", "Enter 감지! 검색 실행 → $query")
 
@@ -93,20 +86,12 @@ class HomeFragment : Fragment() {
         }
 
         binding.searchBar.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
-            override fun onQueryTextSubmit(query: String?): Boolean {
-                // Enter는 위에서 처리했으니 여기서는 막기
-                return true
-            }
-
-            override fun onQueryTextChange(newText: String?): Boolean {
-                return false
-            }
+            override fun onQueryTextSubmit(query: String?): Boolean = true
+            override fun onQueryTextChange(newText: String?): Boolean = false
         })
     }
 
-    // -----------------------------------------------------------------------------------------
-    // 🔍 검색 결과 화면으로 이동 공통 함수
-    // -----------------------------------------------------------------------------------------
+    // 검색결과 화면으로 이동
     private fun moveToSearchResult(keyword: String, isCategory: Boolean) {
         val intent = Intent(requireContext(), SearchResultActivity::class.java).apply {
             putExtra("SEARCH_QUERY", keyword)
@@ -116,9 +101,7 @@ class HomeFragment : Fragment() {
         startActivity(intent)
     }
 
-    // -----------------------------------------------------------------------------------------
-    // 🔥 카테고리 RecyclerView 설정
-    // -----------------------------------------------------------------------------------------
+    // 카테고리 RecyclerView
     private fun setupCategoryRecycler() {
         val categoryList = listOf("자전거", "가구", "캠핑", "전자제품", "운동", "의류")
 
@@ -129,15 +112,12 @@ class HomeFragment : Fragment() {
 
         binding.categoryRecyclerView.adapter =
             CategoryAdapter(categoryList) { categoryName ->
-
                 Log.d("DEBUG_FLOW", "카테고리 클릭됨 → $categoryName")
                 moveToSearchResult(categoryName, isCategory = true)
             }
     }
 
-    // -----------------------------------------------------------------------------------------
-    // ⭐ 요즘 많이 찾는 검색어: 백엔드에서 받아와 ChipGroup에 뿌리기
-    // -----------------------------------------------------------------------------------------
+    // ⭐ 요즘 많이 찾는 검색어
     private fun loadPopularSearches() {
         Log.d("POPULAR_SEARCH", "인기 검색어 불러오기 시작")
 
@@ -171,7 +151,6 @@ class HomeFragment : Fragment() {
 
                         if (popularList.isEmpty()) {
                             Log.d("POPULAR_SEARCH", "인기 검색어 없음")
-                            // 필요하면 라벨/ChipGroup 숨기기 처리도 가능
                             return
                         }
 

@@ -105,11 +105,15 @@
                         android:scrollbars="none">
 
                         <com.google.android.material.chip.ChipGroup
+                            android:id="@+id/chipGroupPopular"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             app:chipSpacingHorizontal="10dp"
                             app:chipSpacingVertical="8dp">
 
+                            <!-- 여기에 기본 Chip들은 있어도 되지만,
+                                 HomeFragment에서 removeAllViews() 하니까
+                                 실제로는 서버 데이터로 덮어씌워짐 -->
                             <com.google.android.material.chip.Chip
                                 style="@style/Widget.MaterialComponents.Chip.Filter"
                                 android:layout_width="wrap_content"
