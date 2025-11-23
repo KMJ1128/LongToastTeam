@@ -11,6 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.airbnb.lottie.LottieAnimationView
 import com.google.gson.Gson
 import com.kakao.sdk.auth.model.OAuthToken
 import com.kakao.sdk.common.util.Utility

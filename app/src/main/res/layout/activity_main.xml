@@ -22,13 +22,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <ImageView
-            android:id="@+id/imageView_logo"
-            android:layout_width="170dp"
-            android:layout_height="170dp"
-            android:src="@drawable/BilBIl_normal"
-            android:contentDescription="@string/app_name"
-            android:layout_gravity="center" />
+        <com.airbnb.lottie.LottieAnimationView
+            android:id="@+id/logo_bilbil"
+            android:layout_width="220dp"
+            android:layout_height="220dp"
+            app:lottie_rawRes="@raw/bilbil_logo_animation"
+            app:lottie_autoPlay="true"
+            app:lottie_loop="false"
+            app:lottie_repeatCount="0" />
 
         <TextView
             android:id="@+id/textView_welcome"
