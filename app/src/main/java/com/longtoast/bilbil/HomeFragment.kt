@@ -141,6 +141,7 @@ class HomeFragment : Fragment() {
                     }
 
                     try {
+                        // MsgEntity.data(Any?) → JSON → List<PopularSearchDTO> 로 변환
                         val gson = Gson()
                         val listType = object : TypeToken<List<PopularSearchDTO>>() {}.type
                         val json = gson.toJson(rawData)
@@ -176,8 +177,10 @@ class HomeFragment : Fragment() {
                 text = item.keyword
                 isCheckable = false
                 isClickable = true
+
                 setOnClickListener {
                     Log.d("POPULAR_SEARCH", "인기 검색어 클릭 → ${item.keyword}")
+                    // 🔥 인기 검색어 누르면 검색 결과 화면으로 이동
                     moveToSearchResult(item.keyword, isCategory = false)
                 }
             }
