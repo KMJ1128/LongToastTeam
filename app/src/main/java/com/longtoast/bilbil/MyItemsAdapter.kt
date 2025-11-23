@@ -11,10 +11,12 @@ import com.longtoast.bilbil.dto.ProductDTO
 import android.graphics.BitmapFactory
 import android.util.Base64
 import android.util.Log
+import android.widget.Button
 
-class  MyItemsAdapter(
+class MyItemsAdapter(
     private val productList: List<ProductDTO>,
-    private val onItemClicked: (ProductDTO) -> Unit
+    private val onItemClicked: (ProductDTO) -> Unit,
+    private val onReviewClicked: ((ProductDTO) -> Unit)? = null   // ✅ 추가
 ) : RecyclerView.Adapter<MyItemsAdapter.ItemViewHolder>() {
 
     inner class ItemViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -23,6 +25,7 @@ class  MyItemsAdapter(
         val price: TextView = view.findViewById(R.id.text_item_price)
         val status: TextView = view.findViewById(R.id.text_item_status)
         val thumbnail: ImageView = view.findViewById(R.id.image_item_thumbnail)
+        val reviewButton: Button = view.findViewById(R.id.btn_write_review)
 
         fun bind(product: ProductDTO) {
 
@@ -112,6 +115,16 @@ class  MyItemsAdapter(
             )
 
             itemView.setOnClickListener { onItemClicked(product) }
+
+            if (product.transactionId != null) {
+                reviewButton.visibility = View.VISIBLE
+                reviewButton.setOnClickListener {
+                    onReviewClicked?.invoke(product)
+                }
+            } else {
+                reviewButton.visibility = View.GONE
+                reviewButton.setOnClickListener(null)
+            }
         }
     }
 

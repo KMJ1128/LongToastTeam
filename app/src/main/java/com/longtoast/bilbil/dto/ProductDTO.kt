@@ -30,5 +30,8 @@ data class ProductDTO(
     val status: String?,        // 백엔드 Enum -> String으로 받음
 
     @SerializedName("created_at") // 백엔드 변수명이 created_at (스네이크 표기법)일 경우 매핑
-    val createdAt: String?
+    val createdAt: String?,
+
+    @SerializedName("transactionId")
+    val transactionId: Long? = null
 )

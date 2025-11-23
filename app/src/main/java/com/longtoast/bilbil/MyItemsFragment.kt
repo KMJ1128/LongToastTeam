@@ -204,13 +204,36 @@ class MyItemsFragment : Fragment() {
         binding.textEmptyState.visibility = View.GONE
         binding.recyclerViewMyItems.visibility = View.VISIBLE
 
-        val adapter = MyItemsAdapter(list) { product ->
-            // 아이템 클릭 시 상세 페이지로 이동
-            val intent = Intent(requireContext(), ProductDetailActivity::class.java).apply {
-                putExtra("ITEM_ID", product.id)
+        val adapter = MyItemsAdapter(
+            productList = list,
+            onItemClicked = { product ->
+                // 아이템 클릭 시 상세 페이지로 이동
+                val intent = Intent(requireContext(), ProductDetailActivity::class.java).apply {
+                    putExtra("ITEM_ID", product.id)
+                }
+                startActivity(intent)
+            },
+            onReviewClicked = { product ->
+                // ✅ "렌트한 물품" 탭에서만 의미 있음
+                if (currentTab != Tab.RENTED) {
+                    // 혹시나 등록 탭에서 들어오면 막아두기
+                    Toast.makeText(requireContext(), "렌트한 물품에서만 리뷰를 작성할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                    return@MyItemsAdapter
+                }
+
+                val transactionId = product.transactionId
+                if (transactionId == null) {
+                    Toast.makeText(requireContext(), "거래 정보가 없어 리뷰를 작성할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                    return@MyItemsAdapter
+                }
+
+                val intent = Intent(requireContext(), ReviewActivity::class.java).apply {
+                    putExtra("TRANSACTION_ID", transactionId.toInt())
+                }
+                startActivity(intent)
             }
-            startActivity(intent)
-        }
+        )
+
         binding.recyclerViewMyItems.adapter = adapter
     }
 
