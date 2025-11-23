@@ -18,7 +18,7 @@ import retrofit2.Callback
 import retrofit2.Response
 
 class SearchResultActivity : AppCompatActivity() {
-//dd
+
     private lateinit var binding: ActivitySearchResultBinding
     private lateinit var adapter: ProductAdapter
 
