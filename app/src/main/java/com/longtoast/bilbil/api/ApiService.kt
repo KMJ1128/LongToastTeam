@@ -26,8 +26,11 @@ interface ApiService {
     @POST("/naver/login/token")
     fun loginWithNaverToken(@Body request: NaverTokenRequest): Call<MsgEntity>
 
-    @GET("products/myitems")
-    fun getMyProducts(): Call<MsgEntity>
+    @GET("/products/myitems")
+    fun getMyRegisteredProducts(): Call<MsgEntity>
+
+    @GET("/products/myrentals")
+    fun getMyRentedProducts(): Call<MsgEntity>
 
     @GET("/products/lists")
     fun getProductLists(
@@ -73,4 +76,7 @@ interface ApiService {
 
     @GET("/search/popular")
     fun getPopularSearches(): Call<MsgEntity>
+
+    @GET("/search/history")
+    fun getMySearchHistory(): Call<MsgEntity>
 }

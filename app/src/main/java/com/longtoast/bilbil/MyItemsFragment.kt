@@ -10,14 +10,13 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
-// 필요한 Import 추가
-import com.longtoast.bilbil.databinding.FragmentMyItemsBinding
-import com.longtoast.bilbil.api.RetrofitClient
-import com.longtoast.bilbil.dto.MsgEntity
-import com.longtoast.bilbil.dto.ProductDTO
-
+import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.longtoast.bilbil.api.RetrofitClient
+import com.longtoast.bilbil.databinding.FragmentMyItemsBinding
+import com.longtoast.bilbil.dto.MsgEntity
+import com.longtoast.bilbil.dto.ProductDTO
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -25,14 +24,19 @@ import retrofit2.Response
 class MyItemsFragment : Fragment() {
 
     private var _binding: FragmentMyItemsBinding? = null
-    // View Binding을 안전하게 접근하기 위한 getter
     private val binding get() = _binding!!
 
+    private var registeredItems: List<ProductDTO> = emptyList()
+    private var rentedItems: List<ProductDTO> = emptyList()
+
+    private enum class Tab { REGISTERED, RENTED }
+    private var currentTab: Tab = Tab.REGISTERED
+
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
+        inflater: LayoutInflater,
+        container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        // Fragment의 뷰 바인딩 초기화
         _binding = FragmentMyItemsBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -40,94 +44,185 @@ class MyItemsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // RecyclerView 설정
+        // RecyclerView 기본 설정
         binding.recyclerViewMyItems.layoutManager = LinearLayoutManager(context)
 
+        // 토글 기본 선택: 등록한 물품
+        binding.toggleMyActivity.check(binding.btnRegistered.id)
+        setupToggle()
 
-
-        val currentUserId = AuthTokenManager.getUserId()
-        if (currentUserId != null) {
-            Log.e("CURRENT_USER", "✅ 현재 로그인된 사용자 ID: $currentUserId")
-        } else {
-            Log.e("CURRENT_USER", "❌ 사용자 ID를 찾을 수 없습니다. (로그인 필요)")
-        }
-
-        // 내가 등록한 상품 목록 로드
-        fetchMyProducts()
+        // 처음 들어왔을 땐 "등록한 물품" 탭 데이터 로드
+        loadRegisteredItems()
     }
 
-    /**
-     * 서버에서 내가 등록한 상품 목록을 불러옵니다.
-     */
-    private fun fetchMyProducts() {
-        Log.d("MY_ITEMS", "내가 등록한 상품 목록 조회 API 호출 시작...")
+    // 상단 토글 클릭 시 동작
+    private fun setupToggle() {
+        binding.toggleMyActivity.addOnButtonCheckedListener { group: MaterialButtonToggleGroup, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
 
-        // 로딩 중이거나 데이터를 가져오는 동안 Empty State 뷰는 잠시 숨김
+            when (checkedId) {
+                binding.btnRegistered.id -> {
+                    currentTab = Tab.REGISTERED
+                    binding.textEmptyState.text = "등록한 상품이 없습니다."
+                    if (registeredItems.isEmpty()) {
+                        loadRegisteredItems()
+                    } else {
+                        showList(registeredItems)
+                    }
+                }
+
+                binding.btnRented.id -> {
+                    currentTab = Tab.RENTED
+                    binding.textEmptyState.text = "렌트한 상품이 없습니다."
+                    if (rentedItems.isEmpty()) {
+                        loadRentedItems()
+                    } else {
+                        showList(rentedItems)
+                    }
+                }
+            }
+        }
+    }
+
+    // (1) 내가 등록한 물품 불러오기
+    private fun loadRegisteredItems() {
+        Log.d("MY_ACTIVITY", "내가 등록한 물품 목록 요청")
+
         binding.recyclerViewMyItems.visibility = View.GONE
         binding.textEmptyState.visibility = View.GONE
 
-        RetrofitClient.getApiService().getMyProducts()
+        RetrofitClient.getApiService()
+            .getMyRegisteredProducts()
             .enqueue(object : Callback<MsgEntity> {
-
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                    if (!response.isSuccessful || response.body()?.data == null) {
-                        Log.e("MY_ITEMS", "조회 실패: ${response.code()}. 메시지: ${response.errorBody()?.string()}")
-                        Toast.makeText(context, "상품 목록을 불러올 수 없습니다.", Toast.LENGTH_SHORT).show()
+                    if (!isAdded || _binding == null) return
 
-                        // 🚨 실패 시 Empty State 표시
-                        binding.textEmptyState.visibility = View.VISIBLE
+                    if (!response.isSuccessful) {
+                        Log.e("MY_ACTIVITY", "❌ 등록한 물품 API 실패: code=${response.code()}")
+                        showEmptyState("등록한 상품이 없습니다.")
                         return
                     }
 
                     val rawData = response.body()?.data
-                    var productList: List<ProductDTO>? = null
+                    Log.d("MY_ACTIVITY", "등록한 물품 rawData = $rawData")
+
+                    if (rawData == null) {
+                        showEmptyState("등록한 상품이 없습니다.")
+                        return
+                    }
 
                     try {
                         val gson = Gson()
-                        // List<ProductListDTO>로 파싱
                         val listType = object : TypeToken<List<ProductDTO>>() {}.type
-                        val dataJson = gson.toJson(rawData)
-                        productList = gson.fromJson(dataJson, listType)
-                    } catch (e: Exception) {
-                        Log.e("MY_ITEMS", "List<ProductListDTO> 파싱 중 오류 발생", e)
-                    }
+                        val json = gson.toJson(rawData)
+                        val list: List<ProductDTO> = gson.fromJson(json, listType)
 
-                    if (productList != null && productList.isNotEmpty()) {
-                        // ✅ [목록 있음] RecyclerView 표시
-                        Log.d("MY_ITEMS", "✅ 상품 목록 조회 성공. 개수: ${productList.size}")
+                        registeredItems = list
 
-                        binding.recyclerViewMyItems.visibility = View.VISIBLE
-                        binding.textEmptyState.visibility = View.GONE
-
-                        val adapter = MyItemsAdapter(productList) { product ->
-                        // TODO: 상품 클릭 시 상세 화면으로 이동하는 로직 구현
-                            Toast.makeText(context, "${product.title} 상세 보기", Toast.LENGTH_SHORT).show()
+                        if (list.isEmpty()) {
+                            showEmptyState("등록한 상품이 없습니다.")
+                        } else {
+                            // 현재 탭이 등록 탭일 때만 보여줌
+                            if (currentTab == Tab.REGISTERED) {
+                                showList(list)
+                            }
                         }
-                        binding.recyclerViewMyItems.adapter = adapter
-                    } else {
-                        // ✅ [목록 없음] Empty State 텍스트 표시
-                        Log.i("MY_ITEMS", "조회 결과 없음 또는 파싱된 리스트가 비어있음.")
-                        Toast.makeText(context, "등록된 상품이 없습니다.", Toast.LENGTH_SHORT).show()
-
-                        binding.recyclerViewMyItems.visibility = View.GONE
-                        binding.textEmptyState.visibility = View.VISIBLE
+                    } catch (e: Exception) {
+                        Log.e("MY_ACTIVITY", "❌ JSON 파싱 오류(등록한 물품)", e)
+                        showEmptyState("등록한 상품이 없습니다.")
                     }
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                    Log.e("MY_ITEMS", "서버 통신 오류", t)
+                    if (!isAdded || _binding == null) return
+                    Log.e("MY_ACTIVITY", "❌ 네트워크 오류(등록한 물품)", t)
                     Toast.makeText(context, "네트워크 오류", Toast.LENGTH_SHORT).show()
-
-                    // 🚨 실패 시 Empty State 표시
-                    binding.recyclerViewMyItems.visibility = View.GONE
-                    binding.textEmptyState.visibility = View.VISIBLE
+                    showEmptyState("등록한 상품이 없습니다.")
                 }
             })
     }
 
+    // (2) 내가 렌트한 물품 불러오기
+    private fun loadRentedItems() {
+        Log.d("MY_ACTIVITY", "내가 렌트한 물품 목록 요청")
+
+        binding.recyclerViewMyItems.visibility = View.GONE
+        binding.textEmptyState.visibility = View.GONE
+
+        RetrofitClient.getApiService()
+            .getMyRentedProducts()
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (!isAdded || _binding == null) return
+
+                    if (!response.isSuccessful) {
+                        Log.e("MY_ACTIVITY", "❌ 렌트한 물품 API 실패: code=${response.code()}")
+                        showEmptyState("렌트한 상품이 없습니다.")
+                        return
+                    }
+
+                    val rawData = response.body()?.data
+                    Log.d("MY_ACTIVITY", "렌트한 물품 rawData = $rawData")
+
+                    if (rawData == null) {
+                        showEmptyState("렌트한 상품이 없습니다.")
+                        return
+                    }
+
+                    try {
+                        val gson = Gson()
+                        val listType = object : TypeToken<List<ProductDTO>>() {}.type
+                        val json = gson.toJson(rawData)
+                        val list: List<ProductDTO> = gson.fromJson(json, listType)
+
+                        rentedItems = list
+
+                        if (list.isEmpty()) {
+                            showEmptyState("렌트한 상품이 없습니다.")
+                        } else {
+                            if (currentTab == Tab.RENTED) {
+                                showList(list)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("MY_ACTIVITY", "❌ JSON 파싱 오류(렌트한 물품)", e)
+                        showEmptyState("렌트한 상품이 없습니다.")
+                    }
+                }
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    if (!isAdded || _binding == null) return
+                    Log.e("MY_ACTIVITY", "❌ 네트워크 오류(렌트한 물품)", t)
+                    Toast.makeText(context, "네트워크 오류", Toast.LENGTH_SHORT).show()
+                    showEmptyState("렌트한 상품이 없습니다.")
+                }
+            })
+    }
+
+    // 실제 리스트를 RecyclerView에 뿌려주는 부분
+    private fun showList(list: List<ProductDTO>) {
+        binding.textEmptyState.visibility = View.GONE
+        binding.recyclerViewMyItems.visibility = View.VISIBLE
+
+        val adapter = MyItemsAdapter(list) { product ->
+            // 아이템 클릭 시 상세 페이지로 이동
+            val intent = Intent(requireContext(), ProductDetailActivity::class.java).apply {
+                putExtra("ITEM_ID", product.id)
+            }
+            startActivity(intent)
+        }
+        binding.recyclerViewMyItems.adapter = adapter
+    }
+
+    // 비어있을 때 문구 표시
+    private fun showEmptyState(message: String) {
+        binding.recyclerViewMyItems.visibility = View.GONE
+        binding.textEmptyState.visibility = View.VISIBLE
+        binding.textEmptyState.text = message
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
-        // 메모리 누수 방지를 위해 뷰가 파괴될 때 바인딩을 null 처리
         _binding = null
     }
 }
