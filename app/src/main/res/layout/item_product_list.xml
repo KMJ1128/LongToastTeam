@@ -18,6 +18,7 @@
         android:layout_height="wrap_content"
         android:padding="14dp">
 
+        <!-- 상품 이미지 -->
         <ImageView
             android:id="@+id/image_item_thumbnail"
             android:layout_width="84dp"
@@ -25,16 +26,38 @@
             android:background="@drawable/bg_image_placeholder"
             android:scaleType="centerCrop"
             android:src="@drawable/ic_default_category"
+            android:contentDescription="상품 썸네일"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            android:contentDescription="상품 썸네일" />
+            app:layout_constraintBottom_toBottomOf="parent" />
 
+        <!-- 상태 뱃지 -->
+        <TextView
+            android:id="@+id/text_item_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginEnd="4dp"
+            android:text="대여중"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/black"
+            android:paddingStart="8dp"
+            android:paddingTop="3dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="3dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:visibility="visible" />
+
+        <!-- 제목 (뱃지를 침범하지 않도록 End를 status 왼쪽에 연결) -->
         <TextView
             android:id="@+id/text_item_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
+            android:layout_marginEnd="6dp"
             android:textSize="16sp"
             android:textStyle="bold"
             android:maxLines="2"
@@ -42,9 +65,10 @@
             android:textColor="@color/trust_text_primary"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toEndOf="@id/image_item_thumbnail"
-            app:layout_constraintEnd_toEndOf="parent"
-            tools:text="접이식 캠핑 의자 판매합니다." />
+            app:layout_constraintEnd_toStartOf="@id/text_item_status"
+            tools:text="접이식 캠핑 의자 대여합니다" />
 
+        <!-- 주소 -->
         <TextView
             android:id="@+id/text_item_location"
             android:layout_width="0dp"
@@ -58,6 +82,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             tools:text="서울 구로구 오류동" />
 
+        <!-- 가격 -->
         <TextView
             android:id="@+id/text_item_price"
             android:layout_width="0dp"
@@ -72,25 +97,19 @@
             app:layout_constraintEnd_toEndOf="parent"
             tools:text="₩ 5,000 / 일" />
 
+        <!-- 새로 추가: 보증금 전용 TextView -->
         <TextView
-            android:id="@+id/text_item_status"
-            android:layout_width="wrap_content"
+            android:id="@+id/text_item_deposit"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:background="@drawable/badge_background"
-            android:text="대여중"
-            android:textColor="@android:color/white"
-            android:paddingStart="6dp"
-            android:paddingEnd="6dp"
-            android:paddingTop="2dp"
-            android:paddingBottom="2dp"
-            android:textSize="10sp"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="4dp"
+            android:textSize="13sp"
+            android:textColor="@color/trust_text_secondary"
+            app:layout_constraintStart_toEndOf="@id/image_item_thumbnail"
+            app:layout_constraintTop_toBottomOf="@id/text_item_price"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toTopOf="@id/text_item_title"
-            android:layout_marginBottom="4dp"
-            android:visibility="gone"
-            tools:visibility="visible" />
+            tools:text="₩ 40,000 / 보증금" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.cardview.widget.CardView>
