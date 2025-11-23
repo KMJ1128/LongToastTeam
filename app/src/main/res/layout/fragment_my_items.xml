@@ -1,9 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp">
+
+    <!-- 상단 탭: 등록한 물품 / 렌트한 물품 -->
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/toggleMyActivity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:singleSelection="true"
+        app:selectionRequired="true"
+        android:layout_marginBottom="12dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRegistered"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="등록한 물품" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRented"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="렌트한 물품" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
 
     <!-- 비어 있을 때 표시할 문구 -->
     <TextView
@@ -16,11 +43,12 @@
         android:layout_gravity="center_horizontal"
         android:padding="16dp" />
 
-    <!-- 내 상품 리스트 -->
+    <!-- 공통 리스트 (등록한 / 렌트한 둘 다 여기 표시) -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewMyItems"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:visibility="gone" />
 
 </LinearLayout>
