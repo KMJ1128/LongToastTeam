@@ -94,7 +94,7 @@
             android:textColor="@color/trust_primary"
             app:layout_constraintStart_toEndOf="@id/image_item_thumbnail"
             app:layout_constraintTop_toBottomOf="@id/text_item_location"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btn_write_review"
             tools:text="₩ 5,000 / 일" />
 
         <Button
@@ -104,16 +104,16 @@
             android:layout_marginEnd="16dp"
             android:text="리뷰쓰기"
             android:textSize="12sp"
-            android:paddingLeft="12dp"
-            android:paddingRight="12dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
             android:paddingTop="4dp"
             android:paddingBottom="4dp"
             android:backgroundTint="@color/trust_primary"
             android:textColor="@android:color/white"
-            android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@id/text_item_price"
-            app:layout_constraintBottom_toBottomOf="@id/text_item_price" />
+            app:layout_constraintBottom_toBottomOf="@id/text_item_price"
+            android:visibility="visible" />
 
         <!-- 새로 추가: 보증금 전용 TextView -->
         <TextView

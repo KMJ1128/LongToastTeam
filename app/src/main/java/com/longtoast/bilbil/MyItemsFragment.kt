@@ -183,11 +183,6 @@ class MyItemsFragment : Fragment() {
         binding.textEmptyState.visibility = View.GONE
         binding.recyclerViewMyItems.visibility = View.VISIBLE
 
-        binding.recyclerViewMyItems.adapter = MyItemsAdapter(list) { product ->
-            val intent = Intent(requireContext(), ProductDetailActivity::class.java)
-            intent.putExtra("ITEM_ID", product.id)
-            startActivity(intent)
-        }
         val adapter = MyItemsAdapter(
             productList = list,
             onItemClicked = { product ->
