@@ -12,7 +12,7 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 import android.util.Log
 
-class MyItemsAdapter(
+class  MyItemsAdapter(
     private val productList: List<ProductDTO>,
     private val onItemClicked: (ProductDTO) -> Unit
 ) : RecyclerView.Adapter<MyItemsAdapter.ItemViewHolder>() {
