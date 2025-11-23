@@ -181,27 +181,25 @@ class MyItemsFragment : Fragment() {
     // 🔥 리스트 표시
     // -----------------------------------------------------
     private fun showList(list: List<ProductDTO>) = safe { b ->
+        // 로딩/empty 상태는 숨기고
+        b.loadingAnimation.cancelAnimation()
+        b.loadingAnimation.visibility = View.GONE
         b.emptyAnimation.visibility = View.GONE
         b.textEmptyState.visibility = View.GONE
 
+        // ✅ 리스트는 보여주기
         b.recyclerViewMyItems.visibility = View.VISIBLE
-        b.recyclerViewMyItems.adapter = MyItemsAdapter(list) { product ->
-            startActivity(Intent(requireContext(), ProductDetailActivity::class.java)
-                .putExtra("ITEM_ID", product.id))
-        }
+
         val adapter = MyItemsAdapter(
             productList = list,
             onItemClicked = { product ->
-                // 아이템 클릭 시 상세 페이지로 이동
                 val intent = Intent(requireContext(), ProductDetailActivity::class.java).apply {
                     putExtra("ITEM_ID", product.id)
                 }
                 startActivity(intent)
             },
             onReviewClicked = { product ->
-                // ✅ "렌트한 물품" 탭에서만 의미 있음
                 if (currentTab != Tab.RENTED) {
-                    // 혹시나 등록 탭에서 들어오면 막아두기
                     Toast.makeText(requireContext(), "렌트한 물품에서만 리뷰를 작성할 수 있습니다.", Toast.LENGTH_SHORT).show()
                     return@MyItemsAdapter
                 }
@@ -219,7 +217,7 @@ class MyItemsFragment : Fragment() {
             }
         )
 
-        binding.recyclerViewMyItems.adapter = adapter
+        b.recyclerViewMyItems.adapter = adapter
     }
 
     // -----------------------------------------------------

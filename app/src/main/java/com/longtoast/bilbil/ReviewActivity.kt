@@ -89,24 +89,45 @@ class ReviewActivity : AppCompatActivity() {
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (response.isSuccessful) {
-                        Log.d("REVIEW", "리뷰 작성 성공")
+                        // ✅ 정상 작성
+                        val body = response.body()
                         Toast.makeText(
                             this@ReviewActivity,
-                            "소중한 리뷰가 등록되었습니다!",
+                            body?.message ?: "리뷰가 등록되었습니다.",
                             Toast.LENGTH_SHORT
                         ).show()
-                        finish() // 작성 후 화면 닫기
-                    } else {
-                        Log.e(
-                            "REVIEW",
-                            "작성 실패: ${response.code()} ${response.errorBody()?.string()}"
-                        )
-                        Toast.makeText(
-                            this@ReviewActivity,
-                            "리뷰 등록 실패: ${response.code()}",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        finish() // 필요하면 화면 종료
+                        return
                     }
+
+                    // ❌ 실패 케이스 처리
+                    val code = response.code()
+
+                    // 1) 서버가 400 + "한 거래 당 리뷰는 1개씩 등록 가능합니다." 를 내려준 경우
+                    val errorMsg = try {
+                        val errJson = response.errorBody()?.string()
+                        if (!errJson.isNullOrEmpty()) {
+                            com.google.gson.Gson().fromJson(errJson, MsgEntity::class.java)?.message
+                        } else null
+                    } catch (e: Exception) {
+                        null
+                    }
+
+                    if (code == 400 && errorMsg == "한 거래 당 리뷰는 1개씩 등록 가능합니다.") {
+                        Toast.makeText(
+                            this@ReviewActivity,
+                            errorMsg,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        return
+                    }
+
+                    // 2) 그 외 (예: 진짜 401, 서버 오류 등)
+                    val generic = when (code) {
+                        401 -> "로그인이 필요합니다."
+                        else -> "리뷰 등록에 실패했습니다. (오류 코드: $code)"
+                    }
+                    Toast.makeText(this@ReviewActivity, generic, Toast.LENGTH_SHORT).show()
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
