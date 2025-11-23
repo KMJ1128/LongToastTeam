@@ -287,6 +287,13 @@ class SettingProfileActivity : AppCompatActivity() {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (response.isSuccessful) {
                         Log.d("PROFILE_COMPLETE", "✅ 프로필 업데이트 성공 (200/201). 홈 이동.")
+
+                        // 🆕 닉네임 저장 추가 (이 한 줄만 추가)
+                        AuthTokenManager.saveNickname(pendingNickname)
+
+                        // 🆕 주소 저장 추가
+                        AuthTokenManager.saveAddress(address)
+
                         Toast.makeText(this@SettingProfileActivity, "프로필 설정 및 저장 완료!", Toast.LENGTH_SHORT).show()
 
                         val intent = Intent(this@SettingProfileActivity, HomeHostActivity::class.java)

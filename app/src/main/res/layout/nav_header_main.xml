@@ -10,23 +10,26 @@
     android:gravity="bottom">
 
     <ImageView
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:src="@drawable/ic_launcher_foreground"
+        android:layout_width="70dp"
+        android:layout_height="70dp"
+        android:src="@drawable/no_profile"
         android:contentDescription="프로필 이미지" />
 
     <TextView
+        android:id="@+id/nav_header_nickname"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingTop="8dp"
-        android:text="동양미래대학교"
+        android:text="닉네임"
         android:textAppearance="@style/TextAppearance.AppCompat.Body1"
-        android:textColor="@android:color/white" />
+        android:textColor="@android:color/white"
+        android:textSize="20sp" />
 
     <TextView
+        android:id="@+id/nav_header_address"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="학생활동"
+        android:text="주소"
         android:textColor="@android:color/white"
-        android:textSize="12sp" />
+        android:textSize="20sp" />
 </LinearLayout>

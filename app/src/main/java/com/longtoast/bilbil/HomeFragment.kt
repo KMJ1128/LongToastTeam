@@ -25,6 +25,7 @@ import com.google.gson.reflect.TypeToken
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import androidx.drawerlayout.widget.DrawerLayout
 
 class HomeFragment : Fragment() {
 
@@ -43,6 +44,8 @@ class HomeFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         Log.d("DEBUG_FLOW", "HomeFragment.onViewCreated() 실행됨")
+
+        setupMenuButton()
 
         setupSearchBar()
         setupCategoryRecycler()
@@ -182,6 +185,13 @@ class HomeFragment : Fragment() {
                 }
             }
             chipGroup.addView(chip)
+        }
+    }
+
+    private fun setupMenuButton() {
+        binding.menuButton.setOnClickListener {
+            val drawerLayout = activity?.findViewById<DrawerLayout>(R.id.drawer_layout)
+            drawerLayout?.openDrawer(androidx.core.view.GravityCompat.END)
         }
     }
 

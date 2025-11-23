@@ -5,24 +5,24 @@
 
     <group android:checkableBehavior="single">
         <item
-            android:id="@+id/nav_student_council"
-
-            android:title="장성하" />
-
-        <item
-            android:id="@+id/nav_dongmirang"
-
-            android:title="조승민" />
-
-        <item
-            android:id="@+id/nav_reporter"
-
-            android:title="박우정" />
-
-        <item
             android:id="@+id/nav_user_profile"
 
-            android:title="김민재" />
+            android:title="나의 계정" />
+
+        <item
+            android:id="@+id/nav_menu1"
+
+            android:title="메뉴1" />
+
+        <item
+            android:id="@+id/nav_menu2"
+
+            android:title="메뉴2" />
+
+        <item
+            android:id="@+id/nav_menu3"
+
+            android:title="메뉴3" />
 
     </group>
 </menu>

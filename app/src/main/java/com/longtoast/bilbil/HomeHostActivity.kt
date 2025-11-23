@@ -15,6 +15,7 @@ import com.longtoast.bilbil.api.RetrofitClient
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import android.widget.TextView
 
 class HomeHostActivity : AppCompatActivity() {
 
@@ -33,6 +34,22 @@ class HomeHostActivity : AppCompatActivity() {
         setupBottomNav()
         setupFABs()
         setupBackStackListener()
+        setupNavigationHeader()  // 🆕 이 줄 추가
+    }
+
+    // 새로운 메서드 추가
+    private fun setupNavigationHeader() {
+        val headerView = binding.navView.getHeaderView(0)
+        val nicknameTextView = headerView.findViewById<TextView>(R.id.nav_header_nickname)
+        val addressTextView = headerView.findViewById<TextView>(R.id.nav_header_address)
+
+        // 닉네임 표시
+        val nickname = AuthTokenManager.getNickname()
+        nicknameTextView.text = nickname ?: "이름 미설정"
+
+        // 🆕 주소 표시
+        val address = AuthTokenManager.getAddress()
+        addressTextView.text = address ?: "위치 미설정"
     }
 
     // ----------------------------

@@ -13,6 +13,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.gson.Gson
 import com.kakao.sdk.auth.model.OAuthToken
+import com.kakao.sdk.common.util.Utility
 import com.kakao.sdk.user.UserApiClient
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.databinding.ActivityMainBinding
@@ -50,6 +51,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val keyHash = Utility.getKeyHash(this)
+        Log.i("KeyHash", "keyHash = $keyHash")
 
         AuthTokenManager.clearToken()
         val token = AuthTokenManager.getToken()
