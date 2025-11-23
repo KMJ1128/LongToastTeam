@@ -27,6 +27,14 @@ class MyItemsFragment : Fragment() {
     private enum class Tab { REGISTERED, RENTED }
     private var currentTab: Tab = Tab.REGISTERED
 
+    // -----------------------------------------------------
+    // 🔥 binding null-safe wrapper (모든 UI 변경은 이 안에서만!)
+    // -----------------------------------------------------
+    private fun safe(action: (FragmentMyItemsBinding) -> Unit) {
+        if (!isAdded || _binding == null) return
+        action(binding)
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -39,53 +47,53 @@ class MyItemsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        binding.recyclerViewMyItems.layoutManager = LinearLayoutManager(context)
+        safe { b ->
+            b.recyclerViewMyItems.layoutManager = LinearLayoutManager(context)
+            b.toggleMyActivity.check(b.btnRegistered.id)
+        }
 
-        binding.toggleMyActivity.check(binding.btnRegistered.id)
         setupToggle()
-
         loadRegisteredItems()
     }
 
-    // ----------------------------
-    // 로딩 애니메이션 제어
-    // ----------------------------
-    private fun showLoading() {
-        binding.loadingAnimation.visibility = View.VISIBLE
-        binding.loadingAnimation.playAnimation()
+    // -----------------------------------------------------
+    // 🔥 로딩 애니메이션
+    // -----------------------------------------------------
+    private fun showLoading() = safe { b ->
+        b.loadingAnimation.visibility = View.VISIBLE
+        b.loadingAnimation.repeatCount = -1
+        b.loadingAnimation.playAnimation()
 
-        binding.recyclerViewMyItems.visibility = View.GONE
-        binding.textEmptyState.visibility = View.GONE
-        binding.emptyAnimation.visibility = View.GONE
+        b.recyclerViewMyItems.visibility = View.GONE
+        b.textEmptyState.visibility = View.GONE
+        b.emptyAnimation.visibility = View.GONE
     }
 
-    private fun hideLoading() {
-        binding.loadingAnimation.cancelAnimation()
-        binding.loadingAnimation.visibility = View.GONE
+    private fun hideLoading() = safe { b ->
+        b.loadingAnimation.cancelAnimation()
+        b.loadingAnimation.visibility = View.GONE
     }
 
-    // ----------------------------
-    // 탭 전환
-    // ----------------------------
-    private fun setupToggle() {
-        binding.toggleMyActivity.addOnButtonCheckedListener { _, checkedId, isChecked ->
+    // -----------------------------------------------------
+    // 🔥 탭 전환
+    // -----------------------------------------------------
+    private fun setupToggle() = safe { b ->
+        b.toggleMyActivity.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
 
             resetUI()
 
             when (checkedId) {
-                binding.btnRegistered.id -> {
+                b.btnRegistered.id -> {
                     currentTab = Tab.REGISTERED
-                    binding.textEmptyState.text = "등록한 상품이 없습니다."
-
+                    b.textEmptyState.text = "등록한 상품이 없습니다."
                     if (registeredItems.isEmpty()) loadRegisteredItems()
                     else showList(registeredItems)
                 }
 
-                binding.btnRented.id -> {
+                b.btnRented.id -> {
                     currentTab = Tab.RENTED
-                    binding.textEmptyState.text = "렌트한 상품이 없습니다."
-
+                    b.textEmptyState.text = "렌트한 상품이 없습니다."
                     if (rentedItems.isEmpty()) loadRentedItems()
                     else showList(rentedItems)
                 }
@@ -93,17 +101,17 @@ class MyItemsFragment : Fragment() {
         }
     }
 
-    private fun resetUI() {
-        binding.recyclerViewMyItems.visibility = View.GONE
-        binding.textEmptyState.visibility = View.GONE
-        binding.emptyAnimation.visibility = View.GONE
-        binding.loadingAnimation.visibility = View.GONE
-        binding.loadingAnimation.cancelAnimation()
+    private fun resetUI() = safe { b ->
+        b.recyclerViewMyItems.visibility = View.GONE
+        b.textEmptyState.visibility = View.GONE
+        b.emptyAnimation.visibility = View.GONE
+        b.loadingAnimation.visibility = View.GONE
+        b.loadingAnimation.cancelAnimation()
     }
 
-    // ----------------------------
-    // 등록한 물품
-    // ----------------------------
+    // -----------------------------------------------------
+    // 🔥 등록한 물품
+    // -----------------------------------------------------
     private fun loadRegisteredItems() {
         showLoading()
 
@@ -115,20 +123,17 @@ class MyItemsFragment : Fragment() {
                     hideLoading()
                     if (!isAdded || _binding == null) return
 
-                    if (!response.isSuccessful || response.body()?.data == null) {
+                    val raw = response.body()?.data
+                    if (!response.isSuccessful || raw == null) {
                         showEmptyState("등록한 상품이 없습니다.")
                         return
                     }
 
-                    val gson = Gson()
-                    val type = object : TypeToken<List<ProductDTO>>() {}.type
-                    val list: List<ProductDTO> =
-                        gson.fromJson(gson.toJson(response.body()!!.data), type)
+                    val listType = object : TypeToken<List<ProductDTO>>() {}.type
+                    registeredItems = Gson().fromJson(Gson().toJson(raw), listType)
 
-                    registeredItems = list
-
-                    if (list.isEmpty()) showEmptyState("등록한 상품이 없습니다.")
-                    else if (currentTab == Tab.REGISTERED) showList(list)
+                    if (registeredItems.isEmpty()) showEmptyState("등록한 상품이 없습니다.")
+                    else if (currentTab == Tab.REGISTERED) showList(registeredItems)
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
@@ -138,9 +143,9 @@ class MyItemsFragment : Fragment() {
             })
     }
 
-    // ----------------------------
-    // 렌트한 물품
-    // ----------------------------
+    // -----------------------------------------------------
+    // 🔥 렌트한 물품
+    // -----------------------------------------------------
     private fun loadRentedItems() {
         showLoading()
 
@@ -152,20 +157,17 @@ class MyItemsFragment : Fragment() {
                     hideLoading()
                     if (!isAdded || _binding == null) return
 
-                    if (!response.isSuccessful || response.body()?.data == null) {
+                    val raw = response.body()?.data
+                    if (!response.isSuccessful || raw == null) {
                         showEmptyState("렌트한 상품이 없습니다.")
                         return
                     }
 
-                    val gson = Gson()
-                    val type = object : TypeToken<List<ProductDTO>>() {}.type
-                    val list: List<ProductDTO> =
-                        gson.fromJson(gson.toJson(response.body()!!.data), type)
+                    val listType = object : TypeToken<List<ProductDTO>>() {}.type
+                    rentedItems = Gson().fromJson(Gson().toJson(raw), listType)
 
-                    rentedItems = list
-
-                    if (list.isEmpty()) showEmptyState("렌트한 상품이 없습니다.")
-                    else if (currentTab == Tab.RENTED) showList(list)
+                    if (rentedItems.isEmpty()) showEmptyState("렌트한 상품이 없습니다.")
+                    else if (currentTab == Tab.RENTED) showList(rentedItems)
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
@@ -175,14 +177,18 @@ class MyItemsFragment : Fragment() {
             })
     }
 
-    // ----------------------------
-    // 리스트 표시
-    // ----------------------------
-    private fun showList(list: List<ProductDTO>) {
-        binding.emptyAnimation.visibility = View.GONE
-        binding.textEmptyState.visibility = View.GONE
-        binding.recyclerViewMyItems.visibility = View.VISIBLE
+    // -----------------------------------------------------
+    // 🔥 리스트 표시
+    // -----------------------------------------------------
+    private fun showList(list: List<ProductDTO>) = safe { b ->
+        b.emptyAnimation.visibility = View.GONE
+        b.textEmptyState.visibility = View.GONE
 
+        b.recyclerViewMyItems.visibility = View.VISIBLE
+        b.recyclerViewMyItems.adapter = MyItemsAdapter(list) { product ->
+            startActivity(Intent(requireContext(), ProductDetailActivity::class.java)
+                .putExtra("ITEM_ID", product.id))
+        }
         val adapter = MyItemsAdapter(
             productList = list,
             onItemClicked = { product ->
@@ -216,18 +222,17 @@ class MyItemsFragment : Fragment() {
         binding.recyclerViewMyItems.adapter = adapter
     }
 
-    // ----------------------------
-    // Empty 상태
-    // ----------------------------
-    private fun showEmptyState(message: String) {
-        binding.recyclerViewMyItems.visibility = View.GONE
+    // -----------------------------------------------------
+    // 🔥 Empty 상태
+    // -----------------------------------------------------
+    private fun showEmptyState(message: String) = safe { b ->
+        b.recyclerViewMyItems.visibility = View.GONE
+        b.textEmptyState.text = message
+        b.textEmptyState.visibility = View.VISIBLE
 
-        binding.textEmptyState.text = message
-        binding.textEmptyState.visibility = View.VISIBLE
-
-        binding.emptyAnimation.visibility = View.VISIBLE
-        binding.emptyAnimation.repeatCount = 0
-        binding.emptyAnimation.playAnimation()
+        b.emptyAnimation.visibility = View.VISIBLE
+        b.emptyAnimation.repeatCount = 0
+        b.emptyAnimation.playAnimation()
     }
 
     override fun onDestroyView() {

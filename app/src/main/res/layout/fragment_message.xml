@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -10,24 +11,26 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
+        <!-- 상단 헤더 -->
         <LinearLayout
             android:id="@+id/chatHeader"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:padding="20dp"
             android:background="@drawable/chat_header_background"
             android:orientation="vertical"
-            android:padding="20dp"
+            android:gravity="center_vertical"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
             <TextView
                 android:id="@+id/textTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="동네 채팅"
-                android:textColor="@android:color/white"
+                android:text="채팅방 목록"
                 android:textSize="22sp"
+                android:textColor="@android:color/white"
                 android:textStyle="bold" />
 
             <TextView
@@ -35,24 +38,26 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="가까운 이웃과 따뜻한 대화를 나눠보세요"
-                android:textColor="@android:color/white"
-                android:textSize="14sp" />
+                android:text="서로에게 필요한 물품을 빌리고 빌려주세요"
+                android:textSize="14sp"
+                android:textColor="@android:color/white" />
+
         </LinearLayout>
 
+        <!-- 채팅방 리스트 -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerViewChatRooms"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:layout_marginTop="12dp"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
+            android:paddingTop="12dp"
             android:paddingBottom="24dp"
             android:clipToPadding="false"
             app:layout_constraintTop_toBottomOf="@id/chatHeader"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent"/>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
