@@ -8,7 +8,7 @@ object ServerConfig {
     /** HTTP(S) API 기본 주소는 반드시 `/` 로 끝나야 합니다. */
     // 현재 사용 중인 ngrok 주소를 그대로 유지
     const val HTTP_BASE_URL = "https://unpaneled-jennette-phonily.ngrok-free.dev/"
-
+    const val IMAGE_BASE_URL = "http://192.168.0.211:8080"
     /**
      * Spring STOMP WebSocket 엔드포인트.
      * SockJS를 사용하지만 네이티브 WebSocket을 쓸 때는 `/websocket` 서픽스를 붙여야 연결됩니다.

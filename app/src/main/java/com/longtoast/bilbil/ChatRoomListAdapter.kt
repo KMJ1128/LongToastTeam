@@ -21,7 +21,7 @@ class ChatRoomListAdapter(
 ) : RecyclerView.Adapter<ChatRoomListAdapter.RoomViewHolder>() {
 
     companion object {
-        private const val BASE_URL = "http://YOUR_SERVER_IP:PORT"   // <-- 민재 서버 주소로 교체
+        private const val BASE_URL = ServerConfig.IMAGE_BASE_URL   // <-- 민재 서버 주소로 교체
     }
 
     inner class RoomViewHolder(view: View) : RecyclerView.ViewHolder(view) {

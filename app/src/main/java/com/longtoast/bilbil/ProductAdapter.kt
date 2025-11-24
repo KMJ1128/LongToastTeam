@@ -16,7 +16,7 @@ class ProductAdapter(
 ) : RecyclerView.Adapter<ProductAdapter.ViewHolder>() {
 
     companion object {
-        private const val BASE_URL = "http://YOUR_SERVER_IP:PORT" // TODO: 민재 서버 주소로 변경
+        private const val BASE_URL = ServerConfig.IMAGE_BASE_URL
     }
 
     inner class ViewHolder(val binding: ItemProductListBinding) :
