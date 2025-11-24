@@ -64,7 +64,9 @@ class MessageFragment : Fragment() {
         adapter = ChatRoomListAdapter(chatRoomLists) { room ->
             val intent = Intent(requireContext(), ChatRoomActivity::class.java).apply {
                 putExtra("ROOM_ID", room.roomId.toString())
-                putExtra("SELLER_NICKNAME", room.partnerNickname)
+                putExtra("PARTNER_ID", room.partnerId)
+                putExtra("PARTNER_NICKNAME", room.partnerNickname)
+                putExtra("PARTNER_PROFILE", room.partnerProfileImageUrl)
             }
             startActivity(intent)
         }
@@ -283,7 +285,8 @@ class MessageFragment : Fragment() {
 
             val updated = old.copy(
                 lastMessageContent = updateDto.lastMessageContent ?: old.lastMessageContent,
-                lastMessageTime = updateDto.lastMessageTime ?: old.lastMessageTime
+                lastMessageTime = updateDto.lastMessageTime ?: old.lastMessageTime,
+                unreadCount = updateDto.unreadCount ?: old.unreadCount
             )
 
             chatRoomLists.removeAt(idx)

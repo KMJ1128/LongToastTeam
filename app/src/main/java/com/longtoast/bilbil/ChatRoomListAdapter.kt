@@ -21,20 +21,24 @@ class ChatRoomListAdapter(
 ) : RecyclerView.Adapter<ChatRoomListAdapter.RoomViewHolder>() {
 
     companion object {
-        private const val BASE_URL = ServerConfig.IMAGE_BASE_URL   // <-- 민재 서버 주소로 교체
+        private const val BASE_URL = ServerConfig.IMAGE_BASE_URL
     }
 
     inner class RoomViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val partnerName: TextView = view.findViewById(R.id.text_nickname)
-        val lastMessage: TextView = view.findViewById(R.id.text_last_message)
-        val thumbnail: ImageView = view.findViewById(R.id.image_profile)
-        val timeText: TextView = view.findViewById(R.id.text_time)
+        private val partnerName: TextView = view.findViewById(R.id.text_nickname)
+        private val lastMessage: TextView = view.findViewById(R.id.text_last_message)
+        private val thumbnail: ImageView = view.findViewById(R.id.image_profile)
+        private val timeText: TextView = view.findViewById(R.id.text_time)
+        private val unreadBadge: TextView = view.findViewById(R.id.text_unread_badge)
 
         fun bind(room: ChatRoomListDTO) {
+            // 닉네임
             partnerName.text = room.partnerNickname ?: "알 수 없음"
 
+            // 최근 메시지 내용
             val lastContent = room.lastMessageContent
             val itemImage = room.itemMainImageUrl
+
             lastMessage.text = when {
                 !lastContent.isNullOrEmpty() -> lastContent
                 !itemImage.isNullOrEmpty() -> "[사진]"
@@ -42,15 +46,14 @@ class ChatRoomListAdapter(
             }
 
             // -------------------------------
-            // 🔥 이미지 URL 처리 (Multipart 버전)
+            // 🔥 프로필 / 아이템 이미지 URL 처리
             // -------------------------------
-
             val primaryImage = room.partnerProfileImageUrl ?: itemImage
 
             if (primaryImage.isNullOrBlank()) {
                 thumbnail.setImageResource(R.drawable.no_profile)
             } else {
-                // DB에는 "/uploads/..." 이런 값이 들어있음 → 절대 URL로 변환
+                // "/uploads/..." → 절대 URL 변환
                 val fullUrl = if (primaryImage.startsWith("/")) {
                     BASE_URL + primaryImage
                 } else {
@@ -68,7 +71,20 @@ class ChatRoomListAdapter(
                     .into(thumbnail)
             }
 
-            // 시간 처리
+            // -------------------------------
+            // 읽지 않은 메시지 뱃지
+            // -------------------------------
+            val unread = room.unreadCount ?: 0
+            if (unread > 0) {
+                unreadBadge.visibility = View.VISIBLE
+                unreadBadge.text = unread.toString()
+            } else {
+                unreadBadge.visibility = View.GONE
+            }
+
+            // -------------------------------
+            // 시간 표시
+            // -------------------------------
             timeText.text = room.lastMessageTime?.let {
                 try {
                     val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())

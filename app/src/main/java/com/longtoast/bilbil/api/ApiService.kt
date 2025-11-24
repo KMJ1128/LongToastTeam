@@ -75,6 +75,13 @@ interface ApiService {
     @GET("/api/chat/history/{roomId}")
     fun getChatHistory(@Path("roomId") roomId: String): Call<MsgEntity>
 
+    @Multipart
+    @POST("/api/chat/{roomId}/image")
+    fun uploadChatImage(
+        @Path("roomId") roomId: String,
+        @Part image: MultipartBody.Part
+    ): Call<MsgEntity>
+
     // 🔥 프로필 업데이트 API (단 하나만)
     @Multipart
     @PUT("/member/profile")

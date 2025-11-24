@@ -1,4 +1,3 @@
-// com.longtoast.bilbil.ChatAdapter.kt (수정)
 package com.longtoast.bilbil
 
 import android.view.LayoutInflater
@@ -15,34 +14,82 @@ import android.util.Log
 
 class ChatAdapter(
     private val messages: MutableList<ChatMessage>,
-    private val currentUserId: String // 🔑 현재 사용자 ID (String)
+    private val currentUserId: String,
+    private val partnerNickname: String?,
+    private val partnerProfileImageUrl: String?
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
+    private val VIEW_TYPE_DATE = 0
     private val VIEW_TYPE_SENT = 1
     private val VIEW_TYPE_RECEIVED = 2
 
-    // 💡 [핵심 수정] String인 currentUserId를 Int로 안전하게 변환하여 비교에 사용
     private val currentUserIdInt: Int? = currentUserId.toIntOrNull()
 
     private val serverFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
     private val displayFormat = SimpleDateFormat("a h:mm", Locale.getDefault())
+    private val headerFormat = SimpleDateFormat("yyyy년 M월 d일", Locale.getDefault())
 
-    // 1. 보낸 메시지 ViewHolder
+    // ============================================================
+    // 날짜 헤더 + 메시지를 하나의 리스트로 관리하는 ChatItem 구조
+    // ============================================================
+    private sealed class ChatItem {
+        data class DateHeader(val label: String) : ChatItem()
+        data class Message(val data: ChatMessage) : ChatItem()
+    }
+
+    private val items = mutableListOf<ChatItem>()
+
+    init {
+        rebuildItems()
+    }
+
+    fun submitMessages(newMessages: List<ChatMessage>) {
+        messages.clear()
+        messages.addAll(newMessages)
+        rebuildItems()
+        notifyDataSetChanged()
+    }
+
+    private fun rebuildItems() {
+        items.clear()
+        var lastDateLabel: String? = null
+
+        messages.forEach { msg ->
+            val dateLabel = formatDateHeader(msg.sentAt)
+            if (dateLabel != null && dateLabel != lastDateLabel) {
+                items.add(ChatItem.DateHeader(dateLabel))
+                lastDateLabel = dateLabel
+            }
+            items.add(ChatItem.Message(msg))
+        }
+    }
+
+    // ============================================================
+    // ViewHolders
+    // ============================================================
+
+    inner class DateViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        private val dateText: TextView = view.findViewById(R.id.text_date_header)
+        fun bind(item: ChatItem.DateHeader) {
+            dateText.text = item.label
+        }
+    }
+
     inner class SentMessageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val messageText: TextView = view.findViewById(R.id.text_message_sent)
         private val timestampText: TextView = view.findViewById(R.id.text_timestamp_sent)
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_sent)
 
         fun bind(message: ChatMessage) {
-            imageAttachment?.let {
-                if (message.imageUrl.isNullOrBlank()) {
-                    it.visibility = View.GONE
-                } else {
-                    it.visibility = View.VISIBLE
-                    RemoteImageLoader.load(it, message.imageUrl, R.drawable.bg_image_placeholder)
-                }
+            // 이미지 첨부
+            if (message.imageUrl.isNullOrBlank()) {
+                imageAttachment?.visibility = View.GONE
+            } else {
+                imageAttachment?.visibility = View.VISIBLE
+                RemoteImageLoader.load(imageAttachment!!, message.imageUrl, R.drawable.bg_image_placeholder)
             }
 
+            // 텍스트
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
                 messageText.visibility = View.VISIBLE
@@ -54,23 +101,23 @@ class ChatAdapter(
         }
     }
 
-    // 2. 받은 메시지 ViewHolder
     inner class ReceivedMessageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val messageText: TextView = view.findViewById(R.id.text_message_received)
         private val timestampText: TextView = view.findViewById(R.id.text_timestamp_received)
         private val nicknameText: TextView = view.findViewById(R.id.text_nickname_received)
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_received)
+        private val profileImage: ImageView? = view.findViewById(R.id.image_profile_received)
 
         fun bind(message: ChatMessage) {
-            imageAttachment?.let {
-                if (message.imageUrl.isNullOrBlank()) {
-                    it.visibility = View.GONE
-                } else {
-                    it.visibility = View.VISIBLE
-                    RemoteImageLoader.load(it, message.imageUrl, R.drawable.bg_image_placeholder)
-                }
+            // 이미지 첨부
+            if (message.imageUrl.isNullOrBlank()) {
+                imageAttachment?.visibility = View.GONE
+            } else {
+                imageAttachment?.visibility = View.VISIBLE
+                RemoteImageLoader.load(imageAttachment!!, message.imageUrl, R.drawable.bg_image_placeholder)
             }
 
+            // 텍스트
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
                 messageText.visibility = View.VISIBLE
@@ -79,53 +126,82 @@ class ChatAdapter(
             }
 
             timestampText.text = formatTime(message.sentAt)
-            nicknameText.text = "상대방(${message.senderId})"
+
+            // 닉네임/프로필
+            nicknameText.text = partnerNickname ?: "상대방(${message.senderId})"
+            profileImage?.let {
+                RemoteImageLoader.load(it, partnerProfileImageUrl, R.drawable.no_profile)
+            }
         }
     }
 
+    // ============================================================
+    // RecyclerAdapter Override
+    // ============================================================
+
     override fun getItemViewType(position: Int): Int {
-        val message = messages[position]
-
-        // 🚨 [핵심 디버그 로그 추가]
-        Log.d("CHAT_ADAPTER_VIEW", "Checking pos $position: MsgSenderID=${message.senderId}, CurrentID=${currentUserIdInt}. IsSent=${message.senderId == currentUserIdInt}")
-
-        // Int 대 Int 비교
-        if (message.senderId == currentUserIdInt) {
-            return VIEW_TYPE_SENT
-        } else {
-            return VIEW_TYPE_RECEIVED
+        return when (val item = items[position]) {
+            is ChatItem.DateHeader -> VIEW_TYPE_DATE
+            is ChatItem.Message -> {
+                val sender = item.data.senderId
+                if (sender == currentUserIdInt) VIEW_TYPE_SENT else VIEW_TYPE_RECEIVED
+            }
         }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        return if (viewType == VIEW_TYPE_SENT) {
-            val view = inflater.inflate(R.layout.item_chat_message_sent, parent, false)
-            SentMessageViewHolder(view)
-        } else {
-            val view = inflater.inflate(R.layout.item_chat_message_received, parent, false)
-            ReceivedMessageViewHolder(view)
+        return when (viewType) {
+            VIEW_TYPE_DATE -> {
+                val view = inflater.inflate(R.layout.item_chat_date_header, parent, false)
+                DateViewHolder(view)
+            }
+            VIEW_TYPE_SENT -> {
+                val view = inflater.inflate(R.layout.item_chat_message_sent, parent, false)
+                SentMessageViewHolder(view)
+            }
+            else -> {
+                val view = inflater.inflate(R.layout.item_chat_message_received, parent, false)
+                ReceivedMessageViewHolder(view)
+            }
         }
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val message = messages[position]
-        when (holder.itemViewType) {
-            VIEW_TYPE_SENT -> (holder as SentMessageViewHolder).bind(message)
-            VIEW_TYPE_RECEIVED -> (holder as ReceivedMessageViewHolder).bind(message)
+        when (val item = items[position]) {
+            is ChatItem.DateHeader -> (holder as DateViewHolder).bind(item)
+            is ChatItem.Message -> {
+                when (holder.itemViewType) {
+                    VIEW_TYPE_SENT -> (holder as SentMessageViewHolder).bind(item.data)
+                    VIEW_TYPE_RECEIVED -> (holder as ReceivedMessageViewHolder).bind(item.data)
+                }
+            }
         }
     }
 
-    override fun getItemCount(): Int = messages.size
+    override fun getItemCount(): Int = items.size
+
+    // ============================================================
+    // 날짜/시간 포맷
+    // ============================================================
 
     private fun formatTime(isoTimeString: String?): String {
         return try {
             if (isoTimeString.isNullOrEmpty()) return ""
-            val date = serverFormat.parse(isoTimeString) ?: return "시간 오류"
+            val date = serverFormat.parse(isoTimeString) ?: return ""
             displayFormat.format(date)
         } catch (e: Exception) {
-            Log.e("ChatAdapter", "시간 파싱 오류: $isoTimeString", e)
-            "시간 오류"
+            ""
+        }
+    }
+
+    private fun formatDateHeader(isoTimeString: String?): String? {
+        return try {
+            if (isoTimeString.isNullOrEmpty()) return null
+            val date = serverFormat.parse(isoTimeString) ?: return null
+            headerFormat.format(date)
+        } catch (e: Exception) {
+            null
         }
     }
 }
