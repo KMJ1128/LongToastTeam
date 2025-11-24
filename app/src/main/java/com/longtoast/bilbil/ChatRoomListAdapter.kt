@@ -1,5 +1,8 @@
 package com.longtoast.bilbil
 
+import android.graphics.BitmapFactory
+import android.util.Base64
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -7,8 +10,10 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.bumptech.glide.request.RequestOptions
+import com.longtoast.bilbil.R
 import com.longtoast.bilbil.dto.ChatRoomListDTO
-import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -35,17 +40,47 @@ class ChatRoomListAdapter(
                 else -> "(최근 메시지 없음)"
             }
 
-            // Glide 처리
-            if (!itemImage.isNullOrEmpty() && itemImage.length <= 255) {
-                Glide.with(itemView.context)
-                    .load(itemImage)
-                    .placeholder(R.drawable.no_profile)
-                    .into(thumbnail)
-            } else {
-                if (!itemImage.isNullOrEmpty()) {
-                    Log.w("GLIDE_SKIP", "Skipping long image key: ${itemImage.take(50)}...")
+            when {
+                itemImage.isNullOrBlank() -> thumbnail.setImageResource(R.drawable.no_profile)
+                itemImage.startsWith("http", ignoreCase = true) -> {
+                    Glide.with(itemView.context)
+                        .load(itemImage)
+                        .apply(
+                            RequestOptions()
+                                .placeholder(R.drawable.no_profile)
+                                .error(R.drawable.no_profile)
+                                .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
+                        )
+                        .into(thumbnail)
                 }
-                thumbnail.setImageResource(R.drawable.no_profile)
+
+                else -> {
+                    try {
+                        val cleanBase64 = itemImage.substringAfterLast("base64,", itemImage)
+                        val imageBytes = try {
+                            Base64.decode(cleanBase64, Base64.NO_WRAP)
+                        } catch (_: IllegalArgumentException) {
+                            Base64.decode(cleanBase64, Base64.DEFAULT)
+                        }
+                        val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                        if (bitmap != null) {
+                            Glide.with(itemView.context)
+                                .load(bitmap)
+                                .apply(
+                                    RequestOptions()
+                                        .placeholder(R.drawable.no_profile)
+                                        .error(R.drawable.no_profile)
+                                        .diskCacheStrategy(DiskCacheStrategy.DATA)
+                                )
+                                .into(thumbnail)
+                        } else {
+                            thumbnail.setImageResource(R.drawable.no_profile)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("GLIDE_DECODE", "프로필/아이템 이미지 디코드 실패", e)
+                        thumbnail.setImageResource(R.drawable.no_profile)
+                    }
+                }
             }
 
             // 시간 처리
