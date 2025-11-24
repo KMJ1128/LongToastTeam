@@ -1,7 +1,6 @@
 package com.longtoast.bilbil
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.longtoast.bilbil.R
@@ -14,6 +13,10 @@ class ProductAdapter(
     private val onItemClick: (Int) -> Unit
 ) : RecyclerView.Adapter<ProductAdapter.ViewHolder>() {
 
+    companion object {
+        private const val BASE_URL = ServerConfig.IMAGE_BASE_URL
+    }
+
     inner class ViewHolder(val binding: ItemProductListBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
@@ -22,7 +25,26 @@ class ProductAdapter(
             binding.textItemLocation.text = product.address
             binding.textItemPrice.text = "₩ ${String.format("%,d", product.price)}"
 
-            RemoteImageLoader.load(binding.imageItemThumbnail, product.mainImageUrl, R.drawable.ic_default_category)
+            // ------------------------------
+            // 이미지 처리 (RemoteImageLoader 통일)
+            // ------------------------------
+            val url = product.mainImageUrl
+
+            val fullUrl = when {
+                url.isNullOrBlank() -> null
+                url.startsWith("/") -> BASE_URL + url
+                else -> url
+            }
+
+            if (fullUrl == null) {
+                binding.imageItemThumbnail.setImageResource(R.drawable.ic_default_category)
+            } else {
+                RemoteImageLoader.load(
+                    binding.imageItemThumbnail,
+                    fullUrl,
+                    R.drawable.ic_default_category
+                )
+            }
 
             binding.root.setOnClickListener {
                 onItemClick(product.id)
