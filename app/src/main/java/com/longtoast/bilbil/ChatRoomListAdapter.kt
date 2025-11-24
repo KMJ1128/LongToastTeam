@@ -7,11 +7,9 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.request.RequestOptions
 import com.longtoast.bilbil.R
 import com.longtoast.bilbil.dto.ChatRoomListDTO
+import com.longtoast.bilbil.util.RemoteImageLoader
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -32,10 +30,15 @@ class ChatRoomListAdapter(
         private val unreadBadge: TextView = view.findViewById(R.id.text_unread_badge)
 
         fun bind(room: ChatRoomListDTO) {
-            // 닉네임
+
+            // -------------------------------
+            // ① 닉네임
+            // -------------------------------
             partnerName.text = room.partnerNickname ?: "알 수 없음"
 
-            // 최근 메시지 내용
+            // -------------------------------
+            // ② 최근 메시지
+            // -------------------------------
             val lastContent = room.lastMessageContent
             val itemImage = room.itemMainImageUrl
 
@@ -46,7 +49,7 @@ class ChatRoomListAdapter(
             }
 
             // -------------------------------
-            // 🔥 프로필 / 아이템 이미지 URL 처리
+            // ③ 이미지 (프로필 없으면 상품 이미지)
             // -------------------------------
             val primaryImage = room.partnerProfileImageUrl ?: itemImage
 
@@ -58,20 +61,11 @@ class ChatRoomListAdapter(
                 } else {
                     primaryImage
                 }
-
-                Glide.with(itemView.context)
-                    .load(fullUrl)
-                    .apply(
-                        RequestOptions()
-                            .placeholder(R.drawable.no_profile)
-                            .error(R.drawable.no_profile)
-                            .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
-                    )
-                    .into(thumbnail)
+                RemoteImageLoader.load(thumbnail, fullUrl, R.drawable.no_profile)
             }
 
             // -------------------------------
-            // 읽지 않은 메시지 뱃지
+            // ④ 안읽은 개수
             // -------------------------------
             val unread = room.unreadCount ?: 0
             if (unread > 0) {
@@ -82,12 +76,12 @@ class ChatRoomListAdapter(
             }
 
             // -------------------------------
-            // 시간 표시
+            // ⑤ 날짜
             // -------------------------------
             timeText.text = room.lastMessageTime?.let {
                 try {
                     val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-                    val date = parser.parse(it)
+                    val date = parser.parse(it.substringBefore(".")) // 나노초 제거
                     val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
                     formatter.format(date!!)
                 } catch (e: Exception) {
@@ -96,6 +90,9 @@ class ChatRoomListAdapter(
                 }
             } ?: ""
 
+            // -------------------------------
+            // ⑥ 클릭 이벤트
+            // -------------------------------
             itemView.setOnClickListener { onItemClicked(room) }
         }
     }

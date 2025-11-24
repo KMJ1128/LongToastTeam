@@ -76,7 +76,7 @@ interface ApiService {
     fun getChatHistory(@Path("roomId") roomId: String): Call<MsgEntity>
 
     @Multipart
-    @POST("/api/chat/{roomId}/image")
+    @POST("/api/chat/room/{roomId}/image")
     fun uploadChatImage(
         @Path("roomId") roomId: String,
         @Part image: MultipartBody.Part

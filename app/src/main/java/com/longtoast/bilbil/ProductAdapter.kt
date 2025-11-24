@@ -3,12 +3,10 @@ package com.longtoast.bilbil
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.request.RequestOptions
 import com.longtoast.bilbil.R
 import com.longtoast.bilbil.databinding.ItemProductListBinding
 import com.longtoast.bilbil.dto.ProductListDTO
+import com.longtoast.bilbil.util.RemoteImageLoader
 
 class ProductAdapter(
     private var productList: List<ProductListDTO>,
@@ -27,27 +25,25 @@ class ProductAdapter(
             binding.textItemLocation.text = product.address
             binding.textItemPrice.text = "₩ ${String.format("%,d", product.price)}"
 
+            // ------------------------------
+            // 이미지 처리 (RemoteImageLoader 통일)
+            // ------------------------------
             val url = product.mainImageUrl
 
-            if (url.isNullOrBlank()) {
+            val fullUrl = when {
+                url.isNullOrBlank() -> null
+                url.startsWith("/") -> BASE_URL + url
+                else -> url
+            }
+
+            if (fullUrl == null) {
                 binding.imageItemThumbnail.setImageResource(R.drawable.ic_default_category)
             } else {
-                // "/uploads/..." → BASE_URL + url
-                val fullUrl = if (url.startsWith("/")) {
-                    BASE_URL + url
-                } else {
-                    url
-                }
-
-                Glide.with(binding.root)
-                    .load(fullUrl)
-                    .apply(
-                        RequestOptions()
-                            .placeholder(R.drawable.ic_default_category)
-                            .error(R.drawable.ic_default_category)
-                            .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
-                    )
-                    .into(binding.imageItemThumbnail)
+                RemoteImageLoader.load(
+                    binding.imageItemThumbnail,
+                    fullUrl,
+                    R.drawable.ic_default_category
+                )
             }
 
             binding.root.setOnClickListener {

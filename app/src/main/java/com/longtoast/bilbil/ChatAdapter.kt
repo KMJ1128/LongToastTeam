@@ -14,7 +14,7 @@ import android.util.Log
 
 class ChatAdapter(
     private val messages: MutableList<ChatMessage>,
-    private val currentUserId: String,
+    private val currentUserId: Int,                // ← Int 로 사용
     private val partnerNickname: String?,
     private val partnerProfileImageUrl: String?
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -22,8 +22,6 @@ class ChatAdapter(
     private val VIEW_TYPE_DATE = 0
     private val VIEW_TYPE_SENT = 1
     private val VIEW_TYPE_RECEIVED = 2
-
-    private val currentUserIdInt: Int? = currentUserId.toIntOrNull()
 
     private val serverFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
     private val displayFormat = SimpleDateFormat("a h:mm", Locale.getDefault())
@@ -62,8 +60,7 @@ class ChatAdapter(
         }
     }
 
-    // ViewHolders
-
+    // 날짜 ViewHolder
     inner class DateViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val dateText: TextView = view.findViewById(R.id.text_date_header)
         fun bind(label: String) {
@@ -71,30 +68,35 @@ class ChatAdapter(
         }
     }
 
+    // 보낸 메시지 ViewHolder
     inner class SentMessageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val messageText: TextView = view.findViewById(R.id.text_message_sent)
         private val timestampText: TextView = view.findViewById(R.id.text_timestamp_sent)
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_sent)
 
-        fun bind(message: ChatMessage) {
-            if (message.imageUrl.isNullOrBlank()) {
+        fun bind(msg: ChatMessage) {
+
+            // 이미지
+            if (msg.imageUrl.isNullOrBlank()) {
                 imageAttachment?.visibility = View.GONE
             } else {
                 imageAttachment?.visibility = View.VISIBLE
-                RemoteImageLoader.load(imageAttachment!!, message.imageUrl, R.drawable.bg_image_placeholder)
+                RemoteImageLoader.load(imageAttachment!!, msg.imageUrl, R.drawable.bg_image_placeholder)
             }
 
-            if (!message.content.isNullOrEmpty()) {
-                messageText.text = message.content
+            // 텍스트
+            if (!msg.content.isNullOrEmpty()) {
                 messageText.visibility = View.VISIBLE
+                messageText.text = msg.content
             } else {
                 messageText.visibility = View.GONE
             }
 
-            timestampText.text = formatTime(message.sentAt)
+            timestampText.text = formatTime(msg.sentAt)
         }
     }
 
+    // 받은 메시지 ViewHolder
     inner class ReceivedMessageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val messageText: TextView = view.findViewById(R.id.text_message_received)
         private val timestampText: TextView = view.findViewById(R.id.text_timestamp_received)
@@ -102,23 +104,26 @@ class ChatAdapter(
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_received)
         private val profileImage: ImageView? = view.findViewById(R.id.image_profile_received)
 
-        fun bind(message: ChatMessage) {
-            if (message.imageUrl.isNullOrBlank()) {
+        fun bind(msg: ChatMessage) {
+
+            // 이미지
+            if (msg.imageUrl.isNullOrBlank()) {
                 imageAttachment?.visibility = View.GONE
             } else {
                 imageAttachment?.visibility = View.VISIBLE
-                RemoteImageLoader.load(imageAttachment!!, message.imageUrl, R.drawable.bg_image_placeholder)
+                RemoteImageLoader.load(imageAttachment!!, msg.imageUrl, R.drawable.bg_image_placeholder)
             }
 
-            if (!message.content.isNullOrEmpty()) {
-                messageText.text = message.content
+            // 텍스트
+            if (!msg.content.isNullOrEmpty()) {
                 messageText.visibility = View.VISIBLE
+                messageText.text = msg.content
             } else {
                 messageText.visibility = View.GONE
             }
 
-            timestampText.text = formatTime(message.sentAt)
-            nicknameText.text = partnerNickname ?: "상대방(${message.senderId})"
+            nicknameText.text = partnerNickname ?: "상대방(${msg.senderId})"
+            timestampText.text = formatTime(msg.sentAt)
 
             profileImage?.let {
                 RemoteImageLoader.load(it, partnerProfileImageUrl, R.drawable.no_profile)
@@ -126,48 +131,58 @@ class ChatAdapter(
         }
     }
 
-    // Adapter override
-
     override fun getItemViewType(position: Int): Int {
         return when (val item = items[position]) {
             is ChatItem.DateHeader -> VIEW_TYPE_DATE
-            is ChatItem.Message -> {
-                if (item.data.senderId == currentUserIdInt) VIEW_TYPE_SENT else VIEW_TYPE_RECEIVED
-            }
-        }
-    }
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        val inflater = LayoutInflater.from(parent.context)
-        return when (viewType) {
-            VIEW_TYPE_DATE -> DateViewHolder(inflater.inflate(R.layout.item_chat_date_header, parent, false))
-            VIEW_TYPE_SENT -> SentMessageViewHolder(inflater.inflate(R.layout.item_chat_message_sent, parent, false))
-            else -> ReceivedMessageViewHolder(inflater.inflate(R.layout.item_chat_message_received, parent, false))
-        }
-    }
-
-    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        when (val item = items[position]) {
-            is ChatItem.DateHeader -> (holder as DateViewHolder).bind(item.label)
-            is ChatItem.Message -> when (holder.itemViewType) {
-                VIEW_TYPE_SENT -> (holder as SentMessageViewHolder).bind(item.data)
-                VIEW_TYPE_RECEIVED -> (holder as ReceivedMessageViewHolder).bind(item.data)
-            }
+            is ChatItem.Message ->
+                if (item.data.senderId == currentUserId) VIEW_TYPE_SENT else VIEW_TYPE_RECEIVED
         }
     }
 
     override fun getItemCount(): Int = items.size
 
-    // 날짜/시간 포맷
-    private fun formatTime(isoTimeString: String?): String {
-        return try {
-            if (isoTimeString.isNullOrEmpty()) "") else displayFormat.format(serverFormat.parse(isoTimeString)!!)
-        } catch (_: Exception) { "" }
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        return when (viewType) {
+            VIEW_TYPE_DATE ->
+                DateViewHolder(inflater.inflate(R.layout.item_chat_date_header, parent, false))
+            VIEW_TYPE_SENT ->
+                SentMessageViewHolder(inflater.inflate(R.layout.item_chat_message_sent, parent, false))
+            else ->
+                ReceivedMessageViewHolder(inflater.inflate(R.layout.item_chat_message_received, parent, false))
+        }
     }
 
-    private fun formatDateHeader(isoTimeString: String?): String? {
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        when (val item = items[position]) {
+            is ChatItem.DateHeader ->
+                (holder as DateViewHolder).bind(item.label)
+            is ChatItem.Message ->
+                if (holder.itemViewType == VIEW_TYPE_SENT)
+                    (holder as SentMessageViewHolder).bind(item.data)
+                else
+                    (holder as ReceivedMessageViewHolder).bind(item.data)
+        }
+    }
+
+    // 날짜/시간 파싱
+    private fun formatTime(raw: String?): String {
         return try {
-            if (isoTimeString.isNullOrEmpty()) null else headerFormat.format(serverFormat.parse(isoTimeString)!!)
-        } catch (_: Exception) { null }
+            val cleaned = raw?.substringBefore(".") ?: return ""
+            displayFormat.format(serverFormat.parse(cleaned)!!)
+        } catch (e: Exception) {
+            Log.e("ChatAdapter", "시간 파싱 오류: $raw", e)
+            ""
+        }
+    }
+
+    private fun formatDateHeader(raw: String?): String? {
+        return try {
+            val cleaned = raw?.substringBefore(".") ?: return null
+            headerFormat.format(serverFormat.parse(cleaned)!!)
+        } catch (e: Exception) {
+            Log.e("ChatAdapter", "날짜 파싱 오류: $raw", e)
+            null
+        }
     }
 }
