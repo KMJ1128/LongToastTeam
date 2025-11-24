@@ -30,9 +30,9 @@ class ChatAdapter(
     private val headerFormat = SimpleDateFormat("yyyy년 M월 d일", Locale.getDefault())
 
     // ============================================================
-    // 날짜 헤더 + 메시지를 하나의 리스트로 관리하는 ChatItem 구조
+    // 날짜 헤더 + 메시지 구조 (외부 노출 안 함)
     // ============================================================
-    private sealed class ChatItem {
+    internal sealed class ChatItem {
         data class DateHeader(val label: String) : ChatItem()
         data class Message(val data: ChatMessage) : ChatItem()
     }
@@ -70,8 +70,8 @@ class ChatAdapter(
 
     inner class DateViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val dateText: TextView = view.findViewById(R.id.text_date_header)
-        fun bind(item: ChatItem.DateHeader) {
-            dateText.text = item.label
+        fun bind(label: String) {
+            dateText.text = label
         }
     }
 
@@ -81,7 +81,6 @@ class ChatAdapter(
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_sent)
 
         fun bind(message: ChatMessage) {
-            // 이미지 첨부
             if (message.imageUrl.isNullOrBlank()) {
                 imageAttachment?.visibility = View.GONE
             } else {
@@ -89,7 +88,6 @@ class ChatAdapter(
                 RemoteImageLoader.load(imageAttachment!!, message.imageUrl, R.drawable.bg_image_placeholder)
             }
 
-            // 텍스트
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
                 messageText.visibility = View.VISIBLE
@@ -109,7 +107,6 @@ class ChatAdapter(
         private val profileImage: ImageView? = view.findViewById(R.id.image_profile_received)
 
         fun bind(message: ChatMessage) {
-            // 이미지 첨부
             if (message.imageUrl.isNullOrBlank()) {
                 imageAttachment?.visibility = View.GONE
             } else {
@@ -117,7 +114,6 @@ class ChatAdapter(
                 RemoteImageLoader.load(imageAttachment!!, message.imageUrl, R.drawable.bg_image_placeholder)
             }
 
-            // 텍스트
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
                 messageText.visibility = View.VISIBLE
@@ -126,9 +122,8 @@ class ChatAdapter(
             }
 
             timestampText.text = formatTime(message.sentAt)
-
-            // 닉네임/프로필
             nicknameText.text = partnerNickname ?: "상대방(${message.senderId})"
+
             profileImage?.let {
                 RemoteImageLoader.load(it, partnerProfileImageUrl, R.drawable.no_profile)
             }
@@ -136,7 +131,7 @@ class ChatAdapter(
     }
 
     // ============================================================
-    // RecyclerAdapter Override
+    // Recycler Adapter Override
     // ============================================================
 
     override fun getItemViewType(position: Int): Int {
@@ -169,7 +164,7 @@ class ChatAdapter(
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = items[position]) {
-            is ChatItem.DateHeader -> (holder as DateViewHolder).bind(item)
+            is ChatItem.DateHeader -> (holder as DateViewHolder).bind(item.label)
             is ChatItem.Message -> {
                 when (holder.itemViewType) {
                     VIEW_TYPE_SENT -> (holder as SentMessageViewHolder).bind(item.data)
