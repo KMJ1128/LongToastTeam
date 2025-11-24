@@ -19,5 +19,8 @@ data class ChatRoomListDTO(
     val itemPrice: Int?,
 
     // 4. 마지막 메시지 내용
-    val lastMessageContent: String?
+    val lastMessageContent: String?,
+
+    // 5. 읽지 않은 메시지 수
+    val unreadCount: Int? = 0,
 )
