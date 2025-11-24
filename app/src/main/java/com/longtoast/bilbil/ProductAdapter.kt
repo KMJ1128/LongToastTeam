@@ -4,9 +4,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
+import com.longtoast.bilbil.R
 import com.longtoast.bilbil.databinding.ItemProductListBinding
 import com.longtoast.bilbil.dto.ProductListDTO
+import com.longtoast.bilbil.util.RemoteImageLoader
 
 class ProductAdapter(
     private var productList: List<ProductListDTO>,
@@ -21,10 +22,7 @@ class ProductAdapter(
             binding.textItemLocation.text = product.address
             binding.textItemPrice.text = "₩ ${String.format("%,d", product.price)}"
 
-            Glide.with(binding.root)
-                .load(product.mainImageUrl)
-                .placeholder(R.drawable.ic_default_category)
-                .into(binding.imageItemThumbnail)
+            RemoteImageLoader.load(binding.imageItemThumbnail, product.mainImageUrl, R.drawable.ic_default_category)
 
             binding.root.setOnClickListener {
                 onItemClick(product.id)

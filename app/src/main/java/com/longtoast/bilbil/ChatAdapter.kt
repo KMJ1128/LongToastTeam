@@ -4,15 +4,14 @@ package com.longtoast.bilbil
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.longtoast.bilbil.dto.ChatMessage
+import com.longtoast.bilbil.util.RemoteImageLoader
 import java.text.SimpleDateFormat
 import java.util.*
 import android.util.Log
-import android.util.Base64
-import android.graphics.BitmapFactory
-import android.widget.ImageView
 
 class ChatAdapter(
     private val messages: MutableList<ChatMessage>,
@@ -28,36 +27,6 @@ class ChatAdapter(
     private val serverFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
     private val displayFormat = SimpleDateFormat("a h:mm", Locale.getDefault())
 
-    // 💡 Base64 디코딩 및 이미지 설정을 위한 헬퍼 함수 (유지)
-    private fun setImageViewFromBase64(imageView: ImageView, base64Data: String?) {
-        if (base64Data.isNullOrEmpty()) {
-            imageView.visibility = View.GONE
-            return
-        }
-
-        val cleanBase64 = if (base64Data.startsWith("data:")) {
-            base64Data.substringAfterLast("base64,")
-        } else {
-            base64Data
-        }
-
-        try {
-            val imageBytes = Base64.decode(cleanBase64, Base64.NO_WRAP)
-            val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-
-            if (bitmap != null) {
-                imageView.setImageBitmap(bitmap)
-                imageView.visibility = View.VISIBLE
-            } else {
-                imageView.visibility = View.GONE
-            }
-        } catch (e: Exception) {
-            Log.e("ChatAdapter", "Base64 디코딩 실패", e)
-            imageView.visibility = View.GONE
-        }
-    }
-
-
     // 1. 보낸 메시지 ViewHolder
     inner class SentMessageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val messageText: TextView = view.findViewById(R.id.text_message_sent)
@@ -65,7 +34,14 @@ class ChatAdapter(
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_sent)
 
         fun bind(message: ChatMessage) {
-            imageAttachment?.let { setImageViewFromBase64(it, message.imageUrl) }
+            imageAttachment?.let {
+                if (message.imageUrl.isNullOrBlank()) {
+                    it.visibility = View.GONE
+                } else {
+                    it.visibility = View.VISIBLE
+                    RemoteImageLoader.load(it, message.imageUrl, R.drawable.bg_image_placeholder)
+                }
+            }
 
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
@@ -86,7 +62,14 @@ class ChatAdapter(
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_received)
 
         fun bind(message: ChatMessage) {
-            imageAttachment?.let { setImageViewFromBase64(it, message.imageUrl) }
+            imageAttachment?.let {
+                if (message.imageUrl.isNullOrBlank()) {
+                    it.visibility = View.GONE
+                } else {
+                    it.visibility = View.VISIBLE
+                    RemoteImageLoader.load(it, message.imageUrl, R.drawable.bg_image_placeholder)
+                }
+            }
 
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content

@@ -1,14 +1,15 @@
 package com.longtoast.bilbil
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
+import com.longtoast.bilbil.R
 import com.longtoast.bilbil.dto.ChatRoomListDTO
-import android.util.Log
+import com.longtoast.bilbil.util.RemoteImageLoader
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -35,18 +36,8 @@ class ChatRoomListAdapter(
                 else -> "(최근 메시지 없음)"
             }
 
-            // Glide 처리
-            if (!itemImage.isNullOrEmpty() && itemImage.length <= 255) {
-                Glide.with(itemView.context)
-                    .load(itemImage)
-                    .placeholder(R.drawable.no_profile)
-                    .into(thumbnail)
-            } else {
-                if (!itemImage.isNullOrEmpty()) {
-                    Log.w("GLIDE_SKIP", "Skipping long image key: ${itemImage.take(50)}...")
-                }
-                thumbnail.setImageResource(R.drawable.no_profile)
-            }
+            val primaryImage = room.partnerProfileImageUrl ?: itemImage
+            RemoteImageLoader.load(thumbnail, primaryImage, R.drawable.no_profile)
 
             // 시간 처리
             timeText.text = room.lastMessageTime?.let {
