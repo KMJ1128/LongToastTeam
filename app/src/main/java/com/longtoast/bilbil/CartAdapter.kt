@@ -1,13 +1,13 @@
 package com.longtoast.bilbil
 
-import android.graphics.BitmapFactory
-import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.longtoast.bilbil.R
 import com.longtoast.bilbil.databinding.ItemCartBinding
 import com.longtoast.bilbil.dto.ProductDTO
+import com.longtoast.bilbil.util.RemoteImageLoader
 import java.text.DecimalFormat
 
 class CartAdapter(
@@ -22,20 +22,8 @@ class CartAdapter(
             binding.textCartTitle.text = product.title
             binding.textCartPrice.text = "${numberFormat.format(product.price)}원"
 
-            // 이미지 로드 (Base64)
-            val images = product.imageUrls
-            if (!images.isNullOrEmpty()) {
-                try {
-                    val cleanBase64 = images[0].substringAfter("base64,")
-                    val imageBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
-                    val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                    binding.imageCartItem.setImageBitmap(bitmap)
-                } catch (e: Exception) {
-                    binding.imageCartItem.setImageResource(R.drawable.ic_default_category)
-                }
-            } else {
-                binding.imageCartItem.setImageResource(R.drawable.ic_default_category)
-            }
+            val firstImage = product.imageUrls?.firstOrNull()
+            RemoteImageLoader.load(binding.imageCartItem, firstImage, R.drawable.ic_default_category)
 
             // 삭제 버튼 클릭 시
             binding.btnDeleteItem.setOnClickListener {

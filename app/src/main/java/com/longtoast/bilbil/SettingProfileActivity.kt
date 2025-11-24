@@ -19,11 +19,16 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import com.google.gson.Gson
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.longtoast.bilbil.dto.MemberDTO
 import com.longtoast.bilbil.dto.MsgEntity
+import com.longtoast.bilbil.util.ImageUtil
 import java.io.File
 import java.io.IOException
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -282,7 +287,13 @@ class SettingProfileActivity : AppCompatActivity() {
 
 
         // 3. 🔑 [수정] RetrofitClient의 기본 ApiService를 사용합니다.
-        RetrofitClient.getApiService().updateProfile(updateRequest)
+        val memberJson = Gson().toJson(updateRequest)
+        val memberRequestBody = memberJson.toRequestBody("application/json; charset=utf-8".toMediaType())
+        val profilePart: MultipartBody.Part? = profileBitmap?.let {
+            ImageUtil.bitmapToMultipart(this, it, "profileImage")
+        }
+
+        RetrofitClient.getApiService().updateProfile(memberRequestBody, profilePart)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (response.isSuccessful) {

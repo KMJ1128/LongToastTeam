@@ -1,10 +1,10 @@
 package com.longtoast.bilbil
 
-import android.graphics.Bitmap
 import android.os.Bundle
 import android.util.Log
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -25,15 +25,16 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
-import android.util.Base64
-import android.graphics.BitmapFactory
-import java.io.ByteArrayOutputStream
-import java.io.InputStream
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.longtoast.bilbil.ServerConfig
+import com.longtoast.bilbil.util.ImageUtil
+import com.longtoast.bilbil.util.RemoteImageLoader
+import okhttp3.MultipartBody
+import com.google.android.material.appbar.MaterialToolbar
+import android.widget.TextView
 
 class ChatRoomActivity : AppCompatActivity() {
 
@@ -45,6 +46,8 @@ class ChatRoomActivity : AppCompatActivity() {
     private lateinit var chatAdapter: ChatAdapter
 
     private var selectedImageUri: Uri? = null
+    private var partnerNickname: String? = null
+    private var partnerProfileImageUrl: String? = null
 
     private val chatMessages = mutableListOf<ChatMessage>()
     private val tempMessageMap = mutableMapOf<Long, ChatMessage>() // 🔑 로컬 메시지 매핑
@@ -75,13 +78,34 @@ class ChatRoomActivity : AppCompatActivity() {
         buttonSend = findViewById(R.id.button_send)
         buttonAttachImage = findViewById(R.id.button_attach_image)
 
-        chatAdapter = ChatAdapter(chatMessages, senderId.toString())
+        partnerNickname = intent.getStringExtra("PARTNER_NICKNAME")
+            ?: intent.getStringExtra("SELLER_NICKNAME")
+        partnerProfileImageUrl = intent.getStringExtra("PARTNER_PROFILE")
+
+        chatAdapter = ChatAdapter(chatMessages, senderId.toString(), partnerNickname, partnerProfileImageUrl)
         recyclerChat.adapter = chatAdapter
         recyclerChat.layoutManager = LinearLayoutManager(this)
+
+        setupToolbar()
 
         fetchChatHistory()
         connectWebSocket()
         setupListeners()
+    }
+
+    private fun setupToolbar() {
+        val toolbar: MaterialToolbar = findViewById(R.id.toolbar_chat)
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        toolbar.setNavigationOnClickListener { finish() }
+
+        val nameText: TextView? = toolbar.findViewById(R.id.text_toolbar_partner)
+        val profileImage: ImageView? = toolbar.findViewById(R.id.image_toolbar_partner)
+
+        nameText?.text = partnerNickname ?: "상대방"
+        profileImage?.let {
+            RemoteImageLoader.load(it, partnerProfileImageUrl, R.drawable.no_profile)
+        }
     }
 
     private fun setupListeners() {
@@ -112,9 +136,9 @@ class ChatRoomActivity : AppCompatActivity() {
                             )
 
                             chatMessages.addAll(historyList)
-                            chatAdapter.notifyDataSetChanged()
+                            chatAdapter.submitMessages(chatMessages)
                             if (chatMessages.isNotEmpty()) {
-                                recyclerChat.scrollToPosition(chatMessages.size - 1)
+                                recyclerChat.scrollToPosition(chatAdapter.itemCount - 1)
                             }
                             Log.d("CHAT_HISTORY", "✅ 채팅 내역 ${historyList.size}개 로드 성공. Current User ID: $senderId")
                         } catch (e: Exception) {
@@ -198,28 +222,28 @@ class ChatRoomActivity : AppCompatActivity() {
                         val receivedMessage = gson.fromJson(payload, ChatMessage::class.java)
 
                         if (receivedMessage.senderId == senderId) {
-                            // 로컬 메시지와 매칭
-                            val matchEntry = tempMessageMap.entries.firstOrNull { it.value.content == receivedMessage.content }
+                            val matchEntry = tempMessageMap.entries.firstOrNull {
+                                it.value.content == receivedMessage.content ||
+                                        (!it.value.imageUrl.isNullOrBlank() && it.value.imageUrl == receivedMessage.imageUrl)
+                            }
                             if (matchEntry != null) {
                                 val index = chatMessages.indexOf(matchEntry.value)
                                 if (index != -1) {
                                     chatMessages[index] = receivedMessage
-                                    chatAdapter.notifyItemChanged(index)
                                     tempMessageMap.remove(matchEntry.key)
                                     Log.d("CHAT_WS", "✅ 로컬 에코 교체 완료")
                                 }
                             } else {
                                 chatMessages.add(receivedMessage)
-                                chatAdapter.notifyItemInserted(chatMessages.size - 1)
-                                recyclerChat.scrollToPosition(chatMessages.size - 1)
                                 Log.d("CHAT_WS", "로컬 메시지 미발견, 새로 추가")
                             }
                         } else {
                             chatMessages.add(receivedMessage)
-                            chatAdapter.notifyItemInserted(chatMessages.size - 1)
-                            recyclerChat.scrollToPosition(chatMessages.size - 1)
                             Log.d("STOMP_WS_UPDATE", "실시간 메시지 추가: Sender ${receivedMessage.senderId}")
                         }
+
+                        chatAdapter.submitMessages(chatMessages)
+                        recyclerChat.scrollToPosition(chatAdapter.itemCount - 1)
                     } catch (e: Exception) {
                         Log.e("STOMP_MSG", "ChatMessage JSON 파싱 오류", e)
                     }
@@ -232,17 +256,25 @@ class ChatRoomActivity : AppCompatActivity() {
     private fun sendMessage(content: String, imageUri: Uri? = null) {
         lifecycleScope.launch {
             val finalImageUri = imageUri ?: selectedImageUri
-            val base64Image = if (finalImageUri != null) {
-                withContext(Dispatchers.IO) { convertUriToBase64(finalImageUri, 40) }
-            } else null
+            val trimmedContent = content.trim()
 
-            if (content.isEmpty() && base64Image.isNullOrEmpty()) return@launch
+            var uploadedImageUrl: String? = null
+            if (finalImageUri != null) {
+                uploadedImageUrl = uploadImageForChat(finalImageUri)
+                if (uploadedImageUrl.isNullOrEmpty()) {
+                    Toast.makeText(this@ChatRoomActivity, "이미지 업로드에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+            }
 
-            val escapedContent = content.replace("\"", "\\\"")
-            val payloadJson = if (base64Image.isNullOrEmpty()) {
-                "{\"senderId\":$senderId,\"content\":\"$escapedContent\"}"
-            } else {
-                "{\"senderId\":$senderId,\"content\":\"$escapedContent\",\"base64Image\":\"$base64Image\"}"
+            if (trimmedContent.isEmpty() && uploadedImageUrl.isNullOrEmpty()) return@launch
+
+            val escapedContent = trimmedContent.replace("\"", "\\\"")
+            val payloadJson = buildString {
+                append("{\"senderId\":$senderId")
+                if (escapedContent.isNotEmpty()) append(",\"content\":\"$escapedContent\"")
+                if (!uploadedImageUrl.isNullOrEmpty()) append(",\"imageUrl\":\"$uploadedImageUrl\"")
+                append("}")
             }
 
             val messageFrame = "SEND\n" +
@@ -251,39 +283,39 @@ class ChatRoomActivity : AppCompatActivity() {
                     "\n$payloadJson\u0000"
 
             webSocket.send(messageFrame)
-            Log.d("STOMP_SEND", "📤 메시지 전송 완료. 텍스트 길이: ${content.length}, 이미지 존재: ${base64Image != null}")
+            Log.d("STOMP_SEND", "📤 메시지 전송 완료. 텍스트 길이: ${trimmedContent.length}, 이미지 존재: ${uploadedImageUrl != null}")
 
             val tempMessage = ChatMessage(
                 id = nextTempId--,
                 roomId = roomId,
                 senderId = senderId,
-                content = content,
-                imageUrl = base64Image,
+                content = trimmedContent.ifEmpty { null },
+                imageUrl = uploadedImageUrl,
                 sentAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
             )
 
             chatMessages.add(tempMessage)
             tempMessageMap[tempMessage.id] = tempMessage
-            chatAdapter.notifyItemInserted(chatMessages.size - 1)
-            recyclerChat.scrollToPosition(chatMessages.size - 1)
+            chatAdapter.submitMessages(chatMessages)
+            recyclerChat.scrollToPosition(chatAdapter.itemCount - 1)
             selectedImageUri = null
         }
     }
 
-    private fun convertUriToBase64(uri: Uri, quality: Int): String? {
-        return try {
-            val inputStream: InputStream? = contentResolver.openInputStream(uri)
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            inputStream?.close()
-            if (bitmap != null) {
-                val outputStream = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-                val bytes = outputStream.toByteArray()
-                outputStream.close()
-                Base64.encodeToString(bytes, Base64.NO_WRAP)
-            } else null
+    private suspend fun uploadImageForChat(uri: Uri): String? = withContext(Dispatchers.IO) {
+        try {
+            val part: MultipartBody.Part = ImageUtil.uriToMultipart(this@ChatRoomActivity, uri, "image")
+                ?: return@withContext null
+            val response = RetrofitClient.getApiService().uploadChatImage(roomId, part).execute()
+            if (!response.isSuccessful) return@withContext null
+
+            val rawData = response.body()?.data ?: return@withContext null
+            return@withContext when (rawData) {
+                is String -> rawData
+                else -> Gson().toJson(rawData).trim('"')
+            }
         } catch (e: Exception) {
-            Log.e("BASE64_CONV", "URI to Base64 failed for $uri", e)
+            Log.e("CHAT_IMAGE_UPLOAD", "이미지 업로드 실패", e)
             null
         }
     }
