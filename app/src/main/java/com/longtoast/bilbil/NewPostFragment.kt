@@ -21,14 +21,12 @@ import com.google.gson.Gson
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import android.util.Base64
+import com.longtoast.bilbil.util.ImageUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.InputStream
-import android.graphics.Bitmap // 💡 Bitmap Import
-import android.graphics.BitmapFactory // 💡 BitmapFactory Import
-import java.io.ByteArrayOutputStream // 💡 ByteArrayOutputStream Import
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 
 // 🚨 클래스 정의를 하나로 통합합니다.
 class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
@@ -207,7 +205,7 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
 
 
     /**
-     * ✅ [핵심 수정] Base64 변환 로직을 백그라운드에서 처리하여 DTO 전송
+     * ✅ [핵심 수정] 이미지 URI를 Multipart 파트로 변환하여 DTO와 함께 전송
      */
     private fun submitPost() {
         // 1. 데이터 수집 및 검증 (기존 로직 유지)
@@ -238,22 +236,19 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
 
         lifecycleScope.launch {
 
-            val base64List = withContext(Dispatchers.IO) {
-                // 💡 [핵심] 모든 URI를 순회하며 Base64 문자열로 변환 (I/O 작업)
+            val imageParts = withContext(Dispatchers.IO) {
                 selectedImageUris.mapNotNull { uri ->
-                    // 🚨 [수정] 압축 로직을 추가한 변환 함수 호출
-                    convertUriToBase64(uri, 50)
+                    ImageUtil.uriToMultipart(requireContext(), uri, "images")
                 }
             }
 
-            // Base64 변환 중 오류가 발생했거나 리스트가 비어있으면 UI 복구
-            if (base64List.isEmpty()) {
+            if (imageParts.isEmpty()) {
                 Toast.makeText(requireContext(), "이미지 변환에 실패했습니다. (지원되지 않는 형식)", Toast.LENGTH_LONG).show()
                 binding.completeButton.isEnabled = true
                 return@launch
             }
 
-            // 2. 데이터 변환 및 DTO 생성 (Base64 리스트 사용)
+            // 2. 데이터 변환 및 DTO 생성
             val price = rentalPriceString.toIntOrNull() ?: 0
             val deposit: Int? = depositText.toIntOrNull()
 
@@ -268,12 +263,14 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
                 category = category,
                 status = productStatus,
                 deposit = deposit,
-                imageUrls = base64List, // 💡 Base64 리스트 전송
                 address = selectedAddress!!
             )
 
+            val productJson = Gson().toJson(request)
+            val productRequestBody = productJson.toRequestBody("application/json; charset=utf-8".toMediaType())
+
             // 4. Retrofit 서버 통신 실행
-            RetrofitClient.getApiService().createProduct(request)
+            RetrofitClient.getApiService().createProduct(productRequestBody, imageParts)
                 .enqueue(object : Callback<MsgEntity> {
                     override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                         binding.completeButton.isEnabled = true
@@ -293,34 +290,6 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
                         Toast.makeText(requireContext(), "서버 연결 오류 발생", Toast.LENGTH_LONG).show()
                     }
                 })
-        }
-    }
-
-    /**
-     * 💡 [추가] URI를 Base64 문자열로 변환하는 유틸리티 함수 (압축 로직 포함)
-     * @param quality 압축 품질 (0-100)
-     */
-    private fun convertUriToBase64(uri: Uri, quality: Int): String? {
-        return try {
-            val inputStream: InputStream? = requireContext().contentResolver.openInputStream(uri)
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            inputStream?.close()
-
-            if (bitmap != null) {
-                val outputStream = ByteArrayOutputStream()
-
-                // 🚨 [핵심] JPEG 형식으로 압축 (Quality 0~100)
-                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-                val compressedBytes = outputStream.toByteArray()
-                outputStream.close()
-
-                // Base64 인코딩 시 줄바꿈(NO_WRAP) 없이 처리
-                return Base64.encodeToString(compressedBytes, Base64.NO_WRAP)
-            }
-            null
-        } catch (e: Exception) {
-            Log.e("BASE64_CONV", "URI to Base64 failed for $uri", e)
-            null
         }
     }
 

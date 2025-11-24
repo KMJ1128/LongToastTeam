@@ -39,21 +39,6 @@ class MessageFragment : Fragment() {
         subscribeToChatListUpdate()
     }
 
-    /**
-     * 일정 주기로 채팅방 목록을 새로고침하는 Runnable
-     * - Fragment가 화면에 없거나 View가 없는 상태이면 아무것도 하지 않음
-     */
-    private val listRefreshRunnable = object : Runnable {
-        override fun run() {
-            if (!isAdded || _binding == null) {
-                // Fragment가 더 이상 유효하지 않으면 주기 갱신 중단
-                return
-            }
-            fetchChatRoomLists(showRefreshing = false)
-            handler.postDelayed(this, 10_000)
-        }
-    }
-
     private val WEBSOCKET_URL = ServerConfig.WEBSOCKET_URL
     private var webSocket: WebSocket? = null // 💡 [통합] master의 선언 방식 유지
 
@@ -99,14 +84,12 @@ class MessageFragment : Fragment() {
         if (_binding != null) {
             fetchChatRoomLists()
             connectWebSocket()
-            handler.postDelayed(listRefreshRunnable, 10_000)
         }
     }
 
     override fun onPause() {
         super.onPause()
         disconnectWebSocket() // 💡 [통합] master의 함수 호출 유지
-        handler.removeCallbacks(listRefreshRunnable)
         handler.removeCallbacks(subscribeRunnable) // 💡 [통합] 구독 Runnable 제거 추가
         handler.removeCallbacksAndMessages(null) // 💡 [통합] 모든 콜백 제거 추가
     }
