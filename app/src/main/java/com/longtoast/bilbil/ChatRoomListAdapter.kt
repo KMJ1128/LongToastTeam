@@ -53,7 +53,6 @@ class ChatRoomListAdapter(
             if (primaryImage.isNullOrBlank()) {
                 thumbnail.setImageResource(R.drawable.no_profile)
             } else {
-                // "/uploads/..." → 절대 URL 변환
                 val fullUrl = if (primaryImage.startsWith("/")) {
                     BASE_URL + primaryImage
                 } else {

@@ -32,7 +32,7 @@ class ProductAdapter(
             if (url.isNullOrBlank()) {
                 binding.imageItemThumbnail.setImageResource(R.drawable.ic_default_category)
             } else {
-                // "/uploads/..." → 절대 URL로 변환
+                // "/uploads/..." → BASE_URL + url
                 val fullUrl = if (url.startsWith("/")) {
                     BASE_URL + url
                 } else {

@@ -29,9 +29,7 @@ class ChatAdapter(
     private val displayFormat = SimpleDateFormat("a h:mm", Locale.getDefault())
     private val headerFormat = SimpleDateFormat("yyyy년 M월 d일", Locale.getDefault())
 
-    // ============================================================
-    // 날짜 헤더 + 메시지 구조 (외부 노출 안 함)
-    // ============================================================
+    // 날짜 헤더 + 메시지 구조
     internal sealed class ChatItem {
         data class DateHeader(val label: String) : ChatItem()
         data class Message(val data: ChatMessage) : ChatItem()
@@ -64,9 +62,7 @@ class ChatAdapter(
         }
     }
 
-    // ============================================================
     // ViewHolders
-    // ============================================================
 
     inner class DateViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val dateText: TextView = view.findViewById(R.id.text_date_header)
@@ -130,16 +126,13 @@ class ChatAdapter(
         }
     }
 
-    // ============================================================
-    // Recycler Adapter Override
-    // ============================================================
+    // Adapter override
 
     override fun getItemViewType(position: Int): Int {
         return when (val item = items[position]) {
             is ChatItem.DateHeader -> VIEW_TYPE_DATE
             is ChatItem.Message -> {
-                val sender = item.data.senderId
-                if (sender == currentUserIdInt) VIEW_TYPE_SENT else VIEW_TYPE_RECEIVED
+                if (item.data.senderId == currentUserIdInt) VIEW_TYPE_SENT else VIEW_TYPE_RECEIVED
             }
         }
     }
@@ -147,56 +140,34 @@ class ChatAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
-            VIEW_TYPE_DATE -> {
-                val view = inflater.inflate(R.layout.item_chat_date_header, parent, false)
-                DateViewHolder(view)
-            }
-            VIEW_TYPE_SENT -> {
-                val view = inflater.inflate(R.layout.item_chat_message_sent, parent, false)
-                SentMessageViewHolder(view)
-            }
-            else -> {
-                val view = inflater.inflate(R.layout.item_chat_message_received, parent, false)
-                ReceivedMessageViewHolder(view)
-            }
+            VIEW_TYPE_DATE -> DateViewHolder(inflater.inflate(R.layout.item_chat_date_header, parent, false))
+            VIEW_TYPE_SENT -> SentMessageViewHolder(inflater.inflate(R.layout.item_chat_message_sent, parent, false))
+            else -> ReceivedMessageViewHolder(inflater.inflate(R.layout.item_chat_message_received, parent, false))
         }
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = items[position]) {
             is ChatItem.DateHeader -> (holder as DateViewHolder).bind(item.label)
-            is ChatItem.Message -> {
-                when (holder.itemViewType) {
-                    VIEW_TYPE_SENT -> (holder as SentMessageViewHolder).bind(item.data)
-                    VIEW_TYPE_RECEIVED -> (holder as ReceivedMessageViewHolder).bind(item.data)
-                }
+            is ChatItem.Message -> when (holder.itemViewType) {
+                VIEW_TYPE_SENT -> (holder as SentMessageViewHolder).bind(item.data)
+                VIEW_TYPE_RECEIVED -> (holder as ReceivedMessageViewHolder).bind(item.data)
             }
         }
     }
 
     override fun getItemCount(): Int = items.size
 
-    // ============================================================
     // 날짜/시간 포맷
-    // ============================================================
-
     private fun formatTime(isoTimeString: String?): String {
         return try {
-            if (isoTimeString.isNullOrEmpty()) return ""
-            val date = serverFormat.parse(isoTimeString) ?: return ""
-            displayFormat.format(date)
-        } catch (e: Exception) {
-            ""
-        }
+            if (isoTimeString.isNullOrEmpty()) "") else displayFormat.format(serverFormat.parse(isoTimeString)!!)
+        } catch (_: Exception) { "" }
     }
 
     private fun formatDateHeader(isoTimeString: String?): String? {
         return try {
-            if (isoTimeString.isNullOrEmpty()) return null
-            val date = serverFormat.parse(isoTimeString) ?: return null
-            headerFormat.format(date)
-        } catch (e: Exception) {
-            null
-        }
+            if (isoTimeString.isNullOrEmpty()) null else headerFormat.format(serverFormat.parse(isoTimeString)!!)
+        } catch (_: Exception) { null }
     }
 }
