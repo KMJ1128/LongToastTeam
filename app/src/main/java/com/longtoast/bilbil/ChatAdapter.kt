@@ -1,4 +1,3 @@
-// com.longtoast.bilbil.ChatAdapter.kt
 package com.longtoast.bilbil
 
 import android.view.LayoutInflater
@@ -10,8 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.longtoast.bilbil.dto.ChatMessage
 import com.longtoast.bilbil.util.RemoteImageLoader
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.*
 import android.util.Log
 
 class ChatAdapter(
@@ -31,6 +29,9 @@ class ChatAdapter(
     private val displayFormat = SimpleDateFormat("a h:mm", Locale.getDefault())
     private val headerFormat = SimpleDateFormat("yyyy년 M월 d일", Locale.getDefault())
 
+    // ============================================================
+    // 날짜 헤더 + 메시지를 하나의 리스트로 관리하는 ChatItem 구조
+    // ============================================================
     private sealed class ChatItem {
         data class DateHeader(val label: String) : ChatItem()
         data class Message(val data: ChatMessage) : ChatItem()
@@ -52,6 +53,7 @@ class ChatAdapter(
     private fun rebuildItems() {
         items.clear()
         var lastDateLabel: String? = null
+
         messages.forEach { msg ->
             val dateLabel = formatDateHeader(msg.sentAt)
             if (dateLabel != null && dateLabel != lastDateLabel) {
@@ -61,6 +63,10 @@ class ChatAdapter(
             items.add(ChatItem.Message(msg))
         }
     }
+
+    // ============================================================
+    // ViewHolders
+    // ============================================================
 
     inner class DateViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val dateText: TextView = view.findViewById(R.id.text_date_header)
@@ -75,15 +81,15 @@ class ChatAdapter(
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_sent)
 
         fun bind(message: ChatMessage) {
-            imageAttachment?.let {
-                if (message.imageUrl.isNullOrBlank()) {
-                    it.visibility = View.GONE
-                } else {
-                    it.visibility = View.VISIBLE
-                    RemoteImageLoader.load(it, message.imageUrl, R.drawable.bg_image_placeholder)
-                }
+            // 이미지 첨부
+            if (message.imageUrl.isNullOrBlank()) {
+                imageAttachment?.visibility = View.GONE
+            } else {
+                imageAttachment?.visibility = View.VISIBLE
+                RemoteImageLoader.load(imageAttachment!!, message.imageUrl, R.drawable.bg_image_placeholder)
             }
 
+            // 텍스트
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
                 messageText.visibility = View.VISIBLE
@@ -103,15 +109,15 @@ class ChatAdapter(
         private val profileImage: ImageView? = view.findViewById(R.id.image_profile_received)
 
         fun bind(message: ChatMessage) {
-            imageAttachment?.let {
-                if (message.imageUrl.isNullOrBlank()) {
-                    it.visibility = View.GONE
-                } else {
-                    it.visibility = View.VISIBLE
-                    RemoteImageLoader.load(it, message.imageUrl, R.drawable.bg_image_placeholder)
-                }
+            // 이미지 첨부
+            if (message.imageUrl.isNullOrBlank()) {
+                imageAttachment?.visibility = View.GONE
+            } else {
+                imageAttachment?.visibility = View.VISIBLE
+                RemoteImageLoader.load(imageAttachment!!, message.imageUrl, R.drawable.bg_image_placeholder)
             }
 
+            // 텍스트
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
                 messageText.visibility = View.VISIBLE
@@ -120,6 +126,8 @@ class ChatAdapter(
             }
 
             timestampText.text = formatTime(message.sentAt)
+
+            // 닉네임/프로필
             nicknameText.text = partnerNickname ?: "상대방(${message.senderId})"
             profileImage?.let {
                 RemoteImageLoader.load(it, partnerProfileImageUrl, R.drawable.no_profile)
@@ -127,12 +135,15 @@ class ChatAdapter(
         }
     }
 
+    // ============================================================
+    // RecyclerAdapter Override
+    // ============================================================
+
     override fun getItemViewType(position: Int): Int {
         return when (val item = items[position]) {
             is ChatItem.DateHeader -> VIEW_TYPE_DATE
             is ChatItem.Message -> {
                 val sender = item.data.senderId
-                Log.d("CHAT_ADAPTER_VIEW", "Checking pos $position: MsgSenderID=$sender, CurrentID=$currentUserIdInt. IsSent=${sender == currentUserIdInt}")
                 if (sender == currentUserIdInt) VIEW_TYPE_SENT else VIEW_TYPE_RECEIVED
             }
         }
@@ -170,13 +181,16 @@ class ChatAdapter(
 
     override fun getItemCount(): Int = items.size
 
+    // ============================================================
+    // 날짜/시간 포맷
+    // ============================================================
+
     private fun formatTime(isoTimeString: String?): String {
         return try {
             if (isoTimeString.isNullOrEmpty()) return ""
             val date = serverFormat.parse(isoTimeString) ?: return ""
             displayFormat.format(date)
         } catch (e: Exception) {
-            Log.e("ChatAdapter", "시간 파싱 오류: $isoTimeString", e)
             ""
         }
     }
@@ -184,10 +198,9 @@ class ChatAdapter(
     private fun formatDateHeader(isoTimeString: String?): String? {
         return try {
             if (isoTimeString.isNullOrEmpty()) return null
-            val date: Date = serverFormat.parse(isoTimeString) ?: return null
+            val date = serverFormat.parse(isoTimeString) ?: return null
             headerFormat.format(date)
         } catch (e: Exception) {
-            Log.e("ChatAdapter", "날짜 파싱 오류: $isoTimeString", e)
             null
         }
     }
