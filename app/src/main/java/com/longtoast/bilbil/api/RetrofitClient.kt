@@ -15,8 +15,6 @@ object RetrofitClient {
     // 💡 [통합] ServerConfig에서 주소를 가져와 중앙 관리합니다.
 
     private const val BASE_URL = ServerConfig.HTTP_BASE_URL
-    //private const val BASE_URL = "http://192.168.45.105:8080/"
-    //private const val BASE_URL = "http://192.168.45.105:8080/"
 
     // ------------------------------------------------------------------
     // 🔐 1. Authorization 헤더 자동 추가 Interceptor

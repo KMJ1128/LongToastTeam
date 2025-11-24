@@ -1,9 +1,6 @@
 package com.longtoast.bilbil
 
-import android.graphics.BitmapFactory
-import android.util.Base64
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -18,6 +15,10 @@ class ProductAdapter(
     private val onItemClick: (Int) -> Unit
 ) : RecyclerView.Adapter<ProductAdapter.ViewHolder>() {
 
+    companion object {
+        private const val BASE_URL = "http://YOUR_SERVER_IP:PORT" // TODO: 민재 서버 주소로 변경
+    }
+
     inner class ViewHolder(val binding: ItemProductListBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
@@ -26,52 +27,27 @@ class ProductAdapter(
             binding.textItemLocation.text = product.address
             binding.textItemPrice.text = "₩ ${String.format("%,d", product.price)}"
 
-            val mainImageUrl = product.mainImageUrl
+            val url = product.mainImageUrl
 
-            when {
-                mainImageUrl.isNullOrBlank() -> {
-                    binding.imageItemThumbnail.setImageResource(R.drawable.ic_default_category)
+            if (url.isNullOrBlank()) {
+                binding.imageItemThumbnail.setImageResource(R.drawable.ic_default_category)
+            } else {
+                // "/uploads/..." → BASE_URL + url
+                val fullUrl = if (url.startsWith("/")) {
+                    BASE_URL + url
+                } else {
+                    url
                 }
 
-                mainImageUrl.startsWith("http", ignoreCase = true) -> {
-                    Glide.with(binding.root)
-                        .load(mainImageUrl)
-                        .apply(
-                            RequestOptions()
-                                .placeholder(R.drawable.ic_default_category)
-                                .error(R.drawable.ic_default_category)
-                                .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
-                        )
-                        .into(binding.imageItemThumbnail)
-                }
-
-                else -> {
-                    try {
-                        val cleanBase64 = mainImageUrl.substringAfterLast("base64,", mainImageUrl)
-                        val imageBytes = try {
-                            Base64.decode(cleanBase64, Base64.NO_WRAP)
-                        } catch (_: IllegalArgumentException) {
-                            Base64.decode(cleanBase64, Base64.DEFAULT)
-                        }
-
-                        val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                        if (bitmap != null) {
-                            Glide.with(binding.root)
-                                .load(bitmap)
-                                .apply(
-                                    RequestOptions()
-                                        .placeholder(R.drawable.ic_default_category)
-                                        .error(R.drawable.ic_default_category)
-                                        .diskCacheStrategy(DiskCacheStrategy.DATA)
-                                )
-                                .into(binding.imageItemThumbnail)
-                        } else {
-                            binding.imageItemThumbnail.setImageResource(R.drawable.ic_default_category)
-                        }
-                    } catch (_: Exception) {
-                        binding.imageItemThumbnail.setImageResource(R.drawable.ic_default_category)
-                    }
-                }
+                Glide.with(binding.root)
+                    .load(fullUrl)
+                    .apply(
+                        RequestOptions()
+                            .placeholder(R.drawable.ic_default_category)
+                            .error(R.drawable.ic_default_category)
+                            .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
+                    )
+                    .into(binding.imageItemThumbnail)
             }
 
             binding.root.setOnClickListener {

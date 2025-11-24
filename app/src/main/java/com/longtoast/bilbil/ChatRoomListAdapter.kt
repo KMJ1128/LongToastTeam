@@ -1,7 +1,5 @@
 package com.longtoast.bilbil
 
-import android.graphics.BitmapFactory
-import android.util.Base64
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -22,6 +20,10 @@ class ChatRoomListAdapter(
     private val onItemClicked: (ChatRoomListDTO) -> Unit
 ) : RecyclerView.Adapter<ChatRoomListAdapter.RoomViewHolder>() {
 
+    companion object {
+        private const val BASE_URL = "http://YOUR_SERVER_IP:PORT"   // <-- 민재 서버 주소로 교체
+    }
+
     inner class RoomViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val partnerName: TextView = view.findViewById(R.id.text_nickname)
         val lastMessage: TextView = view.findViewById(R.id.text_last_message)
@@ -31,7 +33,6 @@ class ChatRoomListAdapter(
         fun bind(room: ChatRoomListDTO) {
             partnerName.text = room.partnerNickname ?: "알 수 없음"
 
-            // 마지막 메시지 처리
             val lastContent = room.lastMessageContent
             val itemImage = room.itemMainImageUrl
             lastMessage.text = when {
@@ -40,47 +41,31 @@ class ChatRoomListAdapter(
                 else -> "(최근 메시지 없음)"
             }
 
-            when {
-                itemImage.isNullOrBlank() -> thumbnail.setImageResource(R.drawable.no_profile)
-                itemImage.startsWith("http", ignoreCase = true) -> {
-                    Glide.with(itemView.context)
-                        .load(itemImage)
-                        .apply(
-                            RequestOptions()
-                                .placeholder(R.drawable.no_profile)
-                                .error(R.drawable.no_profile)
-                                .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
-                        )
-                        .into(thumbnail)
+            // -------------------------------
+            // 🔥 이미지 URL 처리 (Multipart 버전)
+            // -------------------------------
+
+            val primaryImage = room.partnerProfileImageUrl ?: itemImage
+
+            if (primaryImage.isNullOrBlank()) {
+                thumbnail.setImageResource(R.drawable.no_profile)
+            } else {
+                // DB에는 "/uploads/..." 이런 값이 들어있음 → 절대 URL로 변환
+                val fullUrl = if (primaryImage.startsWith("/")) {
+                    BASE_URL + primaryImage
+                } else {
+                    primaryImage
                 }
 
-                else -> {
-                    try {
-                        val cleanBase64 = itemImage.substringAfterLast("base64,", itemImage)
-                        val imageBytes = try {
-                            Base64.decode(cleanBase64, Base64.NO_WRAP)
-                        } catch (_: IllegalArgumentException) {
-                            Base64.decode(cleanBase64, Base64.DEFAULT)
-                        }
-                        val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                        if (bitmap != null) {
-                            Glide.with(itemView.context)
-                                .load(bitmap)
-                                .apply(
-                                    RequestOptions()
-                                        .placeholder(R.drawable.no_profile)
-                                        .error(R.drawable.no_profile)
-                                        .diskCacheStrategy(DiskCacheStrategy.DATA)
-                                )
-                                .into(thumbnail)
-                        } else {
-                            thumbnail.setImageResource(R.drawable.no_profile)
-                        }
-                    } catch (e: Exception) {
-                        Log.e("GLIDE_DECODE", "프로필/아이템 이미지 디코드 실패", e)
-                        thumbnail.setImageResource(R.drawable.no_profile)
-                    }
-                }
+                Glide.with(itemView.context)
+                    .load(fullUrl)
+                    .apply(
+                        RequestOptions()
+                            .placeholder(R.drawable.no_profile)
+                            .error(R.drawable.no_profile)
+                            .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
+                    )
+                    .into(thumbnail)
             }
 
             // 시간 처리
