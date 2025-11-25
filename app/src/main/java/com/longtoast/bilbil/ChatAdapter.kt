@@ -1,4 +1,4 @@
-// com.longtoast.bilbil.ChatAdapter.kt (수정)
+// com.longtoast.bilbil.ChatAdapter.kt
 package com.longtoast.bilbil
 
 import android.view.LayoutInflater
@@ -25,22 +25,44 @@ class ChatAdapter(
     private val serverFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
     private val displayFormat = SimpleDateFormat("a h:mm", Locale.getDefault())
 
+    /**
+     * 서버에서 오는 imageUrl이 "/uploads/..." 같은 상대 경로이기 때문에
+     * 절대경로(도메인)와 합쳐서 Glide에 전달해준다.
+     */
+    private fun buildFullImageUrl(rawUrl: String?): String? {
+        if (rawUrl.isNullOrBlank()) return null
+
+        // 이미 http(s)로 시작하면 그대로 사용
+        if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+            return rawUrl
+        }
+
+        // 상대경로인 경우, ServerConfig.HTTP_BASE_URL 기준으로 붙여줌
+        val base = ServerConfig.HTTP_BASE_URL.removeSuffix("/")
+        return if (rawUrl.startsWith("/")) {
+            base + rawUrl
+        } else {
+            "$base/$rawUrl"
+        }
+    }
+
     private fun setImageViewFromUrl(imageView: ImageView?, imageUrl: String?) {
         if (imageView == null) return
 
-        if (imageUrl.isNullOrBlank()) {
+        val fullUrl = buildFullImageUrl(imageUrl)
+
+        if (fullUrl.isNullOrBlank()) {
             imageView.visibility = View.GONE
             return
         }
 
         imageView.visibility = View.VISIBLE
         Glide.with(imageView.context)
-            .load(imageUrl)
+            .load(fullUrl)
             .placeholder(R.drawable.bg_image_placeholder)
             .error(R.drawable.bg_image_placeholder)
             .into(imageView)
     }
-
 
     // 1. 보낸 메시지 ViewHolder
     inner class SentMessageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -87,13 +109,15 @@ class ChatAdapter(
     override fun getItemViewType(position: Int): Int {
         val message = messages[position]
 
-        // 🚨 [핵심 디버그 로그 추가]
-        Log.d("CHAT_ADAPTER_VIEW", "Checking pos $position: MsgSenderID=${message.senderId}, CurrentID=$currentUserId. IsSent=${message.senderId == currentUserId}")
+        Log.d(
+            "CHAT_ADAPTER_VIEW",
+            "Checking pos $position: MsgSenderID=${message.senderId}, CurrentID=$currentUserId. IsSent=${message.senderId == currentUserId}"
+        )
 
-        if (message.senderId == currentUserId) {
-            return VIEW_TYPE_SENT
+        return if (message.senderId == currentUserId) {
+            VIEW_TYPE_SENT
         } else {
-            return VIEW_TYPE_RECEIVED
+            VIEW_TYPE_RECEIVED
         }
     }
 
@@ -121,7 +145,13 @@ class ChatAdapter(
     private fun formatTime(isoTimeString: String?): String {
         return try {
             if (isoTimeString.isNullOrEmpty()) return ""
-            val date = serverFormat.parse(isoTimeString) ?: return "시간 오류"
+            // "2025-11-25T15:44:56.1356541" 같은 형식에서 초까지 자른 후 파싱
+            val normalized = if (isoTimeString.length >= 19) {
+                isoTimeString.substring(0, 19) // yyyy-MM-ddTHH:mm:ss
+            } else {
+                isoTimeString
+            }
+            val date = serverFormat.parse(normalized) ?: return "시간 오류"
             displayFormat.format(date)
         } catch (e: Exception) {
             Log.e("ChatAdapter", "시간 파싱 오류: $isoTimeString", e)

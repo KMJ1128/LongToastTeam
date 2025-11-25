@@ -1,37 +1,37 @@
+// com.longtoast.bilbil.ChatRoomActivity.kt
 package com.longtoast.bilbil
 
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.dto.ChatMessage
 import com.longtoast.bilbil.dto.MsgEntity
-import com.google.gson.Gson
-import okhttp3.WebSocket
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import retrofit2.Callback
 import retrofit2.Response
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-import androidx.activity.result.contract.ActivityResultContracts
-import android.net.Uri
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import com.longtoast.bilbil.ServerConfig
-import com.google.gson.reflect.TypeToken
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.toRequestBody
 
 class ChatRoomActivity : AppCompatActivity() {
 
@@ -45,22 +45,32 @@ class ChatRoomActivity : AppCompatActivity() {
     private var selectedImageUri: Uri? = null
 
     private val chatMessages = mutableListOf<ChatMessage>()
-    private val tempMessageMap = mutableMapOf<Long, ChatMessage>() // 🔑 로컬 메시지 매핑
+
+    /**
+     * 서버에서 에코로 돌려주는 메시지와 로컬 임시 메시지를 매칭하기 위한 맵.
+     * key: clientTempId (음수 임시 ID)
+     */
+    private val tempMessageMap = mutableMapOf<Long, ChatMessage>()
 
     private val WEBSOCKET_URL = ServerConfig.WEBSOCKET_URL
+
     private val roomId: Int by lazy {
-        intent.getIntExtra("ROOM_ID", intent.getStringExtra("ROOM_ID")?.toIntOrNull() ?: -1)
+        intent.getIntExtra("ROOM_ID", -1)
     }
 
     private val senderId: Int by lazy { AuthTokenManager.getUserId() ?: 1 }
 
-    private var nextTempId = -1L // 로컬 임시 ID 시작
+    /**
+     * 로컬에서만 사용하는 임시 메시지 ID (음수로 감소)
+     */
+    private var nextTempId = -1L
 
     private val pickImageLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
             selectedImageUri = it
+            // 현재 입력된 텍스트와 함께 이미지 메시지 전송
             sendMessage(editMessage.text.toString().trim(), it)
             editMessage.text.clear()
         }
@@ -204,23 +214,50 @@ class ChatRoomActivity : AppCompatActivity() {
                         val receivedMessage = gson.fromJson(payload, ChatMessage::class.java)
 
                         if (receivedMessage.senderId == senderId) {
-                            // 로컬 메시지와 매칭
-                            val matchEntry = tempMessageMap.entries.firstOrNull { it.value.content == receivedMessage.content }
-                            if (matchEntry != null) {
-                                val index = chatMessages.indexOf(matchEntry.value)
-                                if (index != -1) {
-                                    chatMessages[index] = receivedMessage
-                                    chatAdapter.notifyItemChanged(index)
-                                    tempMessageMap.remove(matchEntry.key)
-                                    Log.d("CHAT_WS", "✅ 로컬 에코 교체 완료")
+                            // 🔑 서버 에코 메시지 → 로컬 임시 메시지와 매칭
+                            val tempId = receivedMessage.clientTempId
+                            if (tempId != null) {
+                                val localMessage = tempMessageMap[tempId]
+                                if (localMessage != null) {
+                                    val index = chatMessages.indexOf(localMessage)
+                                    if (index != -1) {
+                                        chatMessages[index] = receivedMessage
+                                        chatAdapter.notifyItemChanged(index)
+                                        recyclerChat.scrollToPosition(index)
+                                        Log.d("CHAT_WS", "✅ clientTempId 기반 로컬 에코 교체 완료: tempId=$tempId")
+                                    }
+                                    tempMessageMap.remove(tempId)
+                                } else {
+                                    // 혹시 맵에서 못 찾으면 그냥 뒤에 추가
+                                    chatMessages.add(receivedMessage)
+                                    chatAdapter.notifyItemInserted(chatMessages.size - 1)
+                                    recyclerChat.scrollToPosition(chatMessages.size - 1)
+                                    Log.d("CHAT_WS", "로컬 tempId 매칭 실패, 새로 추가: tempId=$tempId")
                                 }
                             } else {
-                                chatMessages.add(receivedMessage)
-                                chatAdapter.notifyItemInserted(chatMessages.size - 1)
-                                recyclerChat.scrollToPosition(chatMessages.size - 1)
-                                Log.d("CHAT_WS", "로컬 메시지 미발견, 새로 추가")
+                                // 예전 메시지 형식 등 clientTempId가 없는 경우 fallback
+                                val matchEntry = tempMessageMap.entries.firstOrNull { (_, value) ->
+                                    value.content == receivedMessage.content &&
+                                            value.imageUrl == receivedMessage.imageUrl
+                                }
+                                if (matchEntry != null) {
+                                    val index = chatMessages.indexOf(matchEntry.value)
+                                    if (index != -1) {
+                                        chatMessages[index] = receivedMessage
+                                        chatAdapter.notifyItemChanged(index)
+                                        recyclerChat.scrollToPosition(index)
+                                        Log.d("CHAT_WS", "✅ content+imageUrl 기반 로컬 에코 교체 완료 (fallback)")
+                                    }
+                                    tempMessageMap.remove(matchEntry.key)
+                                } else {
+                                    chatMessages.add(receivedMessage)
+                                    chatAdapter.notifyItemInserted(chatMessages.size - 1)
+                                    recyclerChat.scrollToPosition(chatMessages.size - 1)
+                                    Log.d("CHAT_WS", "로컬 메시지 미발견, 새로 추가 (no clientTempId)")
+                                }
                             }
                         } else {
+                            // 상대방이 보낸 메시지
                             chatMessages.add(receivedMessage)
                             chatAdapter.notifyItemInserted(chatMessages.size - 1)
                             recyclerChat.scrollToPosition(chatMessages.size - 1)
@@ -256,10 +293,14 @@ class ChatRoomActivity : AppCompatActivity() {
 
             if (trimmedContent.isEmpty() && uploadedImageUrl.isNullOrBlank()) return@launch
 
+            // 🔑 로컬에서만 사용하는 임시 ID 생성
+            val tempId = nextTempId--
+
             val payload = mapOf(
                 "senderId" to senderId,
                 "content" to trimmedContent,
-                "imageUrl" to uploadedImageUrl
+                "imageUrl" to uploadedImageUrl,
+                "clientTempId" to tempId   // 서버에 같이 보내서 에코 매칭용으로 사용
             )
             val payloadJson = Gson().toJson(payload)
 
@@ -275,16 +316,18 @@ class ChatRoomActivity : AppCompatActivity() {
             )
 
             val tempMessage = ChatMessage(
-                id = nextTempId--,
+                id = tempId,  // 서버 ID 나오기 전이라 음수 임시 ID 사용
                 roomId = roomId,
                 senderId = senderId,
                 content = if (trimmedContent.isNotEmpty()) trimmedContent else null,
                 imageUrl = uploadedImageUrl,
-                sentAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
+                sentAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date()),
+                isRead = false,
+                clientTempId = tempId
             )
 
             chatMessages.add(tempMessage)
-            tempMessageMap[tempMessage.id] = tempMessage
+            tempMessageMap[tempId] = tempMessage
             chatAdapter.notifyItemInserted(chatMessages.size - 1)
             recyclerChat.scrollToPosition(chatMessages.size - 1)
             selectedImageUri = null
