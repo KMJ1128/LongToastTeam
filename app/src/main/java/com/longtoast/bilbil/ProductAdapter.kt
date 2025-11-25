@@ -1,7 +1,6 @@
 package com.longtoast.bilbil
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -21,8 +20,18 @@ class ProductAdapter(
             binding.textItemLocation.text = product.address
             binding.textItemPrice.text = "₩ ${String.format("%,d", product.price)}"
 
+            // ⭐ 이미지 URL 조립 (nullable-safe)
+            val raw = product.imageUrl ?: ""
+            val fullUrl = when {
+                raw.startsWith("/") ->
+                    ServerConfig.HTTP_BASE_URL.removeSuffix("/") + raw
+                raw.startsWith("http") ->
+                    raw
+                else -> null
+            }
+
             Glide.with(binding.root)
-                .load(product.mainImageUrl)
+                .load(fullUrl)
                 .placeholder(R.drawable.ic_default_category)
                 .into(binding.imageItemThumbnail)
 
@@ -52,3 +61,4 @@ class ProductAdapter(
         notifyDataSetChanged()
     }
 }
+

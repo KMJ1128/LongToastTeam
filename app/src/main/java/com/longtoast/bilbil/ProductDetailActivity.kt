@@ -127,13 +127,20 @@ class ProductDetailActivity : AppCompatActivity() {
         binding.textSellerAddress.text = product.address ?: "위치 미설정"
 
         // 2. 이미지 슬라이더
-        val images = product.imageUrls ?: emptyList()
-        if (images.isNotEmpty()) {
-            binding.viewPagerImages.adapter = DetailImageAdapter(images)
-            binding.textImageIndicator.text = "1 / ${images.size}"
-            binding.viewPagerImages.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+        val fixedImages = product.imageUrls?.map { img ->
+            if (img.startsWith("/")) {
+                ServerConfig.HTTP_BASE_URL.removeSuffix("/") + img
+            } else img
+        } ?: emptyList()
+
+        if (fixedImages.isNotEmpty()) {
+            binding.viewPagerImages.adapter = DetailImageAdapter(fixedImages)
+            binding.textImageIndicator.text = "1 / ${fixedImages.size}"
+
+            binding.viewPagerImages.registerOnPageChangeCallback(object :
+                ViewPager2.OnPageChangeCallback() {
                 override fun onPageSelected(position: Int) {
-                    binding.textImageIndicator.text = "${position + 1} / ${images.size}"
+                    binding.textImageIndicator.text = "${position + 1} / ${fixedImages.size}"
                 }
             })
         } else {

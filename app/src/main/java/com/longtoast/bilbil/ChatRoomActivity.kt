@@ -1,39 +1,37 @@
 package com.longtoast.bilbil
 
-import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.dto.ChatMessage
 import com.longtoast.bilbil.dto.MsgEntity
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-import okhttp3.WebSocket
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-import androidx.activity.result.contract.ActivityResultContracts
-import android.net.Uri
-import android.util.Base64
-import android.graphics.BitmapFactory
-import java.io.ByteArrayOutputStream
-import java.io.InputStream
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import com.longtoast.bilbil.ServerConfig
 
 class ChatRoomActivity : AppCompatActivity() {
 
@@ -56,6 +54,7 @@ class ChatRoomActivity : AppCompatActivity() {
 
     private var nextTempId = -1L // 로컬 임시 ID 시작
 
+    // 갤러리에서 이미지 선택
     private val pickImageLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -98,10 +97,13 @@ class ChatRoomActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * 1) 채팅방 입장 시 이전 채팅 내역 불러오기
+     */
     private fun fetchChatHistory() {
         RetrofitClient.getApiService().getChatHistory(roomId)
             .enqueue(object : Callback<MsgEntity> {
-                override fun onResponse(call: retrofit2.Call<MsgEntity>, response: Response<MsgEntity>) {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (response.isSuccessful && response.body()?.data != null) {
                         try {
                             val gson = Gson()
@@ -121,19 +123,29 @@ class ChatRoomActivity : AppCompatActivity() {
                             Log.e("CHAT_HISTORY", "채팅 내역 파싱 중 오류 발생", e)
                         }
                     } else {
-                        Log.e("CHAT_HISTORY", "내역 조회 실패: ${response.code()}. 메시지: ${response.errorBody()?.string()}")
+                        Log.e(
+                            "CHAT_HISTORY",
+                            "내역 조회 실패: ${response.code()}. 메시지: ${response.errorBody()?.string()}"
+                        )
                         if (response.code() == 401 || response.code() == 403) {
-                            Toast.makeText(this@ChatRoomActivity, "세션 만료: 로그인을 다시 해주세요.", Toast.LENGTH_LONG).show()
+                            Toast.makeText(
+                                this@ChatRoomActivity,
+                                "세션 만료: 로그인을 다시 해주세요.",
+                                Toast.LENGTH_LONG
+                            ).show()
                         }
                     }
                 }
 
-                override fun onFailure(call: retrofit2.Call<MsgEntity>, t: Throwable) {
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
                     Log.e("CHAT_HISTORY", "네트워크 오류", t)
                 }
             })
     }
 
+    /**
+     * 2) WebSocket(STOMP) 연결
+     */
     private fun connectWebSocket() {
         val token = AuthTokenManager.getToken()
         val client = OkHttpClient.Builder()
@@ -166,7 +178,11 @@ class ChatRoomActivity : AppCompatActivity() {
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
                 Log.e("STOMP_WS", "❌ WebSocket 오류: ${t.message}")
                 runOnUiThread {
-                    Toast.makeText(this@ChatRoomActivity, "서버 연결 실패: ${t.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@ChatRoomActivity,
+                        "서버 연결 실패: ${t.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
 
@@ -177,6 +193,9 @@ class ChatRoomActivity : AppCompatActivity() {
         })
     }
 
+    /**
+     * 3) STOMP 프레임 처리
+     */
     private fun handleStompFrame(frame: String) {
         when {
             frame.startsWith("CONNECTED") -> {
@@ -188,6 +207,7 @@ class ChatRoomActivity : AppCompatActivity() {
                 webSocket.send(subscribeFrame)
                 Log.d("STOMP_WS", "📡 채팅방 구독 완료")
             }
+
             frame.startsWith("MESSAGE") -> {
                 val parts = frame.split("\n\n")
                 if (parts.size > 1) {
@@ -198,8 +218,11 @@ class ChatRoomActivity : AppCompatActivity() {
                         val receivedMessage = gson.fromJson(payload, ChatMessage::class.java)
 
                         if (receivedMessage.senderId == senderId) {
-                            // 로컬 메시지와 매칭
-                            val matchEntry = tempMessageMap.entries.firstOrNull { it.value.content == receivedMessage.content }
+                            // 🔁 로컬에서 먼저 추가한 메시지와 매칭 (텍스트+이미지 둘 다 비교)
+                            val matchEntry = tempMessageMap.entries.firstOrNull {
+                                it.value.content == receivedMessage.content &&
+                                        it.value.imageUrl == receivedMessage.imageUrl
+                            }
                             if (matchEntry != null) {
                                 val index = chatMessages.indexOf(matchEntry.value)
                                 if (index != -1) {
@@ -215,6 +238,7 @@ class ChatRoomActivity : AppCompatActivity() {
                                 Log.d("CHAT_WS", "로컬 메시지 미발견, 새로 추가")
                             }
                         } else {
+                            // 상대방 메시지
                             chatMessages.add(receivedMessage)
                             chatAdapter.notifyItemInserted(chatMessages.size - 1)
                             recyclerChat.scrollToPosition(chatMessages.size - 1)
@@ -225,24 +249,49 @@ class ChatRoomActivity : AppCompatActivity() {
                     }
                 }
             }
+
             else -> Log.d("STOMP_WS", "ℹ️ 기타 프레임: $frame")
         }
     }
 
+    /**
+     * 4) 메시지 전송
+     *   - 이미지가 있다면: 먼저 REST로 업로드 → imageUrl 반환받고 → WebSocket으로 imageUrl 전송
+     *   - 텍스트만 있다면: 바로 WebSocket으로 content만 전송
+     */
     private fun sendMessage(content: String, imageUri: Uri? = null) {
         lifecycleScope.launch {
             val finalImageUri = imageUri ?: selectedImageUri
-            val base64Image = if (finalImageUri != null) {
-                withContext(Dispatchers.IO) { convertUriToBase64(finalImageUri, 40) }
-            } else null
+            var imageUrl: String? = null
 
-            if (content.isEmpty() && base64Image.isNullOrEmpty()) return@launch
+            // 4-1. 이미지가 있으면 먼저 업로드
+            if (finalImageUri != null) {
+                imageUrl = uploadChatImage(finalImageUri)
+                if (imageUrl == null) {
+                    Toast.makeText(
+                        this@ChatRoomActivity,
+                        "이미지 업로드에 실패했습니다.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
 
+            // 4-2. 텍스트도 없고 이미지 URL도 없으면 전송 안 함
+            if (content.isEmpty() && imageUrl.isNullOrEmpty()) {
+                return@launch
+            }
+
+            // 4-3. WebSocket으로 보낼 JSON payload 구성
             val escapedContent = content.replace("\"", "\\\"")
-            val payloadJson = if (base64Image.isNullOrEmpty()) {
-                "{\"senderId\":$senderId,\"content\":\"$escapedContent\"}"
-            } else {
-                "{\"senderId\":$senderId,\"content\":\"$escapedContent\",\"base64Image\":\"$base64Image\"}"
+            val payloadJson = buildString {
+                append("{\"senderId\":$senderId")
+                if (escapedContent.isNotEmpty()) {
+                    append(",\"content\":\"$escapedContent\"")
+                }
+                if (!imageUrl.isNullOrEmpty()) {
+                    append(",\"imageUrl\":\"$imageUrl\"")
+                }
+                append("}")
             }
 
             val messageFrame = "SEND\n" +
@@ -251,14 +300,18 @@ class ChatRoomActivity : AppCompatActivity() {
                     "\n$payloadJson\u0000"
 
             webSocket.send(messageFrame)
-            Log.d("STOMP_SEND", "📤 메시지 전송 완료. 텍스트 길이: ${content.length}, 이미지 존재: ${base64Image != null}")
+            Log.d(
+                "STOMP_SEND",
+                "📤 메시지 전송 완료. 텍스트 길이: ${content.length}, 이미지 URL 존재: ${!imageUrl.isNullOrEmpty()}"
+            )
 
+            // 4-4. 화면에 일단 먼저 표시 (임시 ID로 추가 후, 서버 에코 시 교체)
             val tempMessage = ChatMessage(
                 id = nextTempId--,
                 roomId = roomId,
                 senderId = senderId,
-                content = content,
-                imageUrl = base64Image,
+                content = if (content.isNotEmpty()) content else null,
+                imageUrl = imageUrl,
                 sentAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
             )
 
@@ -266,25 +319,54 @@ class ChatRoomActivity : AppCompatActivity() {
             tempMessageMap[tempMessage.id] = tempMessage
             chatAdapter.notifyItemInserted(chatMessages.size - 1)
             recyclerChat.scrollToPosition(chatMessages.size - 1)
+
+            // 선택된 이미지 초기화
             selectedImageUri = null
         }
     }
 
-    private fun convertUriToBase64(uri: Uri, quality: Int): String? {
-        return try {
-            val inputStream: InputStream? = contentResolver.openInputStream(uri)
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            inputStream?.close()
-            if (bitmap != null) {
-                val outputStream = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-                val bytes = outputStream.toByteArray()
-                outputStream.close()
-                Base64.encodeToString(bytes, Base64.NO_WRAP)
-            } else null
+    /**
+     * 5) 이미지 업로드 REST 호출
+     *   - POST /api/chat/room/{roomId}/image
+     *   - Multipart: image
+     *   - 응답 data.imageUrl 반환
+     */
+    private suspend fun uploadChatImage(uri: Uri): String? = withContext(Dispatchers.IO) {
+        try {
+            val inputStream = contentResolver.openInputStream(uri) ?: return@withContext null
+            val bytes = inputStream.readBytes()
+            inputStream.close()
+
+            val requestBody =
+                RequestBody.create("image/jpeg".toMediaTypeOrNull(), bytes)
+
+            val part = MultipartBody.Part.createFormData(
+                name = "image",
+                filename = "chat_${System.currentTimeMillis()}.jpg",
+                body = requestBody
+            )
+
+            // 여기서 오류가 났었음 → ApiService 에 정의되어 있어야 함!
+            val call = RetrofitClient.getApiService().uploadChatImage(roomId, part)
+            val response = call.execute()
+
+            if (!response.isSuccessful || response.body() == null) {
+                Log.e("CHAT_UPLOAD_IMG", "서버 응답 실패: ${response.code()}")
+                return@withContext null
+            }
+
+            val body = response.body()!!
+
+            // MsgEntity.data 가 Map<String, Any> 형태일 때의 정석 파싱
+            val data = body.data as? Map<*, *>
+            val imageUrl = data?.get("imageUrl") as? String
+
+            Log.d("CHAT_UPLOAD_IMG", "업로드 결과 URL: $imageUrl")
+            return@withContext imageUrl
+
         } catch (e: Exception) {
-            Log.e("BASE64_CONV", "URI to Base64 failed for $uri", e)
-            null
+            Log.e("CHAT_UPLOAD_IMG", "이미지 업로드 오류", e)
+            return@withContext null
         }
     }
 

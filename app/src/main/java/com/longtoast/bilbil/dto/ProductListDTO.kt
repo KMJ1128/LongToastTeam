@@ -11,6 +11,9 @@ data class ProductListDTO(
     val address: String?,
     val status: String,
 
-    @SerializedName("main_image_url")
-    val mainImageUrl: String?
+    @SerializedName("imageUrl")
+    val imageUrl: String?,        // 서버 필드명과 동일
+
+    @SerializedName("imageUrls")
+    val imageUrls: List<String>?  // 상세/여러 장 이미지도 받을 수 있도록 추가
 )

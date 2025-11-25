@@ -9,12 +9,16 @@ import com.longtoast.bilbil.dto.NaverTokenRequest
 import com.longtoast.bilbil.dto.MemberDTO
 import com.longtoast.bilbil.dto.ReviewCreateRequest
 import com.longtoast.bilbil.dto.ProductCreateRequest
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.POST
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.PUT
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -39,9 +43,11 @@ interface ApiService {
         @Query("sort") sort: String? = null
     ): Call<MsgEntity>
 
+    @Multipart
     @POST("writeproduct/create")
     fun createProduct(
-        @Body request: ProductCreateRequest
+        @Part("product") productJson: RequestBody,
+        @Part images: List<MultipartBody.Part>
     ): Call<MsgEntity>
 
     // 🔥 [수정됨] 백엔드: @GetMapping("/{itemId}") -> /products/{itemId} 라고 가정
@@ -69,6 +75,13 @@ interface ApiService {
 
     @GET("/api/chat/history/{roomId}")
     fun getChatHistory(@Path("roomId") roomId: String): Call<MsgEntity>
+
+    @Multipart
+    @POST("/api/chat/room/{roomId}/image")
+    fun uploadChatImage(
+        @Path("roomId") roomId: String,
+        @Part image: MultipartBody.Part
+    ): Call<MsgEntity>
 
     // 🔥 프로필 업데이트 API (단 하나만)
     @PUT("/member/profile")
