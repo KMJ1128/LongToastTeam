@@ -8,6 +8,7 @@ import com.longtoast.bilbil.dto.ProductDTO
 import java.text.DecimalFormat
 import com.bumptech.glide.Glide
 import com.longtoast.bilbil.R
+import com.longtoast.bilbil.util.ImageUrlUtils
 
 class CartAdapter(
     private val items: MutableList<ProductDTO>,
@@ -21,8 +22,8 @@ class CartAdapter(
             binding.textCartTitle.text = product.title
             binding.textCartPrice.text = "${numberFormat.format(product.price)}원"
 
-            val images = product.imageUrls
-            if (!images.isNullOrEmpty()) {
+            val images = ImageUrlUtils.buildFullUrls(product.imageUrls)
+            if (images.isNotEmpty()) {
                 Glide.with(binding.imageCartItem.context)
                     .load(images[0])
                     .placeholder(R.drawable.ic_default_category)
