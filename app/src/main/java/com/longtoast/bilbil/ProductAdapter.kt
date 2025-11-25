@@ -21,12 +21,13 @@ class ProductAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(product: ProductListDTO) {
+
             binding.textItemTitle.text = product.title
             binding.textItemLocation.text = product.address
             binding.textItemPrice.text = "₩ ${String.format("%,d", product.price)}"
 
             // ------------------------------
-            // 이미지 처리 (RemoteImageLoader 통일)
+            // 🔥 이미지 처리 (정상버전)
             // ------------------------------
             val url = product.mainImageUrl
 

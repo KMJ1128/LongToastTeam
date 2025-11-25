@@ -1,5 +1,6 @@
 package com.longtoast.bilbil
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,11 +11,10 @@ import com.longtoast.bilbil.dto.ChatMessage
 import com.longtoast.bilbil.util.RemoteImageLoader
 import java.text.SimpleDateFormat
 import java.util.*
-import android.util.Log
 
 class ChatAdapter(
     private val messages: MutableList<ChatMessage>,
-    private val currentUserId: Int,                // ← Int 로 사용
+    private val currentUserId: Int,                     // ← 최종: Int 로 통일
     private val partnerNickname: String?,
     private val partnerProfileImageUrl: String?
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -23,11 +23,14 @@ class ChatAdapter(
     private val VIEW_TYPE_SENT = 1
     private val VIEW_TYPE_RECEIVED = 2
 
-    private val serverFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-    private val displayFormat = SimpleDateFormat("a h:mm", Locale.getDefault())
-    private val headerFormat = SimpleDateFormat("yyyy년 M월 d일", Locale.getDefault())
+    private val serverFormat =
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+    private val displayFormat =
+        SimpleDateFormat("a h:mm", Locale.getDefault())
+    private val headerFormat =
+        SimpleDateFormat("yyyy년 M월 d일", Locale.getDefault())
 
-    // 날짜 헤더 + 메시지 구조
+    // 날짜 + 메시지 구조
     internal sealed class ChatItem {
         data class DateHeader(val label: String) : ChatItem()
         data class Message(val data: ChatMessage) : ChatItem()
@@ -75,7 +78,6 @@ class ChatAdapter(
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_sent)
 
         fun bind(msg: ChatMessage) {
-
             // 이미지
             if (msg.imageUrl.isNullOrBlank()) {
                 imageAttachment?.visibility = View.GONE
@@ -135,7 +137,8 @@ class ChatAdapter(
         return when (val item = items[position]) {
             is ChatItem.DateHeader -> VIEW_TYPE_DATE
             is ChatItem.Message ->
-                if (item.data.senderId == currentUserId) VIEW_TYPE_SENT else VIEW_TYPE_RECEIVED
+                if (item.data.senderId == currentUserId) VIEW_TYPE_SENT
+                else VIEW_TYPE_RECEIVED
         }
     }
 
@@ -146,17 +149,23 @@ class ChatAdapter(
         return when (viewType) {
             VIEW_TYPE_DATE ->
                 DateViewHolder(inflater.inflate(R.layout.item_chat_date_header, parent, false))
+
             VIEW_TYPE_SENT ->
                 SentMessageViewHolder(inflater.inflate(R.layout.item_chat_message_sent, parent, false))
+
             else ->
-                ReceivedMessageViewHolder(inflater.inflate(R.layout.item_chat_message_received, parent, false))
+                ReceivedMessageViewHolder(
+                    inflater.inflate(R.layout.item_chat_message_received, parent, false)
+                )
         }
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = items[position]) {
+
             is ChatItem.DateHeader ->
                 (holder as DateViewHolder).bind(item.label)
+
             is ChatItem.Message ->
                 if (holder.itemViewType == VIEW_TYPE_SENT)
                     (holder as SentMessageViewHolder).bind(item.data)
@@ -165,7 +174,7 @@ class ChatAdapter(
         }
     }
 
-    // 날짜/시간 파싱
+    // 시간 포맷
     private fun formatTime(raw: String?): String {
         return try {
             val cleaned = raw?.substringBefore(".") ?: return ""
@@ -176,6 +185,7 @@ class ChatAdapter(
         }
     }
 
+    // 날짜 헤더 포맷
     private fun formatDateHeader(raw: String?): String? {
         return try {
             val cleaned = raw?.substringBefore(".") ?: return null

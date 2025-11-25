@@ -23,6 +23,7 @@ class ChatRoomListAdapter(
     }
 
     inner class RoomViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+
         private val partnerName: TextView = view.findViewById(R.id.text_nickname)
         private val lastMessage: TextView = view.findViewById(R.id.text_last_message)
         private val thumbnail: ImageView = view.findViewById(R.id.image_profile)
@@ -31,14 +32,10 @@ class ChatRoomListAdapter(
 
         fun bind(room: ChatRoomListDTO) {
 
-            // -------------------------------
             // ① 닉네임
-            // -------------------------------
             partnerName.text = room.partnerNickname ?: "알 수 없음"
 
-            // -------------------------------
             // ② 최근 메시지
-            // -------------------------------
             val lastContent = room.lastMessageContent
             val itemImage = room.itemMainImageUrl
 
@@ -48,25 +45,21 @@ class ChatRoomListAdapter(
                 else -> "(최근 메시지 없음)"
             }
 
-            // -------------------------------
-            // ③ 이미지 (프로필 없으면 상품 이미지)
-            // -------------------------------
+            // ③ 이미지 (프로필 > 상품순)
             val primaryImage = room.partnerProfileImageUrl ?: itemImage
 
             if (primaryImage.isNullOrBlank()) {
                 thumbnail.setImageResource(R.drawable.no_profile)
             } else {
-                val fullUrl = if (primaryImage.startsWith("/")) {
+                val fullUrl = if (primaryImage.startsWith("/"))
                     BASE_URL + primaryImage
-                } else {
+                else
                     primaryImage
-                }
+
                 RemoteImageLoader.load(thumbnail, fullUrl, R.drawable.no_profile)
             }
 
-            // -------------------------------
-            // ④ 안읽은 개수
-            // -------------------------------
+            // ④ 안 읽은 메시지 개수
             val unread = room.unreadCount ?: 0
             if (unread > 0) {
                 unreadBadge.visibility = View.VISIBLE
@@ -75,9 +68,7 @@ class ChatRoomListAdapter(
                 unreadBadge.visibility = View.GONE
             }
 
-            // -------------------------------
-            // ⑤ 날짜
-            // -------------------------------
+            // ⑤ 시간 표시
             timeText.text = room.lastMessageTime?.let {
                 try {
                     val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
@@ -90,9 +81,7 @@ class ChatRoomListAdapter(
                 }
             } ?: ""
 
-            // -------------------------------
             // ⑥ 클릭 이벤트
-            // -------------------------------
             itemView.setOnClickListener { onItemClicked(room) }
         }
     }
