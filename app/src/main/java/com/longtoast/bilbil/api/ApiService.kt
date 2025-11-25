@@ -74,7 +74,7 @@ interface ApiService {
     fun getMyChatRooms(): Call<MsgEntity>
 
     @GET("/api/chat/history/{roomId}")
-    fun getChatHistory(@Path("roomId") roomId: String): Call<MsgEntity>
+    fun getChatHistory(@Path("roomId") roomId: Int): Call<MsgEntity>
 
     /**
     ✅ [핵심 추가] 프로필 업데이트 API (MemberController의 PUT /member/profile과 일치)*/@PUT("member/profile")

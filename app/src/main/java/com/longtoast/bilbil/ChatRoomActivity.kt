@@ -33,17 +33,28 @@ class ChatRoomActivity : AppCompatActivity() {
     private lateinit var chatAdapter: ChatAdapter
 
     private val chatMessages = mutableListOf<ChatMessage>()
+    private val gson = Gson()
 
-    private val WEBSOCKET_URL = "wss://unpaneled-jennette-phonily.ngrok-free.dev/stomp/chat" // 고객님 URL 유지
-    private val roomId by lazy { intent.getStringExtra("ROOM_ID") ?: "1" }
+    private val WEBSOCKET_URL = "ws://192.168.45.105:8080/stomp/chat" // 백엔드 WebSocket 엔드포인트와 동일한 주소 사용
+    private val roomId: Int by lazy { intent.getStringExtra("ROOM_ID")?.toIntOrNull() ?: 1 }
+    private val roomIdString: String
+        get() = roomId.toString()
 
-    private val senderId: String by lazy {
-        val actualId = AuthTokenManager.getUserId()?.toString()
+    private val senderId: Int by lazy {
+        val actualId = AuthTokenManager.getUserId()
         if (actualId == null) {
-            Log.e("CHAT_AUTH_CRITICAL", "❌ 현재 사용자 ID 로드 실패! '1' 사용.")
+            Log.e("CHAT_AUTH_CRITICAL", "❌ 현재 사용자 ID 로드 실패! 1 사용.")
         }
-        actualId ?: "1" // DB에 존재하는 유효한 사용자 ID (String)
+        actualId ?: 1 // DB에 존재하는 유효한 사용자 ID
     }
+    private val senderIdString: String
+        get() = senderId.toString()
+
+    private data class OutgoingMessage(
+        val senderId: Int,
+        val content: String?,
+        val imageUrl: String? = null
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,7 +64,7 @@ class ChatRoomActivity : AppCompatActivity() {
         editMessage = findViewById(R.id.edit_text_message)
         buttonSend = findViewById(R.id.button_send)
 
-        chatAdapter = ChatAdapter(chatMessages, senderId)
+        chatAdapter = ChatAdapter(chatMessages, senderIdString)
         recyclerChat.adapter = chatAdapter
         recyclerChat.layoutManager = LinearLayoutManager(this)
 
@@ -75,7 +86,6 @@ class ChatRoomActivity : AppCompatActivity() {
                 override fun onResponse(call: retrofit2.Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (response.isSuccessful && response.body()?.data != null) {
                         try {
-                            val gson = Gson()
                             val listType = object : TypeToken<List<ChatMessage>>() {}.type
                             val historyList: List<ChatMessage> = gson.fromJson(gson.toJson(response.body()?.data), listType)
 
@@ -116,10 +126,16 @@ class ChatRoomActivity : AppCompatActivity() {
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
                 Log.d("STOMP_WS", "✅ WebSocket 연결 성공")
+                val headers = StringBuilder()
+                    .append("accept-version:1.2\n")
+                    .append("heart-beat:10000,10000\n")
+
+                if (token != null) {
+                    headers.append("Authorization:Bearer $token\n")
+                }
+
                 val connectFrame = "CONNECT\n" +
-                        "accept-version:1.2\n" +
-                        "heart-beat:10000,10000\n" +
-                        "Authorization:Bearer $token\n" +
+                        headers.toString() +
                         "\n" +
                         "\u0000"
                 webSocket.send(connectFrame)
@@ -154,11 +170,11 @@ class ChatRoomActivity : AppCompatActivity() {
 
                 val subscribeFrame = "SUBSCRIBE\n" +
                         "id:sub-0\n" +
-                        "destination:/topic/signal/$roomId\n" +
+                        "destination:/topic/signal/$roomIdString\n" +
                         "\n" +
                         "\u0000"
                 webSocket.send(subscribeFrame)
-                Log.d("STOMP_WS", "📡 채팅방 구독 완료: /topic/signal/$roomId")
+                Log.d("STOMP_WS", "📡 채팅방 구독 완료: /topic/signal/$roomIdString")
             }
 
             frame.startsWith("MESSAGE") -> {
@@ -168,11 +184,10 @@ class ChatRoomActivity : AppCompatActivity() {
                     Log.d("STOMP_MSG", "💬 서버 메시지 본문: $payload")
 
                     try {
-                        val gson = Gson()
                         val message = gson.fromJson(payload, ChatMessage::class.java)
 
                         // 🔑 [핵심 수정 1] 내가 보낸 메시지인지 확인 (중복 방지)
-                        if (message.senderId.toString() == senderId) {
+                        if (message.senderId == senderId) {
                             // 내가 보낸 메시지라면, 로컬 에코를 사용했으므로 이 브로드캐스트는 무시합니다.
                             Log.d("STOMP_WS", "🚫 내 메시지 브로드캐스트 수신, 로컬 에코로 인해 무시됨.")
                             return
@@ -198,24 +213,24 @@ class ChatRoomActivity : AppCompatActivity() {
      * 메시지 전송 (STOMP SEND)
      */
     private fun sendMessage(content: String) {
-        val escapedContent = content.replace("\"", "\\\"")
+        val outgoingPayload = gson.toJson(OutgoingMessage(senderId = senderId, content = content))
 
         // 1. STOMP 프레임 전송
         val messageFrame = "SEND\n" +
-                "destination:/app/signal/$roomId\n" +
+                "destination:/app/signal/$roomIdString\n" +
                 "content-type:application/json\n" +
                 "\n" +
-                "{\"senderId\":\"$senderId\",\"content\":\"$escapedContent\"}" +
+                "$outgoingPayload" +
                 "\u0000"
 
         webSocket.send(messageFrame)
-        Log.d("STOMP_SEND", "📤 메시지 전송 완료 → /app/signal/$roomId: $content")
+        Log.d("STOMP_SEND", "📤 메시지 전송 완료 → /app/signal/$roomIdString: $content")
 
         // 2. 🔑 로컬 에코 복원 (메시지 전송 시 즉시 화면에 표시) - 이 부분이 중복 해결의 기반
         val tempMessage = ChatMessage(
             id = System.currentTimeMillis(),
             roomId = roomId,
-            senderId = senderId.toIntOrNull() ?: 0,
+            senderId = senderId,
             content = content,
             imageUrl = null,
             sentAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
