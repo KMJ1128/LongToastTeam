@@ -7,15 +7,13 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.longtoast.bilbil.dto.ProductDTO
-import android.graphics.BitmapFactory
-import android.util.Base64
-import android.util.Log
 import android.widget.Button
+import com.bumptech.glide.Glide
 
 class MyItemsAdapter(
     private val productList: List<ProductDTO>,
     private val onItemClicked: (ProductDTO) -> Unit,
-    private val onReviewClicked: ((ProductDTO) -> Unit)? = null   // ✅ 추가
+    private val onReviewClicked: ((ProductDTO) -> Unit)? = null
 ) : RecyclerView.Adapter<MyItemsAdapter.ItemViewHolder>() {
 
     inner class ItemViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -29,18 +27,13 @@ class MyItemsAdapter(
 
         fun bind(product: ProductDTO) {
 
-            // 제목
             title.text = product.title
 
-            // 가격 표시
-            val priceDisplay = "₩ ${String.format("%,d", product.price ?: 0)}"
-            val unit = if (product.description?.contains("(가격 단위:") == true) {
-                product.description.substringAfter("(가격 단위:").substringBefore(")")
-            } else "일"
+            // 가격
+            val priceDisplay = "₩ ${String.format("%,d", product.price)} / 일"
+            price.text = priceDisplay
 
-            price.text = "$priceDisplay / $unit"
-
-            // 보증금 (주소에서 제거, 따로 표시)
+            // 보증금
             if ((product.deposit ?: 0) > 0) {
                 depositTxt.visibility = View.VISIBLE
                 depositTxt.text = "₩ ${String.format("%,d", product.deposit)} / 보증금"
@@ -48,34 +41,27 @@ class MyItemsAdapter(
                 depositTxt.visibility = View.GONE
             }
 
-            // 주소만 표시
+            // 주소
             location.text = product.address ?: "위치 미정"
 
-            // 이미지 처리(Base64)
-            val firstBase64Image = product.imageUrls?.firstOrNull()
-            if (!firstBase64Image.isNullOrEmpty()) {
-                val cleanBase64 = if (firstBase64Image.startsWith("data:"))
-                    firstBase64Image.substringAfterLast("base64,")
-                else firstBase64Image
+            // 🚨 이미지 URL 처리 (Base64 → URL 방식으로 변경)
+            val rawUrl = product.imageUrls?.firstOrNull()
+            val finalUrl = when {
+                rawUrl.isNullOrEmpty() -> null
 
-                try {
-                    var bytes = Base64.decode(cleanBase64, Base64.NO_WRAP)
-                    var bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                rawUrl.startsWith("/") ->
+                    ServerConfig.HTTP_BASE_URL.removeSuffix("/") + rawUrl
 
-                    if (bmp == null) {
-                        bytes = Base64.decode(cleanBase64, Base64.DEFAULT)
-                        bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                    }
+                rawUrl.startsWith("http") ->
+                    rawUrl
 
-                    if (bmp != null) thumbnail.setImageBitmap(bmp)
-                    else thumbnail.setImageResource(R.drawable.ic_default_category)
-
-                } catch (_: Exception) {
-                    thumbnail.setImageResource(R.drawable.ic_default_category)
-                }
-            } else {
-                thumbnail.setImageResource(R.drawable.ic_default_category)
+                else -> null
             }
+
+            Glide.with(thumbnail.context)
+                .load(finalUrl)
+                .placeholder(R.drawable.ic_default_category)
+                .into(thumbnail)
 
             // 상태 표시
             val isAvailable = product.status == "AVAILABLE"
@@ -88,11 +74,10 @@ class MyItemsAdapter(
 
             itemView.setOnClickListener { onItemClicked(product) }
 
+            // 리뷰 버튼
             if (product.transactionId != null) {
                 reviewButton.visibility = View.VISIBLE
-                reviewButton.setOnClickListener {
-                    onReviewClicked?.invoke(product)
-                }
+                reviewButton.setOnClickListener { onReviewClicked?.invoke(product) }
             } else {
                 reviewButton.visibility = View.GONE
                 reviewButton.setOnClickListener(null)
