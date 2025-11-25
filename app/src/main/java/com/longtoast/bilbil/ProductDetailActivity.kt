@@ -16,6 +16,7 @@ import com.longtoast.bilbil.databinding.ActivityProductDetailBinding
 import com.longtoast.bilbil.dto.ChatRoomCreateRequest
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ProductDTO
+import com.longtoast.bilbil.util.ImageUrlUtils
 import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
@@ -127,7 +128,7 @@ class ProductDetailActivity : AppCompatActivity() {
         binding.textSellerAddress.text = product.address ?: "위치 미설정"
 
         // 2. 이미지 슬라이더
-        val images = product.imageUrls ?: emptyList()
+        val images = ImageUrlUtils.buildFullUrls(product.imageUrls)
         if (images.isNotEmpty()) {
             binding.viewPagerImages.adapter = DetailImageAdapter(images)
             binding.textImageIndicator.text = "1 / ${images.size}"

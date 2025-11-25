@@ -8,6 +8,7 @@ import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.longtoast.bilbil.R
+import com.longtoast.bilbil.util.ImageUrlUtils
 
 class DetailImageAdapter(private val imageUrls: List<String>) :
     RecyclerView.Adapter<DetailImageAdapter.ImageViewHolder>() {
@@ -24,7 +25,7 @@ class DetailImageAdapter(private val imageUrls: List<String>) :
     }
 
     override fun onBindViewHolder(holder: ImageViewHolder, position: Int) {
-        val imageUrl = imageUrls[position]
+        val imageUrl = ImageUrlUtils.buildFullUrl(imageUrls[position])
 
         try {
             Glide.with(holder.imageView.context)

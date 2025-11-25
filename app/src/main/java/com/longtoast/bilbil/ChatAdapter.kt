@@ -13,6 +13,7 @@ import com.longtoast.bilbil.dto.ChatMessage
 import java.text.SimpleDateFormat
 import java.util.*
 import android.util.Log
+import com.longtoast.bilbil.util.ImageUrlUtils
 
 class ChatAdapter(
     private val messages: MutableList<ChatMessage>,
@@ -25,31 +26,10 @@ class ChatAdapter(
     private val serverFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
     private val displayFormat = SimpleDateFormat("a h:mm", Locale.getDefault())
 
-    /**
-     * 서버에서 오는 imageUrl이 "/uploads/..." 같은 상대 경로이기 때문에
-     * 절대경로(도메인)와 합쳐서 Glide에 전달해준다.
-     */
-    private fun buildFullImageUrl(rawUrl: String?): String? {
-        if (rawUrl.isNullOrBlank()) return null
-
-        // 이미 http(s)로 시작하면 그대로 사용
-        if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
-            return rawUrl
-        }
-
-        // 상대경로인 경우, ServerConfig.HTTP_BASE_URL 기준으로 붙여줌
-        val base = ServerConfig.HTTP_BASE_URL.removeSuffix("/")
-        return if (rawUrl.startsWith("/")) {
-            base + rawUrl
-        } else {
-            "$base/$rawUrl"
-        }
-    }
-
     private fun setImageViewFromUrl(imageView: ImageView?, imageUrl: String?) {
         if (imageView == null) return
 
-        val fullUrl = buildFullImageUrl(imageUrl)
+        val fullUrl = ImageUrlUtils.buildFullUrl(imageUrl)
 
         if (fullUrl.isNullOrBlank()) {
             imageView.visibility = View.GONE

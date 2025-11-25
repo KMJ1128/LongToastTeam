@@ -10,6 +10,7 @@ import com.longtoast.bilbil.dto.ProductDTO
 import android.widget.Button
 import com.bumptech.glide.Glide
 import com.longtoast.bilbil.R
+import com.longtoast.bilbil.util.ImageUrlUtils
 
 class MyItemsAdapter(
     private val productList: List<ProductDTO>,
@@ -50,7 +51,7 @@ class MyItemsAdapter(
             // 주소만 표시
             location.text = product.address ?: "위치 미정"
 
-            val firstImageUrl = product.imageUrls?.firstOrNull()
+            val firstImageUrl = ImageUrlUtils.buildFullUrl(product.imageUrls?.firstOrNull())
             if (!firstImageUrl.isNullOrEmpty()) {
                 Glide.with(thumbnail.context)
                     .load(firstImageUrl)

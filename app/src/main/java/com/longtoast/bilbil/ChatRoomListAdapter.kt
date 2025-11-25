@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.longtoast.bilbil.dto.ChatRoomListDTO
 import android.util.Log
+import com.longtoast.bilbil.util.ImageUrlUtils
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -28,7 +29,7 @@ class ChatRoomListAdapter(
 
             // 마지막 메시지 처리
             val lastContent = room.lastMessageContent
-            val itemImage = room.itemMainImageUrl
+            val itemImage = ImageUrlUtils.buildFullUrl(room.itemMainImageUrl)
             lastMessage.text = when {
                 !lastContent.isNullOrEmpty() -> lastContent
                 !itemImage.isNullOrEmpty() -> "[사진]"
