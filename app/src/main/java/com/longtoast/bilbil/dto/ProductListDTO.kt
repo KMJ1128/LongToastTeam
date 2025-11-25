@@ -11,6 +11,6 @@ data class ProductListDTO(
     val address: String?,
     val status: String,
 
-    @SerializedName("main_image_url")
+    @SerializedName("imageUrl")
     val mainImageUrl: String?
 )

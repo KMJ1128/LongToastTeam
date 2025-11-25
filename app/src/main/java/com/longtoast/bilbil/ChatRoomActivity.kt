@@ -50,14 +50,14 @@ class ChatRoomActivity : AppCompatActivity() {
     private var partnerProfileImageUrl: String? = null
 
     private val chatMessages = mutableListOf<ChatMessage>()
-    private val tempMessageMap = mutableMapOf<Long, ChatMessage>() // 🔑 로컬 메시지 매핑
+    private val tempMessageMap = mutableMapOf<Long, ChatMessage>() // 로컬 임시 메시지 캐시
 
     private val WEBSOCKET_URL = ServerConfig.WEBSOCKET_URL
     private val roomId by lazy { intent.getStringExtra("ROOM_ID") ?: "1" }
 
     private val senderId: Int by lazy { AuthTokenManager.getUserId() ?: 1 }
 
-    private var nextTempId = -1L // 로컬 임시 ID 시작
+    private var nextTempId = -1L
 
     private val pickImageLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
@@ -82,12 +82,13 @@ class ChatRoomActivity : AppCompatActivity() {
             ?: intent.getStringExtra("SELLER_NICKNAME")
         partnerProfileImageUrl = intent.getStringExtra("PARTNER_PROFILE")
 
-        chatAdapter = ChatAdapter(chatMessages, senderId.toString(), partnerNickname, partnerProfileImageUrl)
+        // 🔥 senderId → String X (Crash 원인)
+        chatAdapter = ChatAdapter(chatMessages, senderId, partnerNickname, partnerProfileImageUrl)
+
         recyclerChat.adapter = chatAdapter
         recyclerChat.layoutManager = LinearLayoutManager(this)
 
         setupToolbar()
-
         fetchChatHistory()
         connectWebSocket()
         setupListeners()
@@ -110,9 +111,9 @@ class ChatRoomActivity : AppCompatActivity() {
 
     private fun setupListeners() {
         buttonSend.setOnClickListener {
-            val messageText = editMessage.text.toString().trim()
-            if (messageText.isNotEmpty() || selectedImageUri != null) {
-                sendMessage(messageText, selectedImageUri)
+            val text = editMessage.text.toString().trim()
+            if (text.isNotEmpty() || selectedImageUri != null) {
+                sendMessage(text, selectedImageUri)
                 editMessage.text.clear()
             }
         }
@@ -126,29 +127,24 @@ class ChatRoomActivity : AppCompatActivity() {
         RetrofitClient.getApiService().getChatHistory(roomId)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: retrofit2.Call<MsgEntity>, response: Response<MsgEntity>) {
-                    if (response.isSuccessful && response.body()?.data != null) {
-                        try {
-                            val gson = Gson()
-                            val listType = object : TypeToken<List<ChatMessage>>() {}.type
-                            val historyList: List<ChatMessage> = gson.fromJson(
-                                gson.toJson(response.body()?.data),
-                                listType
-                            )
+                    if (!response.isSuccessful || response.body()?.data == null) {
+                        Log.e("CHAT_HISTORY", "❌ 실패 코드: ${response.code()}")
+                        return
+                    }
 
-                            chatMessages.addAll(historyList)
-                            chatAdapter.submitMessages(chatMessages)
-                            if (chatMessages.isNotEmpty()) {
-                                recyclerChat.scrollToPosition(chatAdapter.itemCount - 1)
-                            }
-                            Log.d("CHAT_HISTORY", "✅ 채팅 내역 ${historyList.size}개 로드 성공. Current User ID: $senderId")
-                        } catch (e: Exception) {
-                            Log.e("CHAT_HISTORY", "채팅 내역 파싱 중 오류 발생", e)
-                        }
-                    } else {
-                        Log.e("CHAT_HISTORY", "내역 조회 실패: ${response.code()}. 메시지: ${response.errorBody()?.string()}")
-                        if (response.code() == 401 || response.code() == 403) {
-                            Toast.makeText(this@ChatRoomActivity, "세션 만료: 로그인을 다시 해주세요.", Toast.LENGTH_LONG).show()
-                        }
+                    try {
+                        val listType = object : TypeToken<List<ChatMessage>>() {}.type
+                        val history: List<ChatMessage> =
+                            Gson().fromJson(Gson().toJson(response.body()!!.data), listType)
+
+                        chatMessages.clear()
+                        chatMessages.addAll(history)
+                        chatAdapter.submitMessages(chatMessages)
+
+                        recyclerChat.scrollToPosition(chatAdapter.itemCount - 1)
+
+                    } catch (e: Exception) {
+                        Log.e("CHAT_HISTORY", "파싱 오류", e)
                     }
                 }
 
@@ -160,115 +156,93 @@ class ChatRoomActivity : AppCompatActivity() {
 
     private fun connectWebSocket() {
         val token = AuthTokenManager.getToken()
+
         val client = OkHttpClient.Builder()
             .readTimeout(0, TimeUnit.MILLISECONDS)
             .build()
 
-        val requestBuilder = Request.Builder().url(WEBSOCKET_URL)
-        if (token != null) {
-            requestBuilder.addHeader("Authorization", "Bearer $token")
-        }
-
-        val request = requestBuilder.build()
-
-        webSocket = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
-                Log.d("STOMP_WS", "✅ WebSocket 연결 성공")
+        val request = Request.Builder()
+            .url(WEBSOCKET_URL)
+            .apply {
+                if (token != null) addHeader("Authorization", "Bearer $token")
             }
+            .build()
 
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                Log.d("STOMP_WS_RECV", "📩 수신: $text")
-                runOnUiThread { handleSockJsFrame(text) }
-            }
+        webSocket = client.newWebSocket(
+            request,
+            object : WebSocketListener() {
 
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
-                Log.e("STOMP_WS", "❌ WebSocket 오류: ${t.message}")
-                runOnUiThread {
-                    Toast.makeText(this@ChatRoomActivity, "서버 연결 실패: ${t.message}", Toast.LENGTH_SHORT).show()
+                override fun onOpen(ws: WebSocket, response: okhttp3.Response) {
+                    val connectFrame = "CONNECT\n" +
+                            "accept-version:1.2\n" +
+                            "heart-beat:10000,10000\n" +
+                            "Authorization:Bearer $token\n\n\u0000"
+
+                    ws.send(wrapSockJsFrame(connectFrame))
+                }
+
+                override fun onMessage(ws: WebSocket, raw: String) {
+                    runOnUiThread { handleSockJsFrame(raw) }
                 }
             }
+        )
+    }
 
-            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                Log.d("STOMP_WS", "연결 종료: $reason")
-                webSocket.close(1000, null)
-            }
-        })
+    private fun handleSockJsFrame(raw: String) {
+        if (raw == "o" || raw == "h") return
+
+        if (raw.startsWith("a[")) {
+            val frames: List<String> =
+                Gson().fromJson(raw.substring(1), object : TypeToken<List<String>>() {}.type)
+
+            frames.forEach { handleStompFrame(it) }
+            return
+        }
+
+        handleStompFrame(raw)
     }
 
     private fun handleStompFrame(frame: String) {
         when {
             frame.startsWith("CONNECTED") -> {
-                Log.d("STOMP_WS", "🟢 CONNECTED 수신")
-                val subscribeFrame = "SUBSCRIBE\n" +
-                        "id:sub-0\n" +
-                        "destination:/topic/signal/$roomId\n" +
-                        "\n\u0000"
-                webSocket.send(wrapSockJsFrame(subscribeFrame))
-                Log.d("STOMP_WS", "📡 채팅방 구독 완료")
+                webSocket.send(
+                    wrapSockJsFrame(
+                        "SUBSCRIBE\nid:sub-0\ndestination:/topic/signal/$roomId\n\n\u0000"
+                    )
+                )
             }
-            frame.startsWith("MESSAGE") -> {
-                val parts = frame.split("\n\n")
-                if (parts.size > 1) {
-                    val payload = parts[1].replace("\u0000", "")
-                    Log.d("STOMP_MSG", "💬 서버 메시지 본문: $payload")
-                    try {
-                        val gson = Gson()
-                        val receivedMessage = gson.fromJson(payload, ChatMessage::class.java)
 
-                        if (receivedMessage.senderId == senderId) {
-                            val matchEntry = tempMessageMap.entries.firstOrNull {
-                                it.value.content == receivedMessage.content ||
-                                        (!it.value.imageUrl.isNullOrBlank() && it.value.imageUrl == receivedMessage.imageUrl)
-                            }
-                            if (matchEntry != null) {
-                                val index = chatMessages.indexOf(matchEntry.value)
-                                if (index != -1) {
-                                    chatMessages[index] = receivedMessage
-                                    tempMessageMap.remove(matchEntry.key)
-                                    Log.d("CHAT_WS", "✅ 로컬 에코 교체 완료")
-                                }
-                            } else {
-                                chatMessages.add(receivedMessage)
-                                Log.d("CHAT_WS", "로컬 메시지 미발견, 새로 추가")
-                            }
-                        } else {
-                            chatMessages.add(receivedMessage)
-                            Log.d("STOMP_WS_UPDATE", "실시간 메시지 추가: Sender ${receivedMessage.senderId}")
+            frame.startsWith("MESSAGE") -> {
+                val payload = frame.substringAfter("\n\n").replace("\u0000", "")
+
+                try {
+                    val msg = Gson().fromJson(payload, ChatMessage::class.java)
+
+                    if (msg.senderId == senderId) {
+                        val match = tempMessageMap.entries.firstOrNull {
+                            it.value.content == msg.content ||
+                                    (!it.value.imageUrl.isNullOrBlank() && it.value.imageUrl == msg.imageUrl)
                         }
 
-                        chatAdapter.submitMessages(chatMessages)
-                        recyclerChat.scrollToPosition(chatAdapter.itemCount - 1)
-                    } catch (e: Exception) {
-                        Log.e("STOMP_MSG", "ChatMessage JSON 파싱 오류", e)
+                        if (match != null) {
+                            val idx = chatMessages.indexOf(match.value)
+                            if (idx != -1) chatMessages[idx] = msg
+                            tempMessageMap.remove(match.key)
+                        } else {
+                            chatMessages.add(msg)
+                        }
+                    } else {
+                        chatMessages.add(msg)
                     }
+
+                    chatAdapter.submitMessages(chatMessages)
+                    recyclerChat.scrollToPosition(chatAdapter.itemCount - 1)
+
+                } catch (e: Exception) {
+                    Log.e("STOMP", "JSON 오류", e)
                 }
             }
-            else -> Log.d("STOMP_WS", "ℹ️ 기타 프레임: $frame")
         }
-    }
-
-    /**
-     * SockJS는 STOMP 프레임을 JSON 배열로 감싸 전달한다. 수신/송신 모두 이를 맞춰 처리한다.
-     */
-    private fun handleSockJsFrame(raw: String) {
-        if (raw == "o") {
-            sendConnectFrame()
-            return
-        }
-
-        if (raw == "h") return // heartbeat 패킷
-
-        if (raw.startsWith("a[")) {
-            try {
-                val frames: List<String> = Gson().fromJson(raw.substring(1), object : TypeToken<List<String>>() {}.type)
-                frames.forEach { handleStompFrame(it) }
-            } catch (e: Exception) {
-                Log.e("STOMP_SOCKJS", "SockJS 배열 파싱 실패: $raw", e)
-            }
-            return
-        }
-
-        handleStompFrame(raw)
     }
 
     private fun wrapSockJsFrame(frame: String): String {
@@ -277,84 +251,76 @@ class ChatRoomActivity : AppCompatActivity() {
             .replace("\"", "\\\"")
             .replace("\n", "\\n")
             .replace("\u0000", "\\u0000")
-        return "[\"$escaped\"]"
-    }
 
-    private fun sendConnectFrame() {
-        val token = AuthTokenManager.getToken()
-        val connectFrame = "CONNECT\n" +
-                "accept-version:1.2\n" +
-                "heart-beat:10000,10000\n" +
-                (if (!token.isNullOrBlank()) "Authorization:Bearer $token\n" else "") +
-                "\n\u0000"
-        webSocket.send(wrapSockJsFrame(connectFrame))
-        Log.d("STOMP_WS", "🚀 CONNECT 프레임 전송")
+        return "[\"$escaped\"]"
     }
 
     private fun sendMessage(content: String, imageUri: Uri? = null) {
         lifecycleScope.launch {
-            val finalImageUri = imageUri ?: selectedImageUri
-            val trimmedContent = content.trim()
+            val finalUri = imageUri ?: selectedImageUri
+            var uploadedUrl: String? = null
 
-            var uploadedImageUrl: String? = null
-            if (finalImageUri != null) {
-                uploadedImageUrl = uploadImageForChat(finalImageUri)
-                if (uploadedImageUrl.isNullOrEmpty()) {
-                    Toast.makeText(this@ChatRoomActivity, "이미지 업로드에 실패했습니다.", Toast.LENGTH_SHORT).show()
+            if (finalUri != null) {
+                uploadedUrl = uploadImageForChat(finalUri)
+                if (uploadedUrl.isNullOrEmpty()) {
+                    Toast.makeText(this@ChatRoomActivity, "이미지 업로드 실패", Toast.LENGTH_SHORT).show()
                     return@launch
                 }
             }
 
-            if (trimmedContent.isEmpty() && uploadedImageUrl.isNullOrEmpty()) return@launch
+            val escaped = content.replace("\"", "\\\"")
 
-            val escapedContent = trimmedContent.replace("\"", "\\\"")
-            val payloadJson = buildString {
+            val json = buildString {
                 append("{\"senderId\":$senderId")
-                if (escapedContent.isNotEmpty()) append(",\"content\":\"$escapedContent\"")
-                if (!uploadedImageUrl.isNullOrEmpty()) append(",\"imageUrl\":\"$uploadedImageUrl\"")
+                if (escaped.isNotEmpty()) append(",\"content\":\"$escaped\"")
+                if (!uploadedUrl.isNullOrEmpty()) append(",\"imageUrl\":\"$uploadedUrl\"")
                 append("}")
             }
 
-            val messageFrame = "SEND\n" +
+            val frame = "SEND\n" +
                     "destination:/app/signal/$roomId\n" +
-                    "content-type:application/json\n" +
-                    "\n$payloadJson\u0000"
+                    "content-type:application/json\n\n" +
+                    json + "\u0000"
 
-            webSocket.send(wrapSockJsFrame(messageFrame))
-            Log.d("STOMP_SEND", "📤 메시지 전송 완료. 텍스트 길이: ${trimmedContent.length}, 이미지 존재: ${uploadedImageUrl != null}")
+            // 🔥 충돌 해결: SockJS 버전만 사용
+            webSocket.send(wrapSockJsFrame(frame))
 
-            val tempMessage = ChatMessage(
+            val temp = ChatMessage(
                 id = nextTempId--,
                 roomId = roomId,
                 senderId = senderId,
-                content = trimmedContent.ifEmpty { null },
-                imageUrl = uploadedImageUrl,
+                content = if (content.isNotEmpty()) content else null,
+                imageUrl = uploadedUrl,
                 sentAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
             )
 
-            chatMessages.add(tempMessage)
-            tempMessageMap[tempMessage.id] = tempMessage
+            chatMessages.add(temp)
+            tempMessageMap[temp.id] = temp
+
             chatAdapter.submitMessages(chatMessages)
             recyclerChat.scrollToPosition(chatAdapter.itemCount - 1)
+
             selectedImageUri = null
         }
     }
 
     private suspend fun uploadImageForChat(uri: Uri): String? = withContext(Dispatchers.IO) {
         try {
-            val part: MultipartBody.Part = ImageUtil.uriToMultipart(this@ChatRoomActivity, uri, "image")
+            val part = ImageUtil.uriToMultipart(this@ChatRoomActivity, uri, "image")
                 ?: return@withContext null
+
             val response = RetrofitClient.getApiService().uploadChatImage(roomId, part).execute()
             if (!response.isSuccessful) return@withContext null
 
-            val rawData = response.body()?.data ?: return@withContext null
-            return@withContext when (rawData) {
-                is String -> rawData
-                is Map<*, *> -> rawData["imageUrl"] as? String
-                else -> Gson().fromJson(Gson().toJson(rawData), Map::class.java)["imageUrl"] as? String
+            val raw = response.body()?.data ?: return@withContext null
+
+            return@withContext when (raw) {
+                is String -> raw
+                else -> Gson().toJson(raw).trim('"')
             }
+
         } catch (e: Exception) {
-            Log.e("CHAT_IMAGE_UPLOAD", "이미지 업로드 실패", e)
+            Log.e("UPLOAD", "오류", e)
             null
         }
     }
@@ -363,7 +329,6 @@ class ChatRoomActivity : AppCompatActivity() {
         super.onDestroy()
         if (::webSocket.isInitialized) {
             webSocket.close(1000, "Activity destroyed")
-            Log.d("STOMP_WS", "WebSocket 종료")
         }
     }
 }
