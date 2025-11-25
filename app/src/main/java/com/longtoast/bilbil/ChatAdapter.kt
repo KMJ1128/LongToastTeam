@@ -23,8 +23,12 @@ class ChatAdapter(
     private val VIEW_TYPE_SENT = 1
     private val VIEW_TYPE_RECEIVED = 2
 
-    private val serverFormat =
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+    private val serverFormats = listOf(
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()),
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()),
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()),
+        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+    )
     private val displayFormat =
         SimpleDateFormat("a h:mm", Locale.getDefault())
     private val headerFormat =
@@ -44,7 +48,11 @@ class ChatAdapter(
 
     fun submitMessages(newMessages: List<ChatMessage>) {
         messages.clear()
-        messages.addAll(newMessages)
+        messages.addAll(
+            newMessages
+                .filter { !it.content.isNullOrBlank() || !it.imageUrl.isNullOrBlank() }
+                .sortedWith(compareBy({ parseDate(it.sentAt) ?: Date(0) }, { it.id ?: Long.MIN_VALUE }))
+        )
         rebuildItems()
         notifyDataSetChanged()
     }
@@ -176,24 +184,27 @@ class ChatAdapter(
 
     // 시간 포맷
     private fun formatTime(raw: String?): String {
-        return try {
-            val cleaned = raw?.substringBefore(".") ?: return ""
-            displayFormat.format(serverFormat.parse(cleaned)!!)
-        } catch (e: Exception) {
-            Log.e("ChatAdapter", "시간 파싱 오류: $raw", e)
-            ""
-        }
+        return parseDate(raw)?.let { displayFormat.format(it) } ?: ""
     }
 
     // 날짜 헤더 포맷
     private fun formatDateHeader(raw: String?): String? {
-        return try {
-            val cleaned = raw?.substringBefore(".") ?: return null
-            headerFormat.format(serverFormat.parse(cleaned)!!)
-        } catch (e: Exception) {
-            Log.e("ChatAdapter", "날짜 파싱 오류: $raw", e)
-            null
+        return parseDate(raw)?.let { headerFormat.format(it) }
+    }
+
+    private fun parseDate(raw: String?): Date? {
+        if (raw.isNullOrBlank()) return null
+
+        val cleaned = raw.replace("/", "-").substringBeforeLast(".")
+
+        serverFormats.forEach { format ->
+            try {
+                return format.parse(cleaned)
+            } catch (_: Exception) {
+            }
         }
+
+        Log.w("ChatAdapter", "날짜 파싱 실패: $raw")
         return null
     }
 }

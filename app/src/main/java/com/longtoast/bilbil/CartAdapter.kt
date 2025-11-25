@@ -27,8 +27,14 @@ class CartAdapter(
 
             // 삭제 버튼 클릭 시
             binding.btnDeleteItem.setOnClickListener {
-                CartManager.removeItem(adapterPosition) // 매니저에서 삭제
-                notifyItemRemoved(adapterPosition) // 리스트 갱신
+                val currentPosition = bindingAdapterPosition
+                if (currentPosition == RecyclerView.NO_POSITION) return@setOnClickListener
+
+                // 내부 리스트와 매니저 데이터를 모두 제거하여 UI와 데이터의 일관성을 유지
+                CartManager.removeItem(currentPosition)
+                items.removeAt(currentPosition)
+                notifyItemRemoved(currentPosition)
+                notifyItemRangeChanged(currentPosition, itemCount - currentPosition)
                 onItemRemoved() // 액티비티에 알림 (총액 갱신용)
             }
         }

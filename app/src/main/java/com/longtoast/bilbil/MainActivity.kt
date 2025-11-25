@@ -56,7 +56,6 @@ class MainActivity : AppCompatActivity() {
         val keyHash = Utility.getKeyHash(this)
         Log.i("KeyHash", "keyHash = $keyHash")
 
-        AuthTokenManager.clearToken()
         val token = AuthTokenManager.getToken()
         if (token != null) {
             Log.i("APP_AUTH_STATE", "JWT 존재 → 홈 이동")
@@ -104,7 +103,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleKakaoLoginResult(token: OAuthToken?, error: Throwable?) {
         if (error != null) {
-            Toast.makeText(this, "카카오 로그인 실패", Toast.LENGTH_LONG).show()
+            val message = error.localizedMessage ?: "원인을 알 수 없음"
+            Log.e("KAKAO_LOGIN", "카카오 로그인 오류", error)
+            Toast.makeText(this, "카카오 로그인 실패: $message", Toast.LENGTH_LONG).show()
         } else if (token != null) {
             sendTokenToServer(token.accessToken)
         }
