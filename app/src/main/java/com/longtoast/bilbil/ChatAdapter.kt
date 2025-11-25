@@ -194,5 +194,6 @@ class ChatAdapter(
             Log.e("ChatAdapter", "날짜 파싱 오류: $raw", e)
             null
         }
+        return null
     }
 }
