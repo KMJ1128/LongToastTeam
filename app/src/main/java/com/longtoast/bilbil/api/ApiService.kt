@@ -3,18 +3,21 @@ package com.longtoast.bilbil.api
 import com.longtoast.bilbil.dto.ChatRoomCreateRequest
 import com.longtoast.bilbil.dto.KakaoTokenRequest
 import com.longtoast.bilbil.dto.LocationRequest
-import com.longtoast.bilbil.dto.MsgEntity
-import com.longtoast.bilbil.dto.ChatMessage
-import com.longtoast.bilbil.dto.NaverTokenRequest
 import com.longtoast.bilbil.dto.MemberDTO
-import com.longtoast.bilbil.dto.ReviewCreateRequest
+import com.longtoast.bilbil.dto.MsgEntity
+import com.longtoast.bilbil.dto.NaverTokenRequest
 import com.longtoast.bilbil.dto.ProductCreateRequest
+import com.longtoast.bilbil.dto.ReviewCreateRequest
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
-import retrofit2.http.POST
 import retrofit2.http.GET
+import retrofit2.http.Multipart
+import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -39,9 +42,11 @@ interface ApiService {
         @Query("sort") sort: String? = null
     ): Call<MsgEntity>
 
-    @POST("writeproduct/create")
+    @Multipart
+    @POST("/writeproduct/create")
     fun createProduct(
-        @Body request: ProductCreateRequest
+        @Part("product") product: RequestBody,
+        @Part images: List<MultipartBody.Part>
     ): Call<MsgEntity>
 
     // 🔥 [수정됨] 백엔드: @GetMapping("/{itemId}") -> /products/{itemId} 라고 가정
@@ -68,11 +73,22 @@ interface ApiService {
     fun getMyChatRooms(): Call<MsgEntity>
 
     @GET("/api/chat/history/{roomId}")
-    fun getChatHistory(@Path("roomId") roomId: String): Call<MsgEntity>
+    fun getChatHistory(@Path("roomId") roomId: Int): Call<MsgEntity>
+
+    @Multipart
+    @POST("/api/chat/room/{roomId}/image")
+    suspend fun uploadChatImage(
+        @Path("roomId") roomId: Int,
+        @Part image: MultipartBody.Part
+    ): Response<MsgEntity>
 
     // 🔥 프로필 업데이트 API (단 하나만)
+    @Multipart
     @PUT("/member/profile")
-    fun updateProfile(@Body memberDTO: MemberDTO): Call<MsgEntity>
+    fun updateProfile(
+        @Part("member") memberJson: RequestBody,
+        @Part profileImage: MultipartBody.Part?
+    ): Call<MsgEntity>
 
     @GET("/search/popular")
     fun getPopularSearches(): Call<MsgEntity>

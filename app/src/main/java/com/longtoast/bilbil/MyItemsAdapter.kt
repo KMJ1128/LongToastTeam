@@ -7,10 +7,9 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.longtoast.bilbil.dto.ProductDTO
-import android.graphics.BitmapFactory
-import android.util.Base64
-import android.util.Log
 import android.widget.Button
+import com.bumptech.glide.Glide
+import com.longtoast.bilbil.R
 
 class MyItemsAdapter(
     private val productList: List<ProductDTO>,
@@ -51,28 +50,13 @@ class MyItemsAdapter(
             // 주소만 표시
             location.text = product.address ?: "위치 미정"
 
-            // 이미지 처리(Base64)
-            val firstBase64Image = product.imageUrls?.firstOrNull()
-            if (!firstBase64Image.isNullOrEmpty()) {
-                val cleanBase64 = if (firstBase64Image.startsWith("data:"))
-                    firstBase64Image.substringAfterLast("base64,")
-                else firstBase64Image
-
-                try {
-                    var bytes = Base64.decode(cleanBase64, Base64.NO_WRAP)
-                    var bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-
-                    if (bmp == null) {
-                        bytes = Base64.decode(cleanBase64, Base64.DEFAULT)
-                        bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                    }
-
-                    if (bmp != null) thumbnail.setImageBitmap(bmp)
-                    else thumbnail.setImageResource(R.drawable.ic_default_category)
-
-                } catch (_: Exception) {
-                    thumbnail.setImageResource(R.drawable.ic_default_category)
-                }
+            val firstImageUrl = product.imageUrls?.firstOrNull()
+            if (!firstImageUrl.isNullOrEmpty()) {
+                Glide.with(thumbnail.context)
+                    .load(firstImageUrl)
+                    .placeholder(R.drawable.ic_default_category)
+                    .error(R.drawable.ic_default_category)
+                    .into(thumbnail)
             } else {
                 thumbnail.setImageResource(R.drawable.ic_default_category)
             }

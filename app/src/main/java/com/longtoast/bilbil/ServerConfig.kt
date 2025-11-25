@@ -11,13 +11,12 @@ object ServerConfig {
 
     /**
      * Spring STOMP WebSocket 엔드포인트.
-     * SockJS를 사용하지만 네이티브 WebSocket을 쓸 때는 `/websocket` 서픽스를 붙여야 연결됩니다.
+     * 서버 설정(WebSocketConfig.registerStompEndpoints)과 동일하게 `/stomp/chat`으로 연결합니다.
      */
     val WEBSOCKET_URL: String
         get() {
             val normalizedBase = HTTP_BASE_URL.removeSuffix("/")
 
-            // 💡 [통합] master 브랜치의 안전한 프로토콜 변환 로직 채택 (https -> wss, http -> ws)
             val wsBase = when {
                 normalizedBase.startsWith("https://") ->
                     normalizedBase.replaceFirst("https://", "wss://")
@@ -26,6 +25,6 @@ object ServerConfig {
                 else -> normalizedBase
             }
 
-            return "$wsBase/stomp/chat/websocket"
+            return "$wsBase/stomp/chat"
         }
 }

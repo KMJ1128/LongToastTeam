@@ -4,57 +4,41 @@ package com.longtoast.bilbil
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.longtoast.bilbil.R
 import com.longtoast.bilbil.dto.ChatMessage
 import java.text.SimpleDateFormat
 import java.util.*
 import android.util.Log
-import android.util.Base64
-import android.graphics.BitmapFactory
-import android.widget.ImageView
 
 class ChatAdapter(
     private val messages: MutableList<ChatMessage>,
-    private val currentUserId: String // 🔑 현재 사용자 ID (String)
+    private val currentUserId: Int
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val VIEW_TYPE_SENT = 1
     private val VIEW_TYPE_RECEIVED = 2
 
-    // 💡 [핵심 수정] String인 currentUserId를 Int로 안전하게 변환하여 비교에 사용
-    private val currentUserIdInt: Int? = currentUserId.toIntOrNull()
-
     private val serverFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
     private val displayFormat = SimpleDateFormat("a h:mm", Locale.getDefault())
 
-    // 💡 Base64 디코딩 및 이미지 설정을 위한 헬퍼 함수 (유지)
-    private fun setImageViewFromBase64(imageView: ImageView, base64Data: String?) {
-        if (base64Data.isNullOrEmpty()) {
+    private fun setImageViewFromUrl(imageView: ImageView?, imageUrl: String?) {
+        if (imageView == null) return
+
+        if (imageUrl.isNullOrBlank()) {
             imageView.visibility = View.GONE
             return
         }
 
-        val cleanBase64 = if (base64Data.startsWith("data:")) {
-            base64Data.substringAfterLast("base64,")
-        } else {
-            base64Data
-        }
-
-        try {
-            val imageBytes = Base64.decode(cleanBase64, Base64.NO_WRAP)
-            val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-
-            if (bitmap != null) {
-                imageView.setImageBitmap(bitmap)
-                imageView.visibility = View.VISIBLE
-            } else {
-                imageView.visibility = View.GONE
-            }
-        } catch (e: Exception) {
-            Log.e("ChatAdapter", "Base64 디코딩 실패", e)
-            imageView.visibility = View.GONE
-        }
+        imageView.visibility = View.VISIBLE
+        Glide.with(imageView.context)
+            .load(imageUrl)
+            .placeholder(R.drawable.bg_image_placeholder)
+            .error(R.drawable.bg_image_placeholder)
+            .into(imageView)
     }
 
 
@@ -65,7 +49,7 @@ class ChatAdapter(
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_sent)
 
         fun bind(message: ChatMessage) {
-            imageAttachment?.let { setImageViewFromBase64(it, message.imageUrl) }
+            setImageViewFromUrl(imageAttachment, message.imageUrl)
 
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
@@ -86,7 +70,7 @@ class ChatAdapter(
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_received)
 
         fun bind(message: ChatMessage) {
-            imageAttachment?.let { setImageViewFromBase64(it, message.imageUrl) }
+            setImageViewFromUrl(imageAttachment, message.imageUrl)
 
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
@@ -104,10 +88,9 @@ class ChatAdapter(
         val message = messages[position]
 
         // 🚨 [핵심 디버그 로그 추가]
-        Log.d("CHAT_ADAPTER_VIEW", "Checking pos $position: MsgSenderID=${message.senderId}, CurrentID=${currentUserIdInt}. IsSent=${message.senderId == currentUserIdInt}")
+        Log.d("CHAT_ADAPTER_VIEW", "Checking pos $position: MsgSenderID=${message.senderId}, CurrentID=$currentUserId. IsSent=${message.senderId == currentUserId}")
 
-        // Int 대 Int 비교
-        if (message.senderId == currentUserIdInt) {
+        if (message.senderId == currentUserId) {
             return VIEW_TYPE_SENT
         } else {
             return VIEW_TYPE_RECEIVED

@@ -1,6 +1,5 @@
 package com.longtoast.bilbil
 
-import android.graphics.Bitmap
 import android.os.Bundle
 import android.util.Log
 import android.widget.EditText
@@ -13,7 +12,6 @@ import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.dto.ChatMessage
 import com.longtoast.bilbil.dto.MsgEntity
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import okhttp3.WebSocket
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -25,15 +23,15 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
-import android.util.Base64
-import android.graphics.BitmapFactory
-import java.io.ByteArrayOutputStream
-import java.io.InputStream
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.longtoast.bilbil.ServerConfig
+import com.google.gson.reflect.TypeToken
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class ChatRoomActivity : AppCompatActivity() {
 
@@ -50,7 +48,9 @@ class ChatRoomActivity : AppCompatActivity() {
     private val tempMessageMap = mutableMapOf<Long, ChatMessage>() // 🔑 로컬 메시지 매핑
 
     private val WEBSOCKET_URL = ServerConfig.WEBSOCKET_URL
-    private val roomId by lazy { intent.getStringExtra("ROOM_ID") ?: "1" }
+    private val roomId: Int by lazy {
+        intent.getIntExtra("ROOM_ID", intent.getStringExtra("ROOM_ID")?.toIntOrNull() ?: -1)
+    }
 
     private val senderId: Int by lazy { AuthTokenManager.getUserId() ?: 1 }
 
@@ -70,12 +70,18 @@ class ChatRoomActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat_room)
 
+        if (roomId <= 0) {
+            Toast.makeText(this, "유효하지 않은 채팅방입니다.", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
         recyclerChat = findViewById(R.id.recycler_view_chat)
         editMessage = findViewById(R.id.edit_text_message)
         buttonSend = findViewById(R.id.button_send)
         buttonAttachImage = findViewById(R.id.button_attach_image)
 
-        chatAdapter = ChatAdapter(chatMessages, senderId.toString())
+        chatAdapter = ChatAdapter(chatMessages, senderId)
         recyclerChat.adapter = chatAdapter
         recyclerChat.layoutManager = LinearLayoutManager(this)
 
@@ -153,7 +159,7 @@ class ChatRoomActivity : AppCompatActivity() {
                 val connectFrame = "CONNECT\n" +
                         "accept-version:1.2\n" +
                         "heart-beat:10000,10000\n" +
-                        "Authorization:Bearer $token\n" +
+                        "Authorization: Bearer $token\n" +
                         "\n\u0000"
                 webSocket.send(connectFrame)
             }
@@ -231,19 +237,31 @@ class ChatRoomActivity : AppCompatActivity() {
 
     private fun sendMessage(content: String, imageUri: Uri? = null) {
         lifecycleScope.launch {
-            val finalImageUri = imageUri ?: selectedImageUri
-            val base64Image = if (finalImageUri != null) {
-                withContext(Dispatchers.IO) { convertUriToBase64(finalImageUri, 40) }
-            } else null
-
-            if (content.isEmpty() && base64Image.isNullOrEmpty()) return@launch
-
-            val escapedContent = content.replace("\"", "\\\"")
-            val payloadJson = if (base64Image.isNullOrEmpty()) {
-                "{\"senderId\":$senderId,\"content\":\"$escapedContent\"}"
-            } else {
-                "{\"senderId\":$senderId,\"content\":\"$escapedContent\",\"base64Image\":\"$base64Image\"}"
+            if (roomId <= 0) {
+                Toast.makeText(this@ChatRoomActivity, "유효하지 않은 채팅방입니다.", Toast.LENGTH_SHORT).show()
+                return@launch
             }
+
+            val trimmedContent = content.trim()
+            val targetImageUri = imageUri ?: selectedImageUri
+
+            var uploadedImageUrl: String? = null
+            if (targetImageUri != null) {
+                uploadedImageUrl = uploadImageForRoom(targetImageUri)
+                if (uploadedImageUrl == null) {
+                    Toast.makeText(this@ChatRoomActivity, "이미지 업로드에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+            }
+
+            if (trimmedContent.isEmpty() && uploadedImageUrl.isNullOrBlank()) return@launch
+
+            val payload = mapOf(
+                "senderId" to senderId,
+                "content" to trimmedContent,
+                "imageUrl" to uploadedImageUrl
+            )
+            val payloadJson = Gson().toJson(payload)
 
             val messageFrame = "SEND\n" +
                     "destination:/app/signal/$roomId\n" +
@@ -251,14 +269,17 @@ class ChatRoomActivity : AppCompatActivity() {
                     "\n$payloadJson\u0000"
 
             webSocket.send(messageFrame)
-            Log.d("STOMP_SEND", "📤 메시지 전송 완료. 텍스트 길이: ${content.length}, 이미지 존재: ${base64Image != null}")
+            Log.d(
+                "STOMP_SEND",
+                "📤 메시지 전송 완료. 텍스트 길이: ${trimmedContent.length}, 이미지 존재: ${uploadedImageUrl != null}"
+            )
 
             val tempMessage = ChatMessage(
                 id = nextTempId--,
                 roomId = roomId,
                 senderId = senderId,
-                content = content,
-                imageUrl = base64Image,
+                content = if (trimmedContent.isNotEmpty()) trimmedContent else null,
+                imageUrl = uploadedImageUrl,
                 sentAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
             )
 
@@ -270,21 +291,38 @@ class ChatRoomActivity : AppCompatActivity() {
         }
     }
 
-    private fun convertUriToBase64(uri: Uri, quality: Int): String? {
-        return try {
-            val inputStream: InputStream? = contentResolver.openInputStream(uri)
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            inputStream?.close()
-            if (bitmap != null) {
-                val outputStream = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-                val bytes = outputStream.toByteArray()
-                outputStream.close()
-                Base64.encodeToString(bytes, Base64.NO_WRAP)
-            } else null
-        } catch (e: Exception) {
-            Log.e("BASE64_CONV", "URI to Base64 failed for $uri", e)
-            null
+    private suspend fun uploadImageForRoom(uri: Uri): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val inputStream = contentResolver.openInputStream(uri) ?: return@withContext null
+                val bytes = inputStream.readBytes()
+                inputStream.close()
+
+                val requestBody = bytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
+                val part = MultipartBody.Part.createFormData(
+                    "image",
+                    "chat_${senderId}_${System.currentTimeMillis()}.jpg",
+                    requestBody
+                )
+
+                val response = RetrofitClient.getApiService().uploadChatImage(roomId, part)
+                if (response.isSuccessful) {
+                    val rawData = response.body()?.data
+                    val gson = Gson()
+                    val type = object : TypeToken<Map<String, String>>() {}.type
+                    val mapData: Map<String, String>? = gson.fromJson(gson.toJson(rawData), type)
+                    mapData?.get("imageUrl")
+                } else {
+                    Log.e(
+                        "CHAT_IMAGE_UPLOAD",
+                        "이미지 업로드 실패: ${response.code()} ${response.errorBody()?.string()}"
+                    )
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e("CHAT_IMAGE_UPLOAD", "이미지 업로드 중 오류", e)
+                null
+            }
         }
     }
 

@@ -71,7 +71,7 @@ object ChatNotificationHelper {
 
         val intent = Intent(context, ChatRoomActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("ROOM_ID", room.roomId?.toString())
+            putExtra("ROOM_ID", room.roomId)
             putExtra("SELLER_NICKNAME", room.partnerNickname)
         }
 
