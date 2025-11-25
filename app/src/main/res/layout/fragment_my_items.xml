@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- 토글 -->
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/toggleMyActivity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:singleSelection="true"
+        app:selectionRequired="true"
+        android:layout_marginBottom="12dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRegistered"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="등록한 물품" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRented"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="렌트한 물품" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    <!-- 로딩 애니메이션 -->
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/loadingAnimation"
+        android:layout_width="90dp"
+        android:layout_height="90dp"
+        android:layout_gravity="center_horizontal"
+        android:visibility="gone"
+        app:lottie_rawRes="@raw/material_loading"
+        app:lottie_autoPlay="false"
+        app:lottie_loop="true"/>
+
+    <!-- EMPTY 애니메이션 -->
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/emptyAnimation"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:layout_marginTop="10dp"
+        android:visibility="gone"
+        android:layout_gravity="center_horizontal"
+        app:lottie_autoPlay="false"
+        app:lottie_loop="false"
+        app:lottie_repeatCount="0"
+        app:lottie_rawRes="@raw/empty_box_animation" />
+
+    <!-- EMPTY 텍스트 -->
+    <TextView
+        android:id="@+id/textEmptyState"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="등록한 상품이 없습니다."
+        android:textSize="16sp"
+        android:visibility="gone"
+        android:layout_gravity="center_horizontal"
+        android:padding="12dp" />
+
+    <!-- 리스트 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewMyItems"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone" />
+
+</LinearLayout>

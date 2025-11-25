@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission
+        android:name="android.permission.POST_NOTIFICATIONS"
+        tools:targetApi="33" />
+
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+    <application
+        android:name=".MyApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@drawable/bilbil"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.BilBil"
+        android:usesCleartextTraffic="true">
+
+        <activity
+            android:name=".ChatRoomActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ProductDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".SettingProfileActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".SearchResultActivity"
+            android:exported="false" />
+        <activity
+            android:name=".HomeHostActivity"
+            android:exported="false" />
+
+        <activity android:name=".RentRequestActivity"
+            android:exported="false" />
+        
+        <activity android:name=".CartActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ReviewActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".SettingMapActivity"
+            android:exported="false" />
+        <activity
+            android:name=".RegionSelectionActivity"
+            android:exported="false" />
+
+        <meta-data
+            android:name="com.kakao.sdk.AppKey"
+            android:value="7a3a72c388ba6dfc6df8ca9715f284ff" />
+        <meta-data
+            android:name="com.kakao.vectormap.appKey"
+            android:value="7a3a72c388ba6dfc6df8ca9715f284ff" />
+
+        <activity
+            android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="oauth"
+                    android:scheme="kakao7a3a72c388ba6dfc6df8ca9715f284ff" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <activity
+            android:name="com.navercorp.nid.oauth.activity.NidOAuthActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="navera7CXZxOYZfr0Oz_swkzL" android:host="oauth" />
+
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
