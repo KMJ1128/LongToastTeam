@@ -131,7 +131,7 @@ class HomeHostActivity : AppCompatActivity() {
                     val gson = Gson()
                     val type = object : TypeToken<Map<String, String>>() {}.type
                     val mapData: Map<String, String>? = gson.fromJson(gson.toJson(rawData), type)
-                    val roomId = mapData?.get("roomId") ?: return
+                    val roomId = mapData?.get("roomId")?.toIntOrNull() ?: return
 
                     val intent = Intent(this@HomeHostActivity, ChatRoomActivity::class.java)
                     intent.putExtra("PRODUCT_ID", testItemId.toString())

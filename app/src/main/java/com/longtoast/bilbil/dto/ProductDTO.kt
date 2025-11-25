@@ -23,7 +23,7 @@ data class ProductDTO(
     val tradeLocation: String?, // 백엔드에 있는 거래 위치
     val address: String?,       // 백엔드에 있는 주소
 
-    // 🚨 [핵심] 이미지 리스트 (Base64 문자열 리스트)
+    // 🚨 [핵심] 이미지 리스트 (서버가 반환하는 전체 이미지 URL 목록)
     val imageUrls: List<String>?,
 
     // 4. 상태 및 시간

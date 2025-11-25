@@ -77,8 +77,9 @@ class MessageFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         adapter = ChatRoomListAdapter(chatRoomLists) { room ->
+            val targetRoomId = room.roomId ?: return@ChatRoomListAdapter
             val intent = Intent(requireContext(), ChatRoomActivity::class.java).apply {
-                putExtra("ROOM_ID", room.roomId.toString())
+                putExtra("ROOM_ID", targetRoomId)
                 putExtra("SELLER_NICKNAME", room.partnerNickname)
             }
             startActivity(intent)

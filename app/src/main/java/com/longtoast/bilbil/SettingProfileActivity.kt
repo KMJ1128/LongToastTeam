@@ -20,6 +20,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.gson.Gson
 import com.longtoast.bilbil.dto.MemberDTO
 import com.longtoast.bilbil.dto.MsgEntity
 import java.io.File
@@ -28,6 +29,9 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import com.longtoast.bilbil.api.RetrofitClient
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class SettingProfileActivity : AppCompatActivity() {
 
@@ -280,9 +284,28 @@ class SettingProfileActivity : AppCompatActivity() {
         AuthTokenManager.saveUserId(userId)
         Log.d("PROFILE_COMPLETE", "✅ JWT 및 User ID 저장 완료. API 호출 시작.")
 
+        val memberBody = Gson().toJson(updateRequest)
+            .toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
+
+        val imagePart = profileImageUri?.let { uri ->
+            try {
+                contentResolver.openInputStream(uri)?.use { stream ->
+                    val bytes = stream.readBytes()
+                    val requestBody = bytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
+                    MultipartBody.Part.createFormData(
+                        "profileImage",
+                        "profile_${userId}_${System.currentTimeMillis()}.jpg",
+                        requestBody
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("PROFILE_API", "프로필 이미지 준비 실패", e)
+                null
+            }
+        }
 
         // 3. 🔑 [수정] RetrofitClient의 기본 ApiService를 사용합니다.
-        RetrofitClient.getApiService().updateProfile(updateRequest)
+        RetrofitClient.getApiService().updateProfile(memberBody, imagePart)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (response.isSuccessful) {
