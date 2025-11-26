@@ -66,6 +66,56 @@ public class WriteProductService {
         return savedItem.getId().intValue();
     }
 
+    public Item updateProduct(Integer itemId, ProductCreateRequest dto, int userId) {
+        Item item = productsRepository.findById(Long.valueOf(itemId))
+                .orElseThrow(() -> new RuntimeException("존재하지 않는 상품입니다."));
+
+        if (!item.getUser().getId().equals(userId)) {
+            throw new RuntimeException("본인이 등록한 상품만 수정할 수 있습니다.");
+        }
+
+        item.setTitle(dto.getTitle());
+        item.setPrice(dto.getPrice());
+        item.setDescription(dto.getDescription());
+        item.setCategory(dto.getCategory());
+        item.setDeposit(dto.getDeposit());
+        item.setTradeLocation(dto.getAddress());
+        item.setStatus(dto.getStatus() != null ? dto.getStatus() : Item.Status.AVAILABLE);
+
+        return productsRepository.save(item);
+    }
+
+    public void deleteProduct(Integer itemId, int userId) {
+        Item item = productsRepository.findById(Long.valueOf(itemId))
+                .orElseThrow(() -> new RuntimeException("존재하지 않는 상품입니다."));
+
+        if (!item.getUser().getId().equals(userId)) {
+            throw new RuntimeException("본인이 등록한 상품만 삭제할 수 있습니다.");
+        }
+
+        // 이미지 메타데이터 제거
+        itemImageRepository.findByItemOrderByIsMainDesc(item)
+                .forEach(itemImageRepository::delete);
+
+        // 파일 삭제 (존재하는 경우)
+        Path uploadDir = Paths.get("/uploads/product/" + item.getId());
+        try {
+            if (Files.exists(uploadDir)) {
+                Files.walk(uploadDir)
+                        .sorted((a, b) -> b.compareTo(a))
+                        .forEach(path -> {
+                            try {
+                                Files.deleteIfExists(path);
+                            } catch (IOException ignored) {
+                            }
+                        });
+            }
+        } catch (IOException ignored) {
+        }
+
+        productsRepository.delete(item);
+    }
+
     private void saveItemImages(List<MultipartFile> images, Item savedItem) {
         if (images == null || images.isEmpty()) {
             return;

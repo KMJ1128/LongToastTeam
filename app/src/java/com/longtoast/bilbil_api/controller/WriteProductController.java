@@ -62,4 +62,37 @@ public class WriteProductController {
         return ResponseEntity.ok()
                 .body(new MsgEntity("테스트 JWT 토큰 생성 성공", token));
     }
+
+    @PutMapping("/update/{itemId}")
+    public ResponseEntity<MsgEntity> updateProduct(
+            @PathVariable Integer itemId,
+            @RequestBody ProductCreateRequest productCreateRequest,
+            Authentication authentication
+    ) {
+        Integer userId = Integer.valueOf(authentication.getName());
+
+        try {
+            writeProductService.updateProduct(itemId, productCreateRequest, userId);
+            return ResponseEntity.ok(new MsgEntity("상품이 수정되었습니다.", itemId));
+        } catch (Exception e) {
+            return ResponseEntity.status(400)
+                    .body(new MsgEntity("수정 실패", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/delete/{itemId}")
+    public ResponseEntity<MsgEntity> deleteProduct(
+            @PathVariable Integer itemId,
+            Authentication authentication
+    ) {
+        Integer userId = Integer.valueOf(authentication.getName());
+
+        try {
+            writeProductService.deleteProduct(itemId, userId);
+            return ResponseEntity.ok(new MsgEntity("삭제되었습니다.", itemId));
+        } catch (Exception e) {
+            return ResponseEntity.status(400)
+                    .body(new MsgEntity("삭제 실패", e.getMessage()));
+        }
+    }
 }
