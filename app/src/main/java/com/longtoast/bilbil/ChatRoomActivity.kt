@@ -1,5 +1,6 @@
 package com.longtoast.bilbil
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -98,6 +99,19 @@ class ChatRoomActivity : AppCompatActivity() {
         fetchChatHistory()
         connectWebSocket()
         setupListeners()
+    }
+
+    private fun openRentRequestForm() {
+        val chatIntent = intent
+        val intent = Intent(this, RentRequestActivity::class.java).apply {
+            putExtra("ITEM_ID", productId ?: -1)
+            putExtra("TITLE", productTitle)
+            putExtra("PRICE", productPrice)
+            putExtra("DEPOSIT", productDeposit)
+            putExtra("LENDER_ID", lenderId)
+            putExtra("SELLER_NICKNAME", chatIntent.getStringExtra("SELLER_NICKNAME"))
+        }
+        startActivity(intent)
     }
 
     private fun setupToolbar() {
