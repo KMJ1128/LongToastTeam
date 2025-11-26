@@ -31,13 +31,32 @@ import retrofit2.Callback
 import retrofit2.Response
 import java.io.InputStream
 
+// --------------------
+// price_unit 매핑 유틸
+// --------------------
+object PriceUnitMapper {
+    fun toInt(label: String): Int = when (label) {
+        "일" -> 1
+        "월" -> 2
+        "시간" -> 3
+        else -> 1
+    }
+
+    fun toLabel(unit: Int): String = when (unit) {
+        1 -> "일"
+        2 -> "월"
+        3 -> "시간"
+        else -> "일"
+    }
+}
+
 class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
 
     private var _binding: ActivityNewPostFragmentBinding? = null
     private val binding get() = _binding!!
 
     private var productStatus: String = "AVAILABLE"
-    private var selectedPriceUnit: String = ""
+    private var selectedPriceUnit: String = ""   // "일", "월", "시간"
     private var rentalPriceString: String = ""
     private var editingProduct: ProductDTO? = null
 
@@ -85,6 +104,7 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // 수정모드 데이터 주입
         arguments?.getString(ARG_PRODUCT_JSON)?.let { json ->
             editingProduct = Gson().fromJson(json, ProductDTO::class.java)
         }
@@ -99,10 +119,10 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         // 닫기 버튼
         binding.closeButton.setOnClickListener { parentFragmentManager.popBackStack() }
 
-        // 이미지 선택
+        // 이미지
         binding.layoutCameraArea.setOnClickListener { openGalleryForImage() }
 
-        // 주소 선택
+        // 주소
         binding.textViewAddress.setOnClickListener {
             val userId = AuthTokenManager.getUserId()
             val token = AuthTokenManager.getToken()
@@ -119,13 +139,15 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
             mapResultLauncher.launch(intent)
         }
 
-        // 가격 선택 팝업
+        // 가격 단위 선택
         binding.editTextPrice.setOnClickListener { showPriceUnitSelectionDialog() }
 
         setupStatusToggleGroup()
     }
 
     override fun onPriceUnitSelected(price: String, unit: String) {
+        // price : "5000"
+        // unit : "일", "월", "시간"
         rentalPriceString = price
         selectedPriceUnit = unit
         updatePriceTextView()
@@ -135,7 +157,7 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         if (rentalPriceString.isEmpty()) {
             binding.editTextPrice.hint = "₩ 대여 가격 (단위 선택)"
         } else {
-            binding.editTextPrice.setText("₩ $rentalPriceString / $selectedPriceUnit")
+            binding.editTextPrice.text = "₩ $rentalPriceString / $selectedPriceUnit"
         }
     }
 
@@ -148,11 +170,7 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
 
         binding.toggleStatusGroup.addOnButtonCheckedListener { _, id, isChecked ->
             if (isChecked) {
-                productStatus = if (id == R.id.button_rent_available) {
-                    "AVAILABLE"
-                } else {
-                    "UNAVAILABLE"
-                }
+                productStatus = if (id == R.id.button_rent_available) "AVAILABLE" else "UNAVAILABLE"
             }
         }
     }
@@ -167,13 +185,12 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         val category = binding.editTextCategory.text.toString().trim()
         val depositText = binding.editTextDeposit.text.toString().trim()
 
-        // Validation
         if (selectedAddress.isNullOrEmpty()) {
             Toast.makeText(requireContext(), "거래 지역을 설정해주세요.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        if (title.isEmpty() || category.isEmpty() || rentalPriceString.isEmpty()) {
+        if (title.isEmpty() || category.isEmpty() || rentalPriceString.isEmpty() || selectedPriceUnit.isEmpty()) {
             Toast.makeText(requireContext(), "필수 정보를 입력해주세요.", Toast.LENGTH_SHORT).show()
             return
         }
@@ -187,19 +204,21 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
 
         lifecycleScope.launch {
 
-            // (3) 이미지 URI → MultipartBody.Part
             val imageParts = withContext(Dispatchers.IO) {
                 convertImagesToMultipart(selectedImageUris)
             }
 
             val price = rentalPriceString.toIntOrNull() ?: 0
             val deposit = depositText.toIntOrNull()
-            val finalDesc = "$description (가격 단위: $selectedPriceUnit)"
+
+            // price_unit 번호 변환
+            val priceUnitInt = PriceUnitMapper.toInt(selectedPriceUnit)
 
             val requestObj = ProductCreateRequest(
                 title = title,
                 price = price,
-                description = finalDesc,
+                price_unit = priceUnitInt,
+                description = description,
                 category = category,
                 status = productStatus,
                 deposit = deposit,
@@ -211,53 +230,38 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
                 RetrofitClient.getApiService()
                     .updateProduct(product.id, requestObj)
                     .enqueue(object : Callback<MsgEntity> {
-                        override fun onResponse(
-                            call: Call<MsgEntity>,
-                            response: Response<MsgEntity>
-                        ) {
+                        override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                             binding.completeButton.isEnabled = true
                             if (response.isSuccessful) {
                                 Toast.makeText(requireContext(), "수정되었습니다.", Toast.LENGTH_SHORT).show()
                                 parentFragmentManager.popBackStack()
-                            } else {
-                                Toast.makeText(requireContext(), "수정에 실패했습니다.", Toast.LENGTH_SHORT).show()
-                            }
+                            } else Toast.makeText(requireContext(), "수정 실패", Toast.LENGTH_SHORT).show()
                         }
 
                         override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
                             binding.completeButton.isEnabled = true
-                            Log.e("POST_API", "서버 오류", t)
-                            Toast.makeText(requireContext(), "서버 통신 오류", Toast.LENGTH_LONG).show()
+                            Toast.makeText(requireContext(), "서버 오류", Toast.LENGTH_LONG).show()
                         }
                     })
             } ?: run {
-                // (2) JSON → RequestBody
                 val productRequestBody: RequestBody =
-                    Gson().toJson(requestObj)
-                        .toRequestBody("application/json; charset=utf-8".toMediaType())
+                    Gson().toJson(requestObj).toRequestBody("application/json; charset=utf-8".toMediaType())
 
                 RetrofitClient.getApiService()
                     .createProduct(productRequestBody, imageParts)
                     .enqueue(object : Callback<MsgEntity> {
-                        override fun onResponse(
-                            call: Call<MsgEntity>,
-                            response: Response<MsgEntity>
-                        ) {
+                        override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                             binding.completeButton.isEnabled = true
-
                             if (response.isSuccessful) {
                                 Toast.makeText(requireContext(), "등록 성공!", Toast.LENGTH_SHORT).show()
                                 parentFragmentManager.popBackStack()
                             } else {
-                                val err = response.errorBody()?.string()
-                                Log.e("POST_API", "실패: ${response.code()} | $err")
                                 Toast.makeText(requireContext(), "등록 실패", Toast.LENGTH_LONG).show()
                             }
                         }
 
                         override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
                             binding.completeButton.isEnabled = true
-                            Log.e("POST_API", "서버 오류", t)
                             Toast.makeText(requireContext(), "서버 통신 오류", Toast.LENGTH_LONG).show()
                         }
                     })
@@ -270,19 +274,27 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         binding.editTextDescription.setText(product.description ?: "")
         binding.editTextCategory.setText(product.category ?: "")
         binding.editTextDeposit.setText(product.deposit?.toString() ?: "")
+
         binding.textViewAddress.text = product.address ?: product.tradeLocation ?: "주소 미지정"
         selectedAddress = product.address ?: product.tradeLocation
-        selectedPriceUnit = "일"
+
         rentalPriceString = product.price.toString()
+
+        // 서버에서 숫자를 받아 문자열로 변환 ("일/월/시간")
+        selectedPriceUnit = PriceUnitMapper.toLabel(product.price_unit)
+
         productStatus = product.status ?: "AVAILABLE"
-        if (productStatus == "AVAILABLE") binding.toggleStatusGroup.check(R.id.button_rent_available)
-        else binding.toggleStatusGroup.check(R.id.button_rent_unavailable)
+        if (productStatus == "AVAILABLE") {
+            binding.toggleStatusGroup.check(R.id.button_rent_available)
+        } else {
+            binding.toggleStatusGroup.check(R.id.button_rent_unavailable)
+        }
 
         binding.completeButton.text = "상품 수정"
+
         updatePriceTextView()
     }
 
-    // (3) 이미지 URI → Multipart 변환 함수
     private fun convertImagesToMultipart(uris: List<Uri>): List<MultipartBody.Part> {
         val parts = mutableListOf<MultipartBody.Part>()
 
