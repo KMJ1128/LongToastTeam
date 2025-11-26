@@ -98,6 +98,12 @@ interface ApiService {
         @Body request: ChatSendRequest
     ): Call<MsgEntity>
 
+    @POST("/api/chat/room/{roomId}/message")
+    fun sendChatMessage(
+        @Path("roomId") roomId: String,
+        @Body request: ChatSendRequest
+    ): Call<MsgEntity>
+
     @Multipart
     @POST("/api/chat/room/{roomId}/image")
     fun uploadChatImage(
