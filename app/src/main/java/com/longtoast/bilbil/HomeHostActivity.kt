@@ -5,6 +5,7 @@ import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.longtoast.bilbil.databinding.ActivityHomeHostBinding
+import android.widget.TextView
 
 class HomeHostActivity : AppCompatActivity() {
 
@@ -23,6 +24,8 @@ class HomeHostActivity : AppCompatActivity() {
         setupBottomNav()
         setupFABs()
         setupBackStackListener()
+
+        setupNavigationHeader()
     }
 
     // ----------------------------
@@ -93,4 +96,17 @@ class HomeHostActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupNavigationHeader() {
+        val headerView = binding.navView.getHeaderView(0)
+        val nicknameTextView = headerView.findViewById<TextView>(R.id.nav_header_nickname)
+        val addressTextView = headerView.findViewById<TextView>(R.id.nav_header_address)  // 🆕 추가
+
+        // 닉네임 표시
+        val nickname = AuthTokenManager.getNickname()
+        nicknameTextView.text = nickname ?: "이름 미지정"
+
+        // 🆕 주소 표시
+        val address = AuthTokenManager.getAddress()
+        addressTextView.text = address ?: "위치 미지정"
+    }
 }
