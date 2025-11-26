@@ -1,11 +1,10 @@
-// com.longtoast.bilbil.dto.ChatMessage.kt
 package com.longtoast.bilbil.dto
 
 // 백엔드 ChatMessage.java와 필드 및 타입 일치
+// roomId는 DB/엔드포인트에서 INT로 전달되므로 Int로 맞춘다.
 data class ChatMessage(
     val id: Long,
-    val roomId: String,
-    // 💡 [핵심 수정] DTO 타입을 Int로 복구합니다.
+    val roomId: Int,
     val senderId: Int,
     val content: String?,
     val imageUrl: String?,

@@ -23,7 +23,7 @@ object ChatNotificationHelper {
     private const val CHANNEL_ID = "chat_updates"
 
     private val gson = Gson()
-    private val snapshotType = object : TypeToken<Map<String, String>>() {}.type
+    private val snapshotType = object : TypeToken<Map<Int, String>>() {}.type
 
     fun detectNewMessages(context: Context, rooms: List<ChatRoomListDTO>): List<ChatRoomListDTO> {
         val prefs = getPrefs(context)
@@ -33,14 +33,14 @@ object ChatNotificationHelper {
             return emptyList()
         }
 
-        val previous: Map<String, String> = try {
+        val previous: Map<Int, String> = try {
             gson.fromJson(cached, snapshotType) ?: emptyMap()
         } catch (e: Exception) {
             emptyMap()
         }
 
         val newRooms = rooms.filter { room ->
-            val roomId = room.roomId?.toString() ?: return@filter false
+            val roomId = room.roomId ?: return@filter false
             val lastTime = room.lastMessageTime
             val previousTime = previous[roomId]
 
@@ -59,7 +59,7 @@ object ChatNotificationHelper {
 
     private fun saveSnapshot(prefs: SharedPreferences, rooms: List<ChatRoomListDTO>) {
         val snapshot = rooms
-            .mapNotNull { room -> room.roomId?.toString()?.let { it to (room.lastMessageTime ?: "") } }
+            .mapNotNull { room -> room.roomId?.let { it to (room.lastMessageTime ?: "") } }
             .toMap()
         prefs.edit().putString(KEY_LAST_SNAPSHOT, gson.toJson(snapshot)).apply()
     }
@@ -71,7 +71,7 @@ object ChatNotificationHelper {
 
         val intent = Intent(context, ChatRoomActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("ROOM_ID", room.roomId?.toString())
+            room.roomId?.let { putExtra("ROOM_ID", it) }
             putExtra("SELLER_NICKNAME", room.partnerNickname)
         }
 
