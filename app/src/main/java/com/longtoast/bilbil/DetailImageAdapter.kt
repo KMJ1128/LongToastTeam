@@ -9,8 +9,8 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.longtoast.bilbil.ImageUrlUtils
 import com.longtoast.bilbil.R
-import com.longtoast.bilbil.ServerConfig
 
 class DetailImageAdapter(private val imageUrls: List<String>) :
     RecyclerView.Adapter<DetailImageAdapter.ImageViewHolder>() {
@@ -28,19 +28,10 @@ class DetailImageAdapter(private val imageUrls: List<String>) :
     override fun onBindViewHolder(holder: ImageViewHolder, position: Int) {
         val raw = imageUrls[position]
 
-        // === 1) URL이면 Glide로 처리 ===
-        if (raw.startsWith("/")) {
-            val fullUrl = ServerConfig.HTTP_BASE_URL.removeSuffix("/") + raw
+        val resolved = ImageUrlUtils.resolve(raw)
+        if (resolved != null && resolved.startsWith("http")) {
             Glide.with(holder.itemView.context)
-                .load(fullUrl)
-                .placeholder(R.drawable.bg_image_placeholder)
-                .into(holder.imageView)
-            return
-        }
-
-        if (raw.startsWith("http")) {
-            Glide.with(holder.itemView.context)
-                .load(raw)
+                .load(resolved)
                 .placeholder(R.drawable.bg_image_placeholder)
                 .into(holder.imageView)
             return

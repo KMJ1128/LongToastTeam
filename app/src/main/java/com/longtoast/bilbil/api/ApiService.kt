@@ -5,15 +5,19 @@ import com.longtoast.bilbil.dto.KakaoTokenRequest
 import com.longtoast.bilbil.dto.LocationRequest
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ChatMessage
+import com.longtoast.bilbil.dto.ChatSendRequest
 import com.longtoast.bilbil.dto.NaverTokenRequest
 import com.longtoast.bilbil.dto.MemberDTO
 import com.longtoast.bilbil.dto.ReviewCreateRequest
 import com.longtoast.bilbil.dto.ProductCreateRequest
+import com.longtoast.bilbil.dto.RentalDecisionRequest
+import com.longtoast.bilbil.dto.RentalRequest
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.POST
 import retrofit2.http.GET
 import retrofit2.http.Multipart
@@ -50,6 +54,15 @@ interface ApiService {
         @Part images: List<MultipartBody.Part>
     ): Call<MsgEntity>
 
+    @PUT("/writeproduct/update/{itemId}")
+    fun updateProduct(
+        @Path("itemId") itemId: Int,
+        @Body request: ProductCreateRequest
+    ): Call<MsgEntity>
+
+    @DELETE("/writeproduct/delete/{itemId}")
+    fun deleteProduct(@Path("itemId") itemId: Int): Call<MsgEntity>
+
     // 🔥 [수정됨] 백엔드: @GetMapping("/{itemId}") -> /products/{itemId} 라고 가정
     // 만약 Controller 위에 @RequestMapping("/products")가 있다면 아래가 맞습니다.
     @GET("/products/{itemId}")
@@ -76,6 +89,12 @@ interface ApiService {
     @GET("/api/chat/history/{roomId}")
     fun getChatHistory(@Path("roomId") roomId: String): Call<MsgEntity>
 
+    @POST("/api/chat/room/{roomId}/message")
+    fun sendChatMessage(
+        @Path("roomId") roomId: String,
+        @Body request: ChatSendRequest
+    ): Call<MsgEntity>
+
     @Multipart
     @POST("/api/chat/room/{roomId}/image")
     fun uploadChatImage(
@@ -92,4 +111,10 @@ interface ApiService {
 
     @GET("/search/history")
     fun getMySearchHistory(): Call<MsgEntity>
+
+    @POST("/rental/request")
+    fun createRentalRequest(@Body request: RentalRequest): Call<MsgEntity>
+
+    @POST("/rental/accept")
+    fun acceptRental(@Body request: RentalDecisionRequest): Call<MsgEntity>
 }

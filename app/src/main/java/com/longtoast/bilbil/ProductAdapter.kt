@@ -20,15 +20,7 @@ class ProductAdapter(
             binding.textItemLocation.text = product.address
             binding.textItemPrice.text = "₩ ${String.format("%,d", product.price)}"
 
-            // ⭐ 이미지 URL 조립 (nullable-safe)
-            val raw = product.imageUrl ?: ""
-            val fullUrl = when {
-                raw.startsWith("/") ->
-                    ServerConfig.HTTP_BASE_URL.removeSuffix("/") + raw
-                raw.startsWith("http") ->
-                    raw
-                else -> null
-            }
+            val fullUrl = ImageUrlUtils.resolve(product.imageUrl)
 
             Glide.with(binding.root)
                 .load(fullUrl)

@@ -3,40 +3,44 @@ package com.longtoast.bilbil
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.longtoast.bilbil.dto.ChatMessage
+import com.longtoast.bilbil.ImageUrlUtils
+import com.google.gson.Gson
+import com.longtoast.bilbil.dto.RentalActionPayload
 import java.text.SimpleDateFormat
 import java.util.*
 import android.util.Log
 
 class ChatAdapter(
     private val messages: MutableList<ChatMessage>,
-    private val currentUserId: String // 🔑 현재 사용자 ID (String)
+    private val currentUserId: String, // 🔑 현재 사용자 ID (String)
+    private val onRentalConfirm: ((RentalActionPayload) -> Unit)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val VIEW_TYPE_SENT = 1
     private val VIEW_TYPE_RECEIVED = 2
+    private val VIEW_TYPE_RENT_ACTION = 3
 
     // 💡 String인 currentUserId를 Int로 변환해서 비교에 사용
     private val currentUserIdInt: Int? = currentUserId.toIntOrNull()
 
     private val serverFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
     private val displayFormat = SimpleDateFormat("a h:mm", Locale.getDefault())
+    private val dateKeyFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private val dateHeaderFormat = SimpleDateFormat("yyyy년 MM월 dd일", Locale.getDefault())
+    private val gson = Gson()
+    private val actionPrefix = "[RENT_CONFIRM]"
 
     // 서버 상대 경로를 절대 URL로 변환
     private fun resolveImageUrl(relativeOrFull: String?): String? {
         if (relativeOrFull.isNullOrEmpty()) return null
 
-        return if (relativeOrFull.startsWith("/")) {
-            // "/uploads/..." 형태 → HTTP_BASE_URL과 결합
-            ServerConfig.HTTP_BASE_URL.removeSuffix("/") + relativeOrFull
-        } else {
-            // 이미 http로 시작하면 그대로 사용
-            relativeOrFull
-        }
+        return ImageUrlUtils.resolve(relativeOrFull)
     }
 
     // 🔹 보낸 메시지 ViewHolder
@@ -44,8 +48,9 @@ class ChatAdapter(
         private val messageText: TextView = view.findViewById(R.id.text_message_sent)
         private val timestampText: TextView = view.findViewById(R.id.text_timestamp_sent)
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_sent)
+        private val dateHeader: TextView = view.findViewById(R.id.text_date_header_sent)
 
-        fun bind(message: ChatMessage) {
+        fun bind(message: ChatMessage, position: Int) {
             // 텍스트
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
@@ -66,6 +71,7 @@ class ChatAdapter(
             }
 
             timestampText.text = formatTime(message.sentAt)
+            bindDateHeader(dateHeader, position, message)
         }
     }
 
@@ -75,8 +81,9 @@ class ChatAdapter(
         private val timestampText: TextView = view.findViewById(R.id.text_timestamp_received)
         private val nicknameText: TextView = view.findViewById(R.id.text_nickname_received)
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_received)
+        private val dateHeader: TextView = view.findViewById(R.id.text_date_header_received)
 
-        fun bind(message: ChatMessage) {
+        fun bind(message: ChatMessage, position: Int) {
             // 텍스트
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
@@ -98,6 +105,7 @@ class ChatAdapter(
 
             timestampText.text = formatTime(message.sentAt)
             nicknameText.text = "상대방(${message.senderId})"
+            bindDateHeader(dateHeader, position, message)
         }
     }
 
@@ -110,29 +118,39 @@ class ChatAdapter(
             "Checking pos $position: MsgSenderID=${message.senderId}, CurrentID=$currentUserIdInt, IsSent=${message.senderId == currentUserIdInt}"
         )
 
-        return if (message.senderId == currentUserIdInt) {
-            VIEW_TYPE_SENT
-        } else {
-            VIEW_TYPE_RECEIVED
+        return when {
+            message.content?.startsWith(actionPrefix) == true -> VIEW_TYPE_RENT_ACTION
+            message.senderId == currentUserIdInt -> VIEW_TYPE_SENT
+            else -> VIEW_TYPE_RECEIVED
         }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        return if (viewType == VIEW_TYPE_SENT) {
-            val view = inflater.inflate(R.layout.item_chat_message_sent, parent, false)
-            SentMessageViewHolder(view)
-        } else {
-            val view = inflater.inflate(R.layout.item_chat_message_received, parent, false)
-            ReceivedMessageViewHolder(view)
+        return when (viewType) {
+            VIEW_TYPE_SENT -> {
+                val view = inflater.inflate(R.layout.item_chat_message_sent, parent, false)
+                SentMessageViewHolder(view)
+            }
+
+            VIEW_TYPE_RENT_ACTION -> {
+                val view = inflater.inflate(R.layout.item_chat_rental_action, parent, false)
+                RentalActionViewHolder(view)
+            }
+
+            else -> {
+                val view = inflater.inflate(R.layout.item_chat_message_received, parent, false)
+                ReceivedMessageViewHolder(view)
+            }
         }
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val message = messages[position]
         when (holder.itemViewType) {
-            VIEW_TYPE_SENT -> (holder as SentMessageViewHolder).bind(message)
-            VIEW_TYPE_RECEIVED -> (holder as ReceivedMessageViewHolder).bind(message)
+            VIEW_TYPE_SENT -> (holder as SentMessageViewHolder).bind(message, position)
+            VIEW_TYPE_RECEIVED -> (holder as ReceivedMessageViewHolder).bind(message, position)
+            VIEW_TYPE_RENT_ACTION -> (holder as RentalActionViewHolder).bind(message, position)
         }
     }
 
@@ -148,4 +166,73 @@ class ChatAdapter(
             "시간 오류"
         }
     }
+
+    private fun bindDateHeader(headerView: TextView, position: Int, message: ChatMessage) {
+        val currentKey = getDateKey(message)
+        val previousKey = if (position > 0) getDateKey(messages[position - 1]) else null
+
+        if (currentKey != null && currentKey != previousKey) {
+            headerView.visibility = View.VISIBLE
+            val parsedDate = try { serverFormat.parse(message.sentAt) } catch (e: Exception) { null }
+            headerView.text = parsedDate?.let { dateHeaderFormat.format(it) } ?: currentKey
+        } else {
+            headerView.visibility = View.GONE
+        }
+    }
+
+    private fun getDateKey(message: ChatMessage): String? {
+        return try {
+            val date = serverFormat.parse(message.sentAt)
+            if (date != null) dateKeyFormat.format(date) else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    inner class RentalActionViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        private val prompt: TextView = view.findViewById(R.id.text_rental_prompt)
+        private val confirmButton: Button = view.findViewById(R.id.button_confirm_rental)
+        private val dateHeader: TextView = view.findViewById(R.id.text_date_header_action)
+
+        fun bind(message: ChatMessage, position: Int) {
+            val payload = parseActionPayload(message.content)
+            val isSender = message.senderId == currentUserIdInt
+
+            val rentInfo = payload?.let {
+                "기간: ${it.startDate} ~ ${it.endDate}\n거래 방식: ${it.deliveryMethod}\n총 결제 예상: ${numberFormat.format(it.totalAmount)}원"
+            } ?: "세부 정보를 불러오지 못했습니다."
+
+            prompt.text = "상대방으로부터 대여 확인 요청이 들어왔습니다. 동의 하십니까?\n$rentInfo"
+
+            confirmButton.text = if (isSender) "요청 전송됨" else "대여 확정하기"
+            confirmButton.isEnabled = !isSender && payload != null
+
+            // payload가 없거나 이미 내가 보낸 요청이면 클릭 리스너 제거
+            if (!confirmButton.isEnabled) {
+                confirmButton.setOnClickListener(null)
+            } else {
+                confirmButton.setOnClickListener {
+                    payload?.let { action ->
+                        confirmButton.isEnabled = false
+                        confirmButton.text = "처리 중..."
+                        onRentalConfirm?.invoke(action)
+                    }
+                }
+            }
+
+            bindDateHeader(dateHeader, position, message)
+        }
+    }
+
+    private fun parseActionPayload(content: String?): RentalActionPayload? {
+        if (content.isNullOrEmpty() || !content.startsWith(actionPrefix)) return null
+        val json = content.removePrefix(actionPrefix)
+        return try {
+            gson.fromJson(json, RentalActionPayload::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private val numberFormat = java.text.DecimalFormat("#,###")
 }
