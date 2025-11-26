@@ -15,6 +15,7 @@ data class ProductDTO(
     val id: Int,               // 백엔드 Long -> 안드로이드 Int (범위 내라면 호환 가능)
     val title: String,
     val price: Int,
+    val price_unit:Int,
     val category: String?,
 
     // 3. 상세 정보

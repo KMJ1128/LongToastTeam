@@ -34,6 +34,9 @@ interface ApiService {
     @POST("/naver/login/token")
     fun loginWithNaverToken(@Body request: NaverTokenRequest): Call<MsgEntity>
 
+    @GET("/member/info")
+    fun getMyInfo(): Call<MsgEntity>
+
     @GET("/products/myitems")
     fun getMyRegisteredProducts(): Call<MsgEntity>
 
@@ -87,7 +90,13 @@ interface ApiService {
     fun getMyChatRooms(): Call<MsgEntity>
 
     @GET("/api/chat/history/{roomId}")
-    fun getChatHistory(@Path("roomId") roomId: String): Call<MsgEntity>
+    fun getChatHistory(@Path("roomId") roomId: Int): Call<MsgEntity>
+
+    @POST("/api/chat/room/{roomId}/message")
+    fun sendChatMessage(
+        @Path("roomId") roomId: Int,
+        @Body request: ChatSendRequest
+    ): Call<MsgEntity>
 
     @POST("/api/chat/room/{roomId}/message")
     fun sendChatMessage(
@@ -98,14 +107,17 @@ interface ApiService {
     @Multipart
     @POST("/api/chat/room/{roomId}/image")
     fun uploadChatImage(
-        @Path("roomId") roomId: String,
+        @Path("roomId") roomId: Int,
         @Part image: MultipartBody.Part
     ): Call<MsgEntity>
 
     // 🔥 프로필 업데이트 API (단 하나만)
+    @Multipart
     @PUT("/member/profile")
-    fun updateProfile(@Body memberDTO: MemberDTO): Call<MsgEntity>
-
+    fun updateProfile(
+        @Part("member") memberJson: RequestBody,
+        @Part profileImage: MultipartBody.Part?
+    ): Call<MsgEntity>
     @GET("/search/popular")
     fun getPopularSearches(): Call<MsgEntity>
 

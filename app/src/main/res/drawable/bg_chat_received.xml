@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- 기존 코드에서 참조하던 이름을 유지하면서 실제로는 chat_bubble_received를 사용 -->
-    <item android:drawable="@drawable/chat_bubble_received" />
-</selector>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <solid android:color="#FFFFFF" />
+
+    <corners android:radius="16dp" />
+
+    <padding
+        android:left="12dp"
+        android:top="8dp"
+        android:right="12dp"
+        android:bottom="8dp" />
+
+</shape>
