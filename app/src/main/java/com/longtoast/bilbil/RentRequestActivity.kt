@@ -2,6 +2,7 @@ package com.longtoast.bilbil
 
 import android.app.AlertDialog
 import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
@@ -9,20 +10,17 @@ import android.text.TextWatcher
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.bumptech.glide.Glide
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.databinding.ActivityRentRequestBinding
-import com.longtoast.bilbil.dto.ChatRoomCreateRequest
-import com.longtoast.bilbil.dto.ChatSendRequest
-import com.longtoast.bilbil.dto.MsgEntity
-import com.longtoast.bilbil.dto.RentalActionPayload
-import com.longtoast.bilbil.dto.RentalRequest
+import com.longtoast.bilbil.dto.*
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import java.text.DecimalFormat
-import java.util.Calendar
+import java.util.*
 import java.util.concurrent.TimeUnit
 
 class RentRequestActivity : AppCompatActivity() {
@@ -30,32 +28,36 @@ class RentRequestActivity : AppCompatActivity() {
     private lateinit var binding: ActivityRentRequestBinding
     private val numberFormat = DecimalFormat("#,###")
 
+    // Intent 데이터
     private var pricePerUnit = 0
     private var priceUnitType = 1   // 1=일, 2=월, 3=시간
     private var deposit = 0
     private var itemId = -1
     private var lenderId = -1
     private var sellerNickname: String? = null
-    private var selectedDays: Int = 0
-    private var lastRentFee: Int = 0
-    private var lastTotalAmount: Int = 0
+    private var imageUrl: String? = null
+
+    // 계산용 데이터
+    private var selectedUnits = 0         // 일수 / 개월수 / 시간수
+    private var extraFee = 0
+    private var lastRentFee = 0
+    private var lastTotalAmount = 0
     private var lastTransactionId: Long? = null
 
     private var startCalendar: Calendar? = null
     private var endCalendar: Calendar? = null
-    private var imageUrl: String? = null
-
-    private var selectedDeliveryMethod: String? = null
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityRentRequestBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // ------------------------------
-        // Intent 데이터 수신
-        // ------------------------------
+        loadIntentData()
+        setupUI()
+        setupListeners()
+    }
+
+    private fun loadIntentData() {
         val title = intent.getStringExtra("TITLE") ?: "상품 정보 없음"
         pricePerUnit = intent.getIntExtra("PRICE", 0)
         priceUnitType = intent.getIntExtra("PRICE_UNIT", 1)
@@ -63,9 +65,8 @@ class RentRequestActivity : AppCompatActivity() {
         itemId = intent.getIntExtra("ITEM_ID", -1)
         lenderId = intent.getIntExtra("LENDER_ID", -1)
         sellerNickname = intent.getStringExtra("SELLER_NICKNAME")
-        // val imageUrl = intent.getStringExtra("IMAGE_URL")
+        imageUrl = intent.getStringExtra("IMAGE_URL")
 
-        binding.toolbar.setNavigationOnClickListener { finish() }
         binding.textProductTitle.text = title
 
         val unitLabel = PriceUnitMapper.toLabel(priceUnitType)
@@ -80,29 +81,34 @@ class RentRequestActivity : AppCompatActivity() {
                 .into(binding.imageProductThumbnail)
         }
 
-        // ------------------------------
-        // ⭐ 날짜 선택 처리
-        // ------------------------------
+        binding.toolbar.setNavigationOnClickListener { finish() }
+    }
+
+    // ------------------------------
+    // ⭐ 날짜 선택
+    // ------------------------------
+    private fun setupListeners() {
+
+        // 시작일 선택
         binding.textStartDate.setOnClickListener {
             when (priceUnitType) {
-                1 -> pickStartDate() // 일
-                2 -> pickStartDate { showMonthPickerDialog() } // 월
+                1 -> pickStartDate()
+                2 -> pickStartDate { showMonthPickerDialog() }
                 3 -> pickDate { cal ->
                     startCalendar = cal
                     pickTime(startCalendar!!) {
                         binding.textStartDate.text = formatDateTime(startCalendar!!)
-                        promptEndDateTime()
+                        promptEndDateTimeForHours()
                     }
                 }
             }
         }
 
+        // 종료일 선택
         binding.textEndDate.setOnClickListener {
             when (priceUnitType) {
                 1 -> pickEndDate()
-
                 2 -> Toast.makeText(this, "월 단위는 종료일 선택이 필요 없습니다.", Toast.LENGTH_SHORT).show()
-
                 3 -> {
                     if (startCalendar == null) {
                         Toast.makeText(this, "시작 날짜/시간을 먼저 선택해주세요.", Toast.LENGTH_SHORT).show()
@@ -119,9 +125,7 @@ class RentRequestActivity : AppCompatActivity() {
             }
         }
 
-        // ------------------------------
-        // 거래 방식
-        // ------------------------------
+        // 거래 방식 선택
         binding.radioGroupDelivery.setOnCheckedChangeListener { _, id ->
             selectedDeliveryMethod = when (id) {
                 R.id.radio_direct -> "DIRECT"
@@ -130,58 +134,64 @@ class RentRequestActivity : AppCompatActivity() {
             }
         }
 
-        // ------------------------------
         // 추가 비용
-        // ------------------------------
         binding.radioGroupExtraFee.setOnCheckedChangeListener { _, id ->
             when (id) {
                 R.id.radio_extra_none -> {
                     extraFee = 0
                     binding.layoutExtraFee.visibility = View.GONE
                     binding.inputExtraFee.setText("")
-                    binding.textExtraFee.text = "0원"
                     updatePriceUI(selectedUnits)
                 }
-
-                R.id.radio_extra_yes -> {
-                    binding.layoutExtraFee.visibility = View.VISIBLE
-                }
+                R.id.radio_extra_yes -> binding.layoutExtraFee.visibility = View.VISIBLE
             }
         }
 
         binding.inputExtraFee.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 extraFee = s.toString().toIntOrNull() ?: 0
-                binding.textExtraFee.text = "${numberFormat.format(extraFee)}원"
                 updatePriceUI(selectedUnits)
             }
-            override fun beforeTextChanged(s: CharSequence?, s1: Int, s2: Int, s3: Int) {}
-            override fun onTextChanged(s: CharSequence?, s1: Int, s2: Int, s3: Int) {}
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
 
-        // ------------------------------
-        // 요청 버튼
-        // ------------------------------
-        binding.btnSubmitRent.setOnClickListener {
+        // 제출
+        binding.btnSubmitRent.setOnClickListener { validateAndRequest() }
+    }
 
-            if (priceUnitType == 1) {
-                if (startCalendar == null || endCalendar == null) {
-                    Toast.makeText(this, "대여 날짜를 모두 선택해주세요.", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-            }
+    private fun validateAndRequest() {
+        if (priceUnitType == 1 && (startCalendar == null || endCalendar == null)) {
+            Toast.makeText(this, "대여 날짜를 모두 선택해주세요.", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-            if (priceUnitType == 3 && (startCalendar == null || endCalendar == null)) {
-                Toast.makeText(this, "시간 단위는 시작/종료 시간을 모두 선택해야 합니다.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
+        if (priceUnitType == 3 && (startCalendar == null || endCalendar == null)) {
+            Toast.makeText(this, "시간 단위는 시작/종료 시간을 모두 선택해야 합니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-            if (selectedDeliveryMethod == null) {
-                Toast.makeText(this, "거래 방식을 선택해주세요.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
+        if (selectedDeliveryMethod == null) {
+            Toast.makeText(this, "거래 방식을 선택해주세요.", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-            sendRentRequest(title)
+        sendRentRequest(binding.textProductTitle.text.toString())
+    }
+
+    // ------------------------------
+    // ⭐ 일 단위
+    // ------------------------------
+    private fun pickStartDate(afterPick: (() -> Unit)? = null) {
+        showDatePicker { y, m, d ->
+            val cal = Calendar.getInstance()
+            cal.set(y, m, d, 0, 0, 0)
+            startCalendar = cal
+
+            binding.textStartDate.text = "%04d-%02d-%02d".format(y, m + 1, d)
+
+            if (priceUnitType == 1) binding.textEndDate.text = ""
+            afterPick?.invoke()
         }
     }
 
@@ -190,54 +200,29 @@ class RentRequestActivity : AppCompatActivity() {
             val cal = Calendar.getInstance()
             cal.set(y, m, d, 0, 0, 0)
             endCalendar = cal
+
             binding.textEndDate.text = "%04d-%02d-%02d".format(y, m + 1, d)
 
             calculateDays()
         }
     }
 
-
-    private fun showDatePicker(onDateSelected: (Int, Int, Int) -> Unit) {
-        val now = Calendar.getInstance()
-        DatePickerDialog(
-            this,
-            { _, y, m, d -> onDateSelected(y, m, d) },
-            now.get(Calendar.YEAR),
-            now.get(Calendar.MONTH),
-            now.get(Calendar.DAY_OF_MONTH)
-        ).apply {
-            datePicker.minDate = System.currentTimeMillis()
-        }.show()
-    }
-
-
-    private fun pickDate(onPicked: (Calendar) -> Unit) {
-        showDatePicker { y, m, d ->
-            val cal = Calendar.getInstance()
-            cal.set(y, m, d)
-            onPicked(cal)
+    private fun calculateDays() {
+        if (startCalendar == null || endCalendar == null) return
+        if (endCalendar!!.before(startCalendar)) {
+            Toast.makeText(this, "반납일은 시작일 이후여야 합니다.", Toast.LENGTH_SHORT).show()
+            return
         }
+
+        val diffMillis = endCalendar!!.timeInMillis - startCalendar!!.timeInMillis
+        selectedUnits = (TimeUnit.MILLISECONDS.toDays(diffMillis) + 1).toInt()
+
+        updatePriceUI(selectedUnits)
     }
 
-
-    private fun pickTime(calendar: Calendar, onPicked: () -> Unit) {
-        TimePickerDialog(
-            this,
-            { _, h, min ->
-                calendar.set(Calendar.HOUR_OF_DAY, h)
-                calendar.set(Calendar.MINUTE, min)
-                onPicked()
-            },
-            calendar.get(Calendar.HOUR_OF_DAY),
-            calendar.get(Calendar.MINUTE),
-            true
-        ).show()
-    }
-
-
-    // ======================================================================
-    // ⭐ 월 단위 선택
-    // ======================================================================
+    // ------------------------------
+    // ⭐ 월 단위
+    // ------------------------------
     private fun showMonthPickerDialog() {
         val months = (1..12).map { "${it}개월" }.toTypedArray()
         var picked = 1
@@ -248,6 +233,7 @@ class RentRequestActivity : AppCompatActivity() {
                 picked = i + 1
             }
             .setPositiveButton("확인") { _, _ ->
+
                 selectedUnits = picked
 
                 val cal = Calendar.getInstance()
@@ -262,10 +248,13 @@ class RentRequestActivity : AppCompatActivity() {
             .show()
     }
 
+    // ------------------------------
+    // ⭐ 시간 단위
+    // ------------------------------
+    private fun promptEndDateTimeForHours() {
+        binding.textEndDate.text = "(종료 선택)"
+    }
 
-    // ======================================================================
-    // ⭐ 시간 단위 계산 (정확한 시간)
-    // ======================================================================
     private fun calculateHours() {
         if (startCalendar == null || endCalendar == null) return
 
@@ -275,35 +264,48 @@ class RentRequestActivity : AppCompatActivity() {
         }
 
         val diffMillis = endCalendar!!.timeInMillis - startCalendar!!.timeInMillis
-        selectedUnits = (diffMillis / (1000 * 60 * 60)).toInt() // 시간 단위
+        selectedUnits = (diffMillis / (1000 * 60 * 60)).toInt()
 
         updatePriceUI(selectedUnits)
     }
 
-    private fun updatePriceUI(days: Int) {
-        selectedDays = days
-        val rentFee = pricePerDay * days
-        lastRentFee = rentFee
-        val totalAmount = rentFee + deposit
-        lastTotalAmount = totalAmount
+    // ------------------------------
+    // ⭐ 공통 기능
+    // ------------------------------
+    private fun showDatePicker(onDateSelected: (Int, Int, Int) -> Unit) {
+        val now = Calendar.getInstance()
+        DatePickerDialog(
+            this,
+            { _, y, m, d -> onDateSelected(y, m, d) },
+            now.get(Calendar.YEAR),
+            now.get(Calendar.MONTH),
+            now.get(Calendar.DAY_OF_MONTH)
+        ).apply {
+            datePicker.minDate = System.currentTimeMillis()
+        }.show()
+    }
 
-    // ======================================================================
-    // ⭐ 일 단위 계산
-    // ======================================================================
-    private fun calculateDays() {
-        if (startCalendar == null || endCalendar == null) return
-
-        if (endCalendar!!.before(startCalendar)) {
-            Toast.makeText(this, "반납일은 시작일 이후여야 합니다.", Toast.LENGTH_SHORT).show()
-            return
+    private fun pickDate(onPicked: (Calendar) -> Unit) {
+        showDatePicker { y, m, d ->
+            val cal = Calendar.getInstance()
+            cal.set(y, m, d)
+            onPicked(cal)
         }
-
-        val diffMillis = endCalendar!!.timeInMillis - startCalendar!!.timeInMillis
-        selectedUnits = (TimeUnit.MILLISECONDS.toDays(diffMillis) + 1).toInt()
-
-        updatePriceUI(selectedUnits)
     }
 
+    private fun pickTime(calendar: Calendar, onPicked: () -> Unit) {
+        TimePickerDialog(
+            this,
+            { _, h, min ->
+                calendar.set(Calendar.HOUR_OF_DAY, h)
+                calendar.set(Calendar.MINUTE, min)
+                onPicked()
+            },
+            calendar.get(Calendar.HOUR_OF_DAY),
+            calendar.get(Calendar.MINUTE),
+            true
+        ).show()
+    }
 
     private fun formatDateTime(c: Calendar): String =
         "%04d-%02d-%02d %02d:%02d".format(
@@ -321,10 +323,9 @@ class RentRequestActivity : AppCompatActivity() {
             c.get(Calendar.DAY_OF_MONTH)
         )
 
-
-    // ======================================================================
-    // ⭐ UI 금액 업데이트
-    // ======================================================================
+    // ------------------------------
+    // ⭐ UI 업데이트
+    // ------------------------------
     private fun updatePriceUI(units: Int) {
         val unitLabel = PriceUnitMapper.toLabel(priceUnitType)
 
@@ -341,6 +342,9 @@ class RentRequestActivity : AppCompatActivity() {
         binding.textTotalPrice.text = "${numberFormat.format(totalAmount)}원"
     }
 
+    // ------------------------------
+    // ⭐ 서버 요청
+    // ------------------------------
     private fun sendRentRequest(title: String) {
         val borrowerId = AuthTokenManager.getUserId()
         val startText = binding.textStartDate.text.toString()
@@ -415,6 +419,7 @@ class RentRequestActivity : AppCompatActivity() {
                         return
                     }
 
+                    // 텍스트 메시지 전송
                     RetrofitClient.getApiService()
                         .sendChatMessage(roomId, ChatSendRequest(buildMessage(title)))
                         .enqueue(object : Callback<MsgEntity> {
@@ -450,6 +455,7 @@ class RentRequestActivity : AppCompatActivity() {
             totalAmount = lastTotalAmount,
             deliveryMethod = if (selectedDeliveryMethod == "DIRECT") "직거래" else "택배"
         )
+
         val content = "[RENT_CONFIRM]" + gson.toJson(payload)
 
         RetrofitClient.getApiService()
@@ -473,12 +479,13 @@ class RentRequestActivity : AppCompatActivity() {
     private fun buildMessage(title: String): String {
         val startText = binding.textStartDate.text.toString()
         val endText = binding.textEndDate.text.toString()
+        val unitLabel = PriceUnitMapper.toLabel(priceUnitType)
         val methodText = if (selectedDeliveryMethod == "DIRECT") "직거래" else "택배"
 
         return """
             [대여 요청]
             상품: $title
-            기간: $startText ~ $endText (${selectedDays}일)
+            기간: $startText ~ $endText ($selectedUnits$unitLabel)
             거래 방식: $methodText
             대여료: ${numberFormat.format(lastRentFee)}원
             보증금: ${numberFormat.format(deposit)}원

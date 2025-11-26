@@ -67,17 +67,14 @@ class ProductDetailActivity : AppCompatActivity() {
 
         // 대여하기
         binding.btnRent.setOnClickListener {
-            val intent = Intent(this, RentRequestActivity::class.java)
-
-            // 상세 정보를 넘겨줍니다 (옵션)
-            intent.putExtra("TITLE", binding.textTitle.text.toString())
-            intent.putExtra("PRICE", currentProduct?.price ?: 0)
-            intent.putExtra("DEPOSIT", currentProduct?.deposit ?: 0)
-            intent.putExtra("ITEM_ID", currentProduct?.id ?: -1)
-            intent.putExtra("LENDER_ID", currentProduct?.userId ?: -1)
-            intent.putExtra("SELLER_NICKNAME", currentProduct?.sellerNickname)
-            // intent.putExtra("IMAGE_URL", currentProduct?.imageUrls?.firstOrNull())
-
+            val intent = Intent(this, RentRequestActivity::class.java).apply {
+                putExtra("TITLE", currentProduct?.title)
+                putExtra("PRICE", currentProduct?.price ?: 0)
+                putExtra("DEPOSIT", currentProduct?.deposit ?: 0)
+                putExtra("ITEM_ID", currentProduct?.id ?: -1)
+                putExtra("LENDER_ID", currentProduct?.userId ?: -1)
+                putExtra("SELLER_NICKNAME", currentProduct?.sellerNickname)
+            }
             startActivity(intent)
         }
 
@@ -110,19 +107,16 @@ class ProductDetailActivity : AppCompatActivity() {
         binding.textDescription.text = product.description ?: ""
 
         // 가격 + 단위
-        val priceUnitLabel = PriceUnitMapper.toLabel(product.price_unit)
-        val priceStr = numberFormat.format(product.price)
-        binding.textPrice.text = "$priceStr 원 / $priceUnitLabel"
+        val priceLabel = PriceUnitMapper.toLabel(product.price_unit)
+        binding.textPrice.text = "${numberFormat.format(product.price)} 원 / $priceLabel"
 
         val deposit = product.deposit ?: 0
-        binding.textDeposit.text =
-            if (deposit > 0) "보증금 ${numberFormat.format(deposit)}원"
-            else "(보증금 없음)"
+        binding.textDeposit.text = if (deposit > 0) "보증금 ${numberFormat.format(deposit)}원" else "(보증금 없음)"
 
         binding.textSellerNickname.text = product.sellerNickname ?: "알 수 없음"
         binding.textSellerAddress.text = product.address ?: "위치 미설정"
 
-        // 2. 이미지 슬라이더
+        // 이미지 슬라이더
         val fixedImages = product.imageUrls?.mapNotNull { ImageUrlUtils.resolve(it) } ?: emptyList()
 
         if (fixedImages.isNotEmpty()) {
@@ -140,16 +134,9 @@ class ProductDetailActivity : AppCompatActivity() {
         }
 
         markReservedOnCalendar(product.reservedPeriods ?: emptyList())
-
-        // 3. 내 물건인 경우 채팅 버튼 숨김 로직 (필요시 주석 해제)
-        /*
-        val myId = AuthTokenManager.getUserId()
-        if (myId != null && myId == product.userId) {
-            binding.btnStartChat.visibility = View.GONE
-        }
-        */
     }
 
+    /** 🔵 채팅 시작 */
     private fun startChatting() {
         val myId = AuthTokenManager.getUserId()
         val product = currentProduct ?: return
@@ -165,9 +152,14 @@ class ProductDetailActivity : AppCompatActivity() {
             borrowerId = myId
         )
 
-        RetrofitClient.getApiService().createChatRoom(request).enqueue(object : Callback<MsgEntity> {
-            override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                if (response.isSuccessful) {
+        RetrofitClient.getApiService().createChatRoom(request)
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (!response.isSuccessful) {
+                        Toast.makeText(this@ProductDetailActivity, "채팅방 생성 실패", Toast.LENGTH_SHORT).show()
+                        return
+                    }
+
                     val rawData = response.body()?.data
                     val gson = Gson()
                     val type = object : TypeToken<Map<String, Any>>() {}.type
@@ -175,17 +167,18 @@ class ProductDetailActivity : AppCompatActivity() {
                     val roomId = mapData?.get("roomId")?.toString()
 
                     if (roomId != null) {
-                        val intent = Intent(this@ProductDetailActivity, ChatRoomActivity::class.java)
-                        intent.putExtra("ROOM_ID", roomId)
-                        intent.putExtra("SELLER_NICKNAME", product.sellerNickname)
-                        intent.putExtra("PRODUCT_ID", product.id?.toInt())
-                        intent.putExtra("PRODUCT_TITLE", product.title)
-                        intent.putExtra("PRODUCT_PRICE", product.price)
-                        intent.putExtra("PRODUCT_DEPOSIT", product.deposit ?: 0)
-                        intent.putExtra("LENDER_ID", product.userId)
+                        val intent = Intent(this@ProductDetailActivity, ChatRoomActivity::class.java).apply {
+                            putExtra("ROOM_ID", roomId)
+                            putExtra("SELLER_NICKNAME", product.sellerNickname)
+                            putExtra("PRODUCT_ID", product.id?.toInt())
+                            putExtra("PRODUCT_TITLE", product.title)
+                            putExtra("PRODUCT_PRICE", product.price)
+                            putExtra("PRODUCT_DEPOSIT", product.deposit ?: 0)
+                            putExtra("LENDER_ID", product.userId)
+                        }
                         startActivity(intent)
                     } else {
-                        Toast.makeText(this@ProductDetailActivity, "채팅방 입장에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@ProductDetailActivity, "채팅방 입장 실패", Toast.LENGTH_SHORT).show()
                     }
                 }
 
@@ -195,6 +188,7 @@ class ProductDetailActivity : AppCompatActivity() {
             })
     }
 
+    /** 🔵 예약된 날짜 달력 표시 */
     private fun markReservedOnCalendar(periods: List<String>) {
         if (periods.isEmpty()) {
             binding.textReservedPeriods.visibility = View.GONE
@@ -206,8 +200,10 @@ class ProductDetailActivity : AppCompatActivity() {
         for (range in periods) {
             val parts = range.split("~")
             if (parts.size != 2) continue
+
             val start = runCatching { dayFormat.parse(parts[0]) }.getOrNull()
             val end = runCatching { dayFormat.parse(parts[1]) }.getOrNull()
+
             if (start != null && end != null) {
                 val cal = java.util.Calendar.getInstance().apply {
                     time = start
@@ -216,6 +212,7 @@ class ProductDetailActivity : AppCompatActivity() {
                     set(java.util.Calendar.SECOND, 0)
                     set(java.util.Calendar.MILLISECOND, 0)
                 }
+
                 val endCal = java.util.Calendar.getInstance().apply {
                     time = end
                     set(java.util.Calendar.HOUR_OF_DAY, 0)
@@ -239,6 +236,7 @@ class ProductDetailActivity : AppCompatActivity() {
                 set(year, month, dayOfMonth, 0, 0, 0)
                 set(java.util.Calendar.MILLISECOND, 0)
             }
+
             if (reservedDays.contains(cal.timeInMillis)) {
                 Toast.makeText(this, "이미 대여된 날짜입니다.", Toast.LENGTH_SHORT).show()
             }
