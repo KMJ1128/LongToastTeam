@@ -10,6 +10,8 @@ import com.longtoast.bilbil.dto.NaverTokenRequest
 import com.longtoast.bilbil.dto.MemberDTO
 import com.longtoast.bilbil.dto.ReviewCreateRequest
 import com.longtoast.bilbil.dto.ProductCreateRequest
+import com.longtoast.bilbil.dto.RentalDecisionRequest
+import com.longtoast.bilbil.dto.RentalRequest
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Call
@@ -115,4 +117,10 @@ interface ApiService {
 
     @GET("/search/history")
     fun getMySearchHistory(): Call<MsgEntity>
+
+    @POST("/rental/request")
+    fun createRentalRequest(@Body request: RentalRequest): Call<MsgEntity>
+
+    @POST("/rental/accept")
+    fun acceptRental(@Body request: RentalDecisionRequest): Call<MsgEntity>
 }

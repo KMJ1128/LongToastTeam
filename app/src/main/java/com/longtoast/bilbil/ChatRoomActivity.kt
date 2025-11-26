@@ -1,5 +1,6 @@
 package com.longtoast.bilbil
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -11,11 +12,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.appbar.MaterialToolbar
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.dto.ChatMessage
 import com.longtoast.bilbil.dto.MsgEntity
+import com.longtoast.bilbil.dto.RentalActionPayload
+import com.longtoast.bilbil.dto.RentalDecisionRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,6 +45,7 @@ class ChatRoomActivity : AppCompatActivity() {
     private lateinit var buttonSend: ImageButton
     private lateinit var buttonAttachImage: ImageButton
     private lateinit var chatAdapter: ChatAdapter
+    private lateinit var toolbar: MaterialToolbar
 
     private var selectedImageUri: Uri? = null
 
@@ -51,6 +56,14 @@ class ChatRoomActivity : AppCompatActivity() {
     private val roomId by lazy { intent.getStringExtra("ROOM_ID") ?: "1" }
 
     private val senderId: Int by lazy { AuthTokenManager.getUserId() ?: 1 }
+    private val productId: Int? by lazy {
+        val numeric = intent.getIntExtra("PRODUCT_ID", -1)
+        if (numeric > 0) numeric else intent.getStringExtra("PRODUCT_ID")?.toIntOrNull()
+    }
+    private val productTitle: String? by lazy { intent.getStringExtra("PRODUCT_TITLE") }
+    private val productPrice: Int by lazy { intent.getIntExtra("PRODUCT_PRICE", 0) }
+    private val productDeposit: Int by lazy { intent.getIntExtra("PRODUCT_DEPOSIT", 0) }
+    private val lenderId: Int by lazy { intent.getIntExtra("LENDER_ID", -1) }
 
     private var nextTempId = -1L // 로컬 임시 ID 시작
 
@@ -69,18 +82,49 @@ class ChatRoomActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat_room)
 
+        toolbar = findViewById(R.id.toolbar_chat)
         recyclerChat = findViewById(R.id.recycler_view_chat)
         editMessage = findViewById(R.id.edit_text_message)
         buttonSend = findViewById(R.id.button_send)
         buttonAttachImage = findViewById(R.id.button_attach_image)
 
-        chatAdapter = ChatAdapter(chatMessages, senderId.toString())
+        setupToolbar()
+
+        chatAdapter = ChatAdapter(chatMessages, senderId.toString()) { payload ->
+            confirmRental(payload)
+        }
         recyclerChat.adapter = chatAdapter
         recyclerChat.layoutManager = LinearLayoutManager(this)
 
         fetchChatHistory()
         connectWebSocket()
         setupListeners()
+    }
+
+    private fun openRentRequestForm() {
+        val chatIntent = intent
+        val intent = Intent(this, RentRequestActivity::class.java).apply {
+            putExtra("ITEM_ID", productId ?: -1)
+            putExtra("TITLE", productTitle)
+            putExtra("PRICE", productPrice)
+            putExtra("DEPOSIT", productDeposit)
+            putExtra("LENDER_ID", lenderId)
+            putExtra("SELLER_NICKNAME", chatIntent.getStringExtra("SELLER_NICKNAME"))
+        }
+        startActivity(intent)
+    }
+
+    private fun setupToolbar() {
+        toolbar.title = intent.getStringExtra("SELLER_NICKNAME") ?: "채팅"
+        toolbar.inflateMenu(R.menu.menu_chat_room)
+        toolbar.setOnMenuItemClickListener { item ->
+            if (item.itemId == R.id.action_rent_request) {
+                openRentRequestForm()
+                true
+            } else {
+                false
+            }
+        }
     }
 
     private fun setupListeners() {
@@ -376,5 +420,45 @@ class ChatRoomActivity : AppCompatActivity() {
             webSocket.close(1000, "Activity destroyed")
             Log.d("STOMP_WS", "WebSocket 종료")
         }
+    }
+
+    private fun openRentRequestForm() {
+        val id = productId
+        if (id == null || id <= 0) {
+            Toast.makeText(this, "상품 정보를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val intent = Intent(this, RentRequestActivity::class.java).apply {
+            putExtra("ITEM_ID", id)
+            putExtra("TITLE", productTitle ?: "")
+            putExtra("PRICE", productPrice)
+            putExtra("DEPOSIT", productDeposit)
+            if (lenderId > 0) {
+                putExtra("LENDER_ID", lenderId)
+            }
+            putExtra("SELLER_NICKNAME", intent.getStringExtra("SELLER_NICKNAME"))
+        }
+        startActivity(intent)
+    }
+
+    private fun confirmRental(payload: RentalActionPayload) {
+        RetrofitClient.getApiService()
+            .acceptRental(RentalDecisionRequest(payload.transactionId))
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (response.isSuccessful) {
+                        val summary = "대여가 확정되었습니다. 기간: ${payload.startDate} ~ ${payload.endDate}"
+                        sendMessage(summary)
+                        Toast.makeText(this@ChatRoomActivity, "대여가 확정되었습니다.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this@ChatRoomActivity, "대여 확정에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Toast.makeText(this@ChatRoomActivity, "네트워크 오류", Toast.LENGTH_SHORT).show()
+                }
+            })
     }
 }
