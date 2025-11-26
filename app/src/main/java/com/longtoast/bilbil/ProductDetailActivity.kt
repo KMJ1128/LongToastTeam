@@ -10,6 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.kakao.vectormap.MapView
 import com.longtoast.bilbil.adapter.DetailImageAdapter
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.databinding.ActivityProductDetailBinding
@@ -22,11 +23,19 @@ import retrofit2.Callback
 import retrofit2.Response
 import java.text.DecimalFormat
 
+// ✅ Kakao Open Map import
+import net.daum.mf.map.api.MapView
+import net.daum.mf.map.api.MapPoint
+import net.daum.mf.map.api.MapPOIItem
+
 class ProductDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityProductDetailBinding
     private var currentProduct: ProductDTO? = null
     private val numberFormat = DecimalFormat("#,###")
+
+    // ✅ 미니 지도 뷰
+    private var mapViewMini: MapView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,42 +58,36 @@ class ProductDetailActivity : AppCompatActivity() {
         binding.btnBack.setOnClickListener { finish() }
 
         // 공유, 더보기 (기능 준비중)
-        binding.btnShare.setOnClickListener { Toast.makeText(this, "공유하기", Toast.LENGTH_SHORT).show() }
-        binding.btnMore.setOnClickListener { Toast.makeText(this, "더보기", Toast.LENGTH_SHORT).show() }
+        binding.btnShare.setOnClickListener {
+            Toast.makeText(this, "공유하기", Toast.LENGTH_SHORT).show()
+        }
+        binding.btnMore.setOnClickListener {
+            Toast.makeText(this, "더보기", Toast.LENGTH_SHORT).show()
+        }
 
         // 1. 채팅하기 버튼
         binding.btnStartChat.setOnClickListener { startChatting() }
 
-// 2. 장바구니 버튼 클릭 이벤트 수정
+        // 2. 장바구니 버튼
         binding.btnCart.setOnClickListener {
             if (currentProduct != null) {
-                // 1. 매니저에 상품 추가
                 CartManager.addItem(currentProduct!!)
-
-                // 2. 사용자에게 알림
                 Toast.makeText(this, "장바구니에 담았습니다.", Toast.LENGTH_SHORT).show()
-
-                // (선택사항) 바로 장바구니로 이동하고 싶다면 아래 주석 해제
-                // val intent = Intent(this, CartActivity::class.java)
-                // startActivity(intent)
             } else {
                 Toast.makeText(this, "상품 정보를 불러오는 중입니다.", Toast.LENGTH_SHORT).show()
             }
         }
 
-// 3. 대여하기 버튼
+        // 3. 대여하기 버튼
         binding.btnRent.setOnClickListener {
-            val intent = Intent(this, RentRequestActivity::class.java)
-
-            // 상세 정보를 넘겨줍니다 (옵션)
-            intent.putExtra("TITLE", binding.textTitle.text.toString())
-            intent.putExtra("PRICE", currentProduct?.price ?: 0)
-            intent.putExtra("DEPOSIT", currentProduct?.deposit ?: 0)
-            intent.putExtra("ITEM_ID", currentProduct?.id ?: -1)
-            intent.putExtra("LENDER_ID", currentProduct?.userId ?: -1)
-            intent.putExtra("SELLER_NICKNAME", currentProduct?.sellerNickname)
-            // intent.putExtra("IMAGE_URL", currentProduct?.imageUrls?.firstOrNull())
-
+            val intent = Intent(this, RentRequestActivity::class.java).apply {
+                putExtra("TITLE", binding.textTitle.text.toString())
+                putExtra("PRICE", currentProduct?.price ?: 0)
+                putExtra("DEPOSIT", currentProduct?.deposit ?: 0)
+                putExtra("ITEM_ID", currentProduct?.id ?: -1)
+                putExtra("LENDER_ID", currentProduct?.userId ?: -1)
+                putExtra("SELLER_NICKNAME", currentProduct?.sellerNickname)
+            }
             startActivity(intent)
         }
     }
@@ -100,7 +103,11 @@ class ProductDetailActivity : AppCompatActivity() {
                     currentProduct = product
                     updateUI(product)
                 } else {
-                    Toast.makeText(this@ProductDetailActivity, "정보를 불러올 수 없습니다.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@ProductDetailActivity,
+                        "정보를 불러올 수 없습니다.",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             } catch (e: Exception) {
                 Log.e("ProductDetail", "Load Error", e)
@@ -114,15 +121,15 @@ class ProductDetailActivity : AppCompatActivity() {
         binding.textCategoryTime.text = "${product.category ?: "기타"} · 1분 전"
         binding.textDescription.text = product.description ?: ""
 
-        // 가격 및 보증금 (본문에 표시)
+        // 가격 및 보증금
         val priceStr = numberFormat.format(product.price)
-        binding.textPrice.text = "$priceStr 원" // 단위(일/월)는 필요시 추가
+        binding.textPrice.text = "$priceStr 원"
 
         val deposit = product.deposit ?: 0
-        if (deposit > 0) {
-            binding.textDeposit.text = "보증금 ${numberFormat.format(deposit)}원"
+        binding.textDeposit.text = if (deposit > 0) {
+            "보증금 ${numberFormat.format(deposit)}원"
         } else {
-            binding.textDeposit.text = "(보증금 없음)"
+            "(보증금 없음)"
         }
 
         // 판매자 정보
@@ -131,7 +138,6 @@ class ProductDetailActivity : AppCompatActivity() {
 
         // 2. 이미지 슬라이더
         val fixedImages = product.imageUrls?.mapNotNull { ImageUrlUtils.resolve(it) } ?: emptyList()
-
         if (fixedImages.isNotEmpty()) {
             binding.viewPagerImages.adapter = DetailImageAdapter(fixedImages)
             binding.textImageIndicator.text = "1 / ${fixedImages.size}"
@@ -146,13 +152,53 @@ class ProductDetailActivity : AppCompatActivity() {
             binding.textImageIndicator.visibility = View.GONE
         }
 
-        // 3. 내 물건인 경우 채팅 버튼 숨김 로직 (필요시 주석 해제)
-        /*
-        val myId = AuthTokenManager.getUserId()
-        if (myId != null && myId == product.userId) {
-            binding.btnStartChat.visibility = View.GONE
+        // 3. 거래 위치 텍스트
+        binding.textTradeLocation.text =
+            product.tradeLocation ?: product.address ?: "거래 위치 정보 없음"
+
+        // 4. 미니 카카오 지도 설정
+        setupMiniMap(product)
+    }
+
+    /**
+     * ✅ Open Map SDK를 사용하는 미니 지도 설정
+     */
+    private fun setupMiniMap(product: ProductDTO) {
+        // 우선 mapView 객체 생성 (한 번만)
+        if (mapViewMini == null) {
+            mapViewMini = MapView(this)
+            binding.layoutLocationMap.addView(
+                mapViewMini,
+                MapView.LayoutParams(
+                    MapView.LayoutParams.MATCH_PARENT,
+                    MapView.LayoutParams.MATCH_PARENT
+                )
+            )
         }
-        */
+
+        val mapView = mapViewMini ?: return
+
+        // 🔹 여기서 실제 좌표를 넣어줘야 함
+        // product에 위도/경도 필드가 있다면 그걸 사용하고,
+        // 지금은 예시로 "서울 시청" 근처 좌표를 임시로 사용
+        val lat = 37.5662952
+        val lng = 126.9779451
+
+        val point = MapPoint.mapPointWithGeoCoord(lat, lng)
+
+        // 지도 중심 및 줌 레벨
+        mapView.setMapCenterPoint(point, true)
+        mapView.setZoomLevel(3, false)
+
+        // 마커 추가
+        val marker = MapPOIItem().apply {
+            itemName = "거래 위치"
+            mapPoint = point
+            markerType = MapPOIItem.MarkerType.BluePin
+            selectedMarkerType = MapPOIItem.MarkerType.RedPin
+        }
+        mapView.removeAllPOIItems()
+        mapView.addPOIItem(marker)
     }
 
     private fun startChatting() {
@@ -170,30 +216,52 @@ class ProductDetailActivity : AppCompatActivity() {
             borrowerId = myId
         )
 
-        RetrofitClient.getApiService().createChatRoom(request).enqueue(object : Callback<MsgEntity> {
-            override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                if (response.isSuccessful) {
-                    val rawData = response.body()?.data
-                    val gson = Gson()
-                    val type = object : TypeToken<Map<String, Any>>() {}.type
-                    val mapData: Map<String, Any>? = gson.fromJson(gson.toJson(rawData), type)
-                    val roomId = mapData?.get("roomId")?.toString()
+        RetrofitClient.getApiService().createChatRoom(request)
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (response.isSuccessful) {
+                        val rawData = response.body()?.data
+                        val gson = Gson()
+                        val type = object : TypeToken<Map<String, Any>>() {}.type
+                        val mapData: Map<String, Any>? =
+                            gson.fromJson(gson.toJson(rawData), type)
+                        val roomId = mapData?.get("roomId")?.toString()
 
-                    if (roomId != null) {
-                        val intent = Intent(this@ProductDetailActivity, ChatRoomActivity::class.java)
-                        intent.putExtra("ROOM_ID", roomId)
-                        intent.putExtra("SELLER_NICKNAME", product.sellerNickname)
-                        startActivity(intent)
+                        if (roomId != null) {
+                            val intent =
+                                Intent(this@ProductDetailActivity, ChatRoomActivity::class.java)
+                            intent.putExtra("ROOM_ID", roomId)
+                            intent.putExtra("SELLER_NICKNAME", product.sellerNickname)
+                            startActivity(intent)
+                        } else {
+                            Toast.makeText(
+                                this@ProductDetailActivity,
+                                "채팅방 입장에 실패했습니다.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     } else {
-                        Toast.makeText(this@ProductDetailActivity, "채팅방 입장에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@ProductDetailActivity,
+                            "오류가 발생했습니다.",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
-                } else {
-                    Toast.makeText(this@ProductDetailActivity, "오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
                 }
-            }
-            override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                Toast.makeText(this@ProductDetailActivity, "네트워크 오류", Toast.LENGTH_SHORT).show()
-            }
-        })
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Toast.makeText(
+                        this@ProductDetailActivity,
+                        "네트워크 오류",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            })
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // 지도 리소스 정리 (있으면)
+        mapViewMini = null
     }
 }

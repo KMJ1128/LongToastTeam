@@ -74,6 +74,7 @@ dependencies {
 
     implementation("com.kakao.maps.open:android:2.12.17")
 
+
     // Gson (JSON 직렬화/역직렬화용)
     implementation("com.google.code.gson:gson:2.10.1")
 
