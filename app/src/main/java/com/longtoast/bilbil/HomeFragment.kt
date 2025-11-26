@@ -11,6 +11,7 @@ import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.bumptech.glide.Glide
 import com.google.android.material.chip.Chip
 import com.longtoast.bilbil.adapter.CategoryAdapter
 import com.longtoast.bilbil.adapter.PopularSearchAdapter
@@ -21,6 +22,7 @@ import com.longtoast.bilbil.dto.SearchHistoryDTO
 import com.longtoast.bilbil.dto.PopularSearchDTO
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.longtoast.bilbil.dto.MemberDTO
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -33,6 +35,9 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        Log.d("MY_LOCATION", "HomeFragment.onResume → 내 위치 새로 로드")
+        loadMyLocation()
+
         Log.d("SEARCH_HISTORY", "HomeFragment.onResume → 최근 검색어 새로 로드")
         loadSearchHistory()
     }
@@ -55,6 +60,50 @@ class HomeFragment : Fragment() {
         setupPopularRecycler()
 
 
+    }
+
+    private fun loadMyLocation() {
+        RetrofitClient.getApiService().getMyInfo()
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (!response.isSuccessful) return
+
+                    val raw = response.body()?.data ?: return
+
+                    try {
+                        val gson = Gson()
+                        val type = object : TypeToken<MemberDTO>() {}.type
+                        val member: MemberDTO = gson.fromJson(gson.toJson(raw), type)
+
+                        // ⭐ 주소 표시
+                        val address = member.address ?: "내 위치"
+                        binding.locationText.text = address
+
+                        // ⭐ 프로필 이미지 표시 (중요)
+                        val imageUrl = member.profileImageUrl
+                        if (!imageUrl.isNullOrEmpty()) {
+
+                            // 서버에서 넘긴 URL이 "/uploads/..." 이므로 절대 URL 만들기
+                            val fullUrl =
+                                if (imageUrl.startsWith("http")) imageUrl
+                                else ServerConfig.HTTP_BASE_URL + imageUrl.replaceFirst("/", "")
+
+                            // XML의 location_icon 에 프로필 이미지 적용
+                            Glide.with(requireContext())
+                                .load(fullUrl)
+                                .circleCrop()
+                                .into(binding.locationIcon)
+                        }
+
+                    } catch (e: Exception) {
+                        Log.e("MY_INFO", "MemberDTO 파싱오류", e)
+                    }
+                }
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Log.e("MY_INFO", "내 위치/프로필 불러오기 실패", t)
+                }
+            })
     }
 
     // 🔍 검색 바 설정

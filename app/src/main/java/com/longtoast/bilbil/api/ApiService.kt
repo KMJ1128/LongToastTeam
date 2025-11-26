@@ -32,6 +32,9 @@ interface ApiService {
     @POST("/naver/login/token")
     fun loginWithNaverToken(@Body request: NaverTokenRequest): Call<MsgEntity>
 
+    @GET("/member/info")
+    fun getMyInfo(): Call<MsgEntity>
+
     @GET("/products/myitems")
     fun getMyRegisteredProducts(): Call<MsgEntity>
 
@@ -101,9 +104,12 @@ interface ApiService {
     ): Call<MsgEntity>
 
     // 🔥 프로필 업데이트 API (단 하나만)
+    @Multipart
     @PUT("/member/profile")
-    fun updateProfile(@Body memberDTO: MemberDTO): Call<MsgEntity>
-
+    fun updateProfile(
+        @Part("member") memberJson: RequestBody,
+        @Part profileImage: MultipartBody.Part?
+    ): Call<MsgEntity>
     @GET("/search/popular")
     fun getPopularSearches(): Call<MsgEntity>
 
