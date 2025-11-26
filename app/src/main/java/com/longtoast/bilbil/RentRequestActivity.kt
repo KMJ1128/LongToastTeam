@@ -412,9 +412,13 @@ class RentRequestActivity : AppCompatActivity() {
                     val gson = Gson()
                     val type = object : TypeToken<Map<String, Any>>() {}.type
                     val mapData: Map<String, Any> = gson.fromJson(gson.toJson(raw), type)
-                    val roomId = mapData["roomId"]?.toString()
+                    val roomId = when (val idRaw = mapData["roomId"]) {
+                        is Number -> idRaw.toInt()
+                        is String -> idRaw.toIntOrNull()
+                        else -> null
+                    }
 
-                    if (roomId.isNullOrEmpty()) {
+                    if (roomId == null) {
                         Toast.makeText(this@RentRequestActivity, "채팅방 정보를 가져오지 못했습니다.", Toast.LENGTH_SHORT).show()
                         return
                     }
@@ -443,7 +447,7 @@ class RentRequestActivity : AppCompatActivity() {
             })
     }
 
-    private fun sendActionPrompt(roomId: String, transactionId: Long) {
+    private fun sendActionPrompt(roomId: Int, transactionId: Long) {
         val gson = Gson()
         val payload = RentalActionPayload(
             transactionId = transactionId,
@@ -493,7 +497,7 @@ class RentRequestActivity : AppCompatActivity() {
         """.trimIndent()
     }
 
-    private fun openChatRoom(roomId: String) {
+    private fun openChatRoom(roomId: Int) {
         val intent = Intent(this, ChatRoomActivity::class.java).apply {
             putExtra("ROOM_ID", roomId)
             putExtra("SELLER_NICKNAME", sellerNickname)

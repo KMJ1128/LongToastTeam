@@ -164,7 +164,11 @@ class ProductDetailActivity : AppCompatActivity() {
                     val gson = Gson()
                     val type = object : TypeToken<Map<String, Any>>() {}.type
                     val mapData: Map<String, Any>? = gson.fromJson(gson.toJson(rawData), type)
-                    val roomId = mapData?.get("roomId")?.toString()
+                    val roomId = when (val raw = mapData?.get("roomId")) {
+                        is Number -> raw.toInt()
+                        is String -> raw.toIntOrNull()
+                        else -> null
+                    }
 
                     if (roomId != null) {
                         val intent = Intent(this@ProductDetailActivity, ChatRoomActivity::class.java).apply {

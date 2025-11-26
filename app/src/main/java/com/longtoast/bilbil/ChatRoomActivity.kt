@@ -53,7 +53,7 @@ class ChatRoomActivity : AppCompatActivity() {
     private val tempMessageMap = mutableMapOf<Long, ChatMessage>()
 
     private val WEBSOCKET_URL = ServerConfig.WEBSOCKET_URL
-    private val roomId by lazy { intent.getStringExtra("ROOM_ID") ?: "1" }
+    private val roomId by lazy { intent.getIntExtra("ROOM_ID", -1) }
 
     private val senderId: Int by lazy { AuthTokenManager.getUserId() ?: 1 }
     private val productId: Int? by lazy {
@@ -80,6 +80,12 @@ class ChatRoomActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat_room)
+
+        if (roomId <= 0) {
+            Toast.makeText(this, "채팅방 정보를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
 
         toolbar = findViewById(R.id.toolbar_chat)
         recyclerChat = findViewById(R.id.recycler_view_chat)
@@ -146,6 +152,12 @@ class ChatRoomActivity : AppCompatActivity() {
 
     /** 🔵 채팅방 히스토리 불러오기 */
     private fun fetchChatHistory() {
+        if (roomId <= 0) {
+            Toast.makeText(this, "채팅방 정보를 확인할 수 없습니다.", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
         RetrofitClient.getApiService().getChatHistory(roomId)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {

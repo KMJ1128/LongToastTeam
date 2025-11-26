@@ -90,18 +90,18 @@ interface ApiService {
     fun getMyChatRooms(): Call<MsgEntity>
 
     @GET("/api/chat/history/{roomId}")
-    fun getChatHistory(@Path("roomId") roomId: String): Call<MsgEntity>
+    fun getChatHistory(@Path("roomId") roomId: Int): Call<MsgEntity>
 
     @POST("/api/chat/room/{roomId}/message")
     fun sendChatMessage(
-        @Path("roomId") roomId: String,
+        @Path("roomId") roomId: Int,
         @Body request: ChatSendRequest
     ): Call<MsgEntity>
 
     @Multipart
     @POST("/api/chat/room/{roomId}/image")
     fun uploadChatImage(
-        @Path("roomId") roomId: String,
+        @Path("roomId") roomId: Int,
         @Part image: MultipartBody.Part
     ): Call<MsgEntity>
 
