@@ -47,34 +47,25 @@ class ProductDetailActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        // 뒤로가기
         binding.btnBack.setOnClickListener { finish() }
 
-        // 공유, 더보기 (기능 준비중)
-        binding.btnShare.setOnClickListener { Toast.makeText(this, "공유하기", Toast.LENGTH_SHORT).show() }
-        binding.btnMore.setOnClickListener { Toast.makeText(this, "더보기", Toast.LENGTH_SHORT).show() }
-
-        // 1. 채팅하기 버튼
-        binding.btnStartChat.setOnClickListener { startChatting() }
-
-// 2. 장바구니 버튼 클릭 이벤트 수정
-        binding.btnCart.setOnClickListener {
-            if (currentProduct != null) {
-                // 1. 매니저에 상품 추가
-                CartManager.addItem(currentProduct!!)
-
-                // 2. 사용자에게 알림
-                Toast.makeText(this, "장바구니에 담았습니다.", Toast.LENGTH_SHORT).show()
-
-                // (선택사항) 바로 장바구니로 이동하고 싶다면 아래 주석 해제
-                // val intent = Intent(this, CartActivity::class.java)
-                // startActivity(intent)
-            } else {
-                Toast.makeText(this, "상품 정보를 불러오는 중입니다.", Toast.LENGTH_SHORT).show()
-            }
+        binding.btnShare.setOnClickListener {
+            Toast.makeText(this, "공유하기 기능 준비중", Toast.LENGTH_SHORT).show()
         }
 
-// 3. 대여하기 버튼
+        binding.btnMore.setOnClickListener {
+            Toast.makeText(this, "더보기 기능 준비중", Toast.LENGTH_SHORT).show()
+        }
+
+        // 장바구니
+        binding.btnCart.setOnClickListener {
+            currentProduct?.let { product ->
+                CartManager.addItem(product)
+                Toast.makeText(this, "장바구니에 담았습니다.", Toast.LENGTH_SHORT).show()
+            } ?: Toast.makeText(this, "상품 정보를 불러오는 중입니다.", Toast.LENGTH_SHORT).show()
+        }
+
+        // 대여하기
         binding.btnRent.setOnClickListener {
             val intent = Intent(this, RentRequestActivity::class.java)
 
@@ -89,6 +80,9 @@ class ProductDetailActivity : AppCompatActivity() {
 
             startActivity(intent)
         }
+
+        // 채팅
+        binding.btnStartChat.setOnClickListener { startChatting() }
     }
 
     private fun loadProductDetail(itemId: Int) {
@@ -111,23 +105,20 @@ class ProductDetailActivity : AppCompatActivity() {
     }
 
     private fun updateUI(product: ProductDTO) {
-        // 1. 텍스트 정보 바인딩
         binding.textTitle.text = product.title
         binding.textCategoryTime.text = "${product.category ?: "기타"} · 1분 전"
         binding.textDescription.text = product.description ?: ""
 
-        // 가격 및 보증금 (본문에 표시)
+        // 가격 + 단위
+        val priceUnitLabel = PriceUnitMapper.toLabel(product.price_unit)
         val priceStr = numberFormat.format(product.price)
-        binding.textPrice.text = "$priceStr 원" // 단위(일/월)는 필요시 추가
+        binding.textPrice.text = "$priceStr 원 / $priceUnitLabel"
 
         val deposit = product.deposit ?: 0
-        if (deposit > 0) {
-            binding.textDeposit.text = "보증금 ${numberFormat.format(deposit)}원"
-        } else {
-            binding.textDeposit.text = "(보증금 없음)"
-        }
+        binding.textDeposit.text =
+            if (deposit > 0) "보증금 ${numberFormat.format(deposit)}원"
+            else "(보증금 없음)"
 
-        // 판매자 정보
         binding.textSellerNickname.text = product.sellerNickname ?: "알 수 없음"
         binding.textSellerAddress.text = product.address ?: "위치 미설정"
 
@@ -196,14 +187,12 @@ class ProductDetailActivity : AppCompatActivity() {
                     } else {
                         Toast.makeText(this@ProductDetailActivity, "채팅방 입장에 실패했습니다.", Toast.LENGTH_SHORT).show()
                     }
-                } else {
-                    Toast.makeText(this@ProductDetailActivity, "오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
                 }
-            }
-            override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                Toast.makeText(this@ProductDetailActivity, "네트워크 오류", Toast.LENGTH_SHORT).show()
-            }
-        })
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Toast.makeText(this@ProductDetailActivity, "네트워크 오류", Toast.LENGTH_SHORT).show()
+                }
+            })
     }
 
     private fun markReservedOnCalendar(periods: List<String>) {

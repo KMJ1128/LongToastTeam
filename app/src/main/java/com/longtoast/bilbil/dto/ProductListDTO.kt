@@ -7,6 +7,7 @@ data class ProductListDTO(
     val title: String,
     val description: String?,
     val price: Int,
+    val price_unit: Int,
     val category: String?,
     val address: String?,
     val status: String,

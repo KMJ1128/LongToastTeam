@@ -31,13 +31,32 @@ import retrofit2.Callback
 import retrofit2.Response
 import java.io.InputStream
 
+// --------------------
+// price_unit 매핑 유틸
+// --------------------
+object PriceUnitMapper {
+    fun toInt(label: String): Int = when (label) {
+        "일" -> 1
+        "월" -> 2
+        "시간" -> 3
+        else -> 1
+    }
+
+    fun toLabel(unit: Int): String = when (unit) {
+        1 -> "일"
+        2 -> "월"
+        3 -> "시간"
+        else -> "일"
+    }
+}
+
 class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
 
     private var _binding: ActivityNewPostFragmentBinding? = null
     private val binding get() = _binding!!
 
     private var productStatus: String = "AVAILABLE"
-    private var selectedPriceUnit: String = ""
+    private var selectedPriceUnit: String = ""   // "일", "월", "시간"
     private var rentalPriceString: String = ""
     private var editingProduct: ProductDTO? = null
 
@@ -99,10 +118,10 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         // 닫기 버튼
         binding.closeButton.setOnClickListener { parentFragmentManager.popBackStack() }
 
-        // 이미지 선택
+        // 이미지
         binding.layoutCameraArea.setOnClickListener { openGalleryForImage() }
 
-        // 주소 선택
+        // 주소
         binding.textViewAddress.setOnClickListener {
             val userId = AuthTokenManager.getUserId()
             val token = AuthTokenManager.getToken()
@@ -119,13 +138,15 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
             mapResultLauncher.launch(intent)
         }
 
-        // 가격 선택 팝업
+        // 가격 단위 선택
         binding.editTextPrice.setOnClickListener { showPriceUnitSelectionDialog() }
 
         setupStatusToggleGroup()
     }
 
     override fun onPriceUnitSelected(price: String, unit: String) {
+        // price : "5000"
+        // unit : "일", "월", "시간"
         rentalPriceString = price
         selectedPriceUnit = unit
         updatePriceTextView()
@@ -135,7 +156,7 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         if (rentalPriceString.isEmpty()) {
             binding.editTextPrice.hint = "₩ 대여 가격 (단위 선택)"
         } else {
-            binding.editTextPrice.setText("₩ $rentalPriceString / $selectedPriceUnit")
+            binding.editTextPrice.text = "₩ $rentalPriceString / $selectedPriceUnit"
         }
     }
 
@@ -148,11 +169,7 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
 
         binding.toggleStatusGroup.addOnButtonCheckedListener { _, id, isChecked ->
             if (isChecked) {
-                productStatus = if (id == R.id.button_rent_available) {
-                    "AVAILABLE"
-                } else {
-                    "UNAVAILABLE"
-                }
+                productStatus = if (id == R.id.button_rent_available) "AVAILABLE" else "UNAVAILABLE"
             }
         }
     }
@@ -167,13 +184,12 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         val category = binding.editTextCategory.text.toString().trim()
         val depositText = binding.editTextDeposit.text.toString().trim()
 
-        // Validation
         if (selectedAddress.isNullOrEmpty()) {
             Toast.makeText(requireContext(), "거래 지역을 설정해주세요.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        if (title.isEmpty() || category.isEmpty() || rentalPriceString.isEmpty()) {
+        if (title.isEmpty() || category.isEmpty() || rentalPriceString.isEmpty() || selectedPriceUnit.isEmpty()) {
             Toast.makeText(requireContext(), "필수 정보를 입력해주세요.", Toast.LENGTH_SHORT).show()
             return
         }
@@ -187,19 +203,21 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
 
         lifecycleScope.launch {
 
-            // (3) 이미지 URI → MultipartBody.Part
             val imageParts = withContext(Dispatchers.IO) {
                 convertImagesToMultipart(selectedImageUris)
             }
 
             val price = rentalPriceString.toIntOrNull() ?: 0
             val deposit = depositText.toIntOrNull()
-            val finalDesc = "$description (가격 단위: $selectedPriceUnit)"
+
+            // price_unit 번호 변환
+            val priceUnitInt = PriceUnitMapper.toInt(selectedPriceUnit)
 
             val requestObj = ProductCreateRequest(
                 title = title,
                 price = price,
-                description = finalDesc,
+                price_unit = priceUnitInt,
+                description = description,
                 category = category,
                 status = productStatus,
                 deposit = deposit,
