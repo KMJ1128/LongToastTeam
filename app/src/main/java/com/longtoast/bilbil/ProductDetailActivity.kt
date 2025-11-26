@@ -47,48 +47,39 @@ class ProductDetailActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        // 뒤로가기
         binding.btnBack.setOnClickListener { finish() }
 
-        // 공유, 더보기 (기능 준비중)
-        binding.btnShare.setOnClickListener { Toast.makeText(this, "공유하기", Toast.LENGTH_SHORT).show() }
-        binding.btnMore.setOnClickListener { Toast.makeText(this, "더보기", Toast.LENGTH_SHORT).show() }
-
-        // 1. 채팅하기 버튼
-        binding.btnStartChat.setOnClickListener { startChatting() }
-
-// 2. 장바구니 버튼 클릭 이벤트 수정
-        binding.btnCart.setOnClickListener {
-            if (currentProduct != null) {
-                // 1. 매니저에 상품 추가
-                CartManager.addItem(currentProduct!!)
-
-                // 2. 사용자에게 알림
-                Toast.makeText(this, "장바구니에 담았습니다.", Toast.LENGTH_SHORT).show()
-
-                // (선택사항) 바로 장바구니로 이동하고 싶다면 아래 주석 해제
-                // val intent = Intent(this, CartActivity::class.java)
-                // startActivity(intent)
-            } else {
-                Toast.makeText(this, "상품 정보를 불러오는 중입니다.", Toast.LENGTH_SHORT).show()
-            }
+        binding.btnShare.setOnClickListener {
+            Toast.makeText(this, "공유하기 기능 준비중", Toast.LENGTH_SHORT).show()
         }
 
-// 3. 대여하기 버튼
+        binding.btnMore.setOnClickListener {
+            Toast.makeText(this, "더보기 기능 준비중", Toast.LENGTH_SHORT).show()
+        }
+
+        // 장바구니
+        binding.btnCart.setOnClickListener {
+            currentProduct?.let { product ->
+                CartManager.addItem(product)
+                Toast.makeText(this, "장바구니에 담았습니다.", Toast.LENGTH_SHORT).show()
+            } ?: Toast.makeText(this, "상품 정보를 불러오는 중입니다.", Toast.LENGTH_SHORT).show()
+        }
+
+        // 대여하기
         binding.btnRent.setOnClickListener {
-            val intent = Intent(this, RentRequestActivity::class.java)
-
-            // 상세 정보를 넘겨줍니다 (옵션)
-            intent.putExtra("TITLE", binding.textTitle.text.toString())
-            intent.putExtra("PRICE", currentProduct?.price ?: 0)
-            intent.putExtra("DEPOSIT", currentProduct?.deposit ?: 0)
-            intent.putExtra("ITEM_ID", currentProduct?.id ?: -1)
-            intent.putExtra("LENDER_ID", currentProduct?.userId ?: -1)
-            intent.putExtra("SELLER_NICKNAME", currentProduct?.sellerNickname)
-            // intent.putExtra("IMAGE_URL", currentProduct?.imageUrls?.firstOrNull())
-
+            val intent = Intent(this, RentRequestActivity::class.java).apply {
+                putExtra("TITLE", currentProduct?.title)
+                putExtra("PRICE", currentProduct?.price ?: 0)
+                putExtra("DEPOSIT", currentProduct?.deposit ?: 0)
+                putExtra("ITEM_ID", currentProduct?.id ?: -1)
+                putExtra("LENDER_ID", currentProduct?.userId ?: -1)
+                putExtra("SELLER_NICKNAME", currentProduct?.sellerNickname)
+            }
             startActivity(intent)
         }
+
+        // 채팅
+        binding.btnStartChat.setOnClickListener { startChatting() }
     }
 
     private fun loadProductDetail(itemId: Int) {
@@ -111,27 +102,21 @@ class ProductDetailActivity : AppCompatActivity() {
     }
 
     private fun updateUI(product: ProductDTO) {
-        // 1. 텍스트 정보 바인딩
         binding.textTitle.text = product.title
         binding.textCategoryTime.text = "${product.category ?: "기타"} · 1분 전"
         binding.textDescription.text = product.description ?: ""
 
-        // 가격 및 보증금 (본문에 표시)
-        val priceStr = numberFormat.format(product.price)
-        binding.textPrice.text = "$priceStr 원" // 단위(일/월)는 필요시 추가
+        // 가격 + 단위
+        val priceLabel = PriceUnitMapper.toLabel(product.price_unit)
+        binding.textPrice.text = "${numberFormat.format(product.price)} 원 / $priceLabel"
 
         val deposit = product.deposit ?: 0
-        if (deposit > 0) {
-            binding.textDeposit.text = "보증금 ${numberFormat.format(deposit)}원"
-        } else {
-            binding.textDeposit.text = "(보증금 없음)"
-        }
+        binding.textDeposit.text = if (deposit > 0) "보증금 ${numberFormat.format(deposit)}원" else "(보증금 없음)"
 
-        // 판매자 정보
         binding.textSellerNickname.text = product.sellerNickname ?: "알 수 없음"
         binding.textSellerAddress.text = product.address ?: "위치 미설정"
 
-        // 2. 이미지 슬라이더
+        // 이미지 슬라이더
         val fixedImages = product.imageUrls?.mapNotNull { ImageUrlUtils.resolve(it) } ?: emptyList()
 
         if (fixedImages.isNotEmpty()) {
@@ -149,16 +134,9 @@ class ProductDetailActivity : AppCompatActivity() {
         }
 
         markReservedOnCalendar(product.reservedPeriods ?: emptyList())
-
-        // 3. 내 물건인 경우 채팅 버튼 숨김 로직 (필요시 주석 해제)
-        /*
-        val myId = AuthTokenManager.getUserId()
-        if (myId != null && myId == product.userId) {
-            binding.btnStartChat.visibility = View.GONE
-        }
-        */
     }
 
+    /** 🔵 채팅 시작 */
     private fun startChatting() {
         val myId = AuthTokenManager.getUserId()
         val product = currentProduct ?: return
@@ -174,9 +152,14 @@ class ProductDetailActivity : AppCompatActivity() {
             borrowerId = myId
         )
 
-        RetrofitClient.getApiService().createChatRoom(request).enqueue(object : Callback<MsgEntity> {
-            override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                if (response.isSuccessful) {
+        RetrofitClient.getApiService().createChatRoom(request)
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (!response.isSuccessful) {
+                        Toast.makeText(this@ProductDetailActivity, "채팅방 생성 실패", Toast.LENGTH_SHORT).show()
+                        return
+                    }
+
                     val rawData = response.body()?.data
                     val gson = Gson()
                     val type = object : TypeToken<Map<String, Any>>() {}.type
@@ -184,28 +167,28 @@ class ProductDetailActivity : AppCompatActivity() {
                     val roomId = mapData?.get("roomId")?.toString()
 
                     if (roomId != null) {
-                        val intent = Intent(this@ProductDetailActivity, ChatRoomActivity::class.java)
-                        intent.putExtra("ROOM_ID", roomId)
-                        intent.putExtra("SELLER_NICKNAME", product.sellerNickname)
-                        intent.putExtra("PRODUCT_ID", product.id?.toInt())
-                        intent.putExtra("PRODUCT_TITLE", product.title)
-                        intent.putExtra("PRODUCT_PRICE", product.price)
-                        intent.putExtra("PRODUCT_DEPOSIT", product.deposit ?: 0)
-                        intent.putExtra("LENDER_ID", product.userId)
+                        val intent = Intent(this@ProductDetailActivity, ChatRoomActivity::class.java).apply {
+                            putExtra("ROOM_ID", roomId)
+                            putExtra("SELLER_NICKNAME", product.sellerNickname)
+                            putExtra("PRODUCT_ID", product.id?.toInt())
+                            putExtra("PRODUCT_TITLE", product.title)
+                            putExtra("PRODUCT_PRICE", product.price)
+                            putExtra("PRODUCT_DEPOSIT", product.deposit ?: 0)
+                            putExtra("LENDER_ID", product.userId)
+                        }
                         startActivity(intent)
                     } else {
-                        Toast.makeText(this@ProductDetailActivity, "채팅방 입장에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@ProductDetailActivity, "채팅방 입장 실패", Toast.LENGTH_SHORT).show()
                     }
-                } else {
-                    Toast.makeText(this@ProductDetailActivity, "오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
                 }
-            }
-            override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                Toast.makeText(this@ProductDetailActivity, "네트워크 오류", Toast.LENGTH_SHORT).show()
-            }
-        })
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Toast.makeText(this@ProductDetailActivity, "네트워크 오류", Toast.LENGTH_SHORT).show()
+                }
+            })
     }
 
+    /** 🔵 예약된 날짜 달력 표시 */
     private fun markReservedOnCalendar(periods: List<String>) {
         if (periods.isEmpty()) {
             binding.textReservedPeriods.visibility = View.GONE
@@ -217,8 +200,10 @@ class ProductDetailActivity : AppCompatActivity() {
         for (range in periods) {
             val parts = range.split("~")
             if (parts.size != 2) continue
+
             val start = runCatching { dayFormat.parse(parts[0]) }.getOrNull()
             val end = runCatching { dayFormat.parse(parts[1]) }.getOrNull()
+
             if (start != null && end != null) {
                 val cal = java.util.Calendar.getInstance().apply {
                     time = start
@@ -227,6 +212,7 @@ class ProductDetailActivity : AppCompatActivity() {
                     set(java.util.Calendar.SECOND, 0)
                     set(java.util.Calendar.MILLISECOND, 0)
                 }
+
                 val endCal = java.util.Calendar.getInstance().apply {
                     time = end
                     set(java.util.Calendar.HOUR_OF_DAY, 0)
@@ -250,6 +236,7 @@ class ProductDetailActivity : AppCompatActivity() {
                 set(year, month, dayOfMonth, 0, 0, 0)
                 set(java.util.Calendar.MILLISECOND, 0)
             }
+
             if (reservedDays.contains(cal.timeInMillis)) {
                 Toast.makeText(this, "이미 대여된 날짜입니다.", Toast.LENGTH_SHORT).show()
             }
