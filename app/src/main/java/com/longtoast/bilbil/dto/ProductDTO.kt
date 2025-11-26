@@ -33,5 +33,8 @@ data class ProductDTO(
     val createdAt: String?,
 
     @SerializedName("transactionId")
-    val transactionId: Long? = null
+    val transactionId: Long? = null,
+
+    @SerializedName("reservedPeriods")
+    val reservedPeriods: List<String>? = emptyList()
 )

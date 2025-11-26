@@ -1,11 +1,22 @@
 package com.longtoast.bilbil
 
 import android.app.DatePickerDialog
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.bumptech.glide.Glide
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.databinding.ActivityRentRequestBinding
+import com.longtoast.bilbil.dto.ChatRoomCreateRequest
+import com.longtoast.bilbil.dto.ChatSendRequest
+import com.longtoast.bilbil.dto.MsgEntity
+import com.longtoast.bilbil.dto.RentalActionPayload
+import com.longtoast.bilbil.dto.RentalRequest
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.text.DecimalFormat
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
@@ -18,6 +29,13 @@ class RentRequestActivity : AppCompatActivity() {
     // 상품 정보
     private var pricePerDay = 0
     private var deposit = 0
+    private var itemId = -1
+    private var lenderId = -1
+    private var sellerNickname: String? = null
+    private var selectedDays: Int = 0
+    private var lastRentFee: Int = 0
+    private var lastTotalAmount: Int = 0
+    private var lastTransactionId: Long? = null
 
     // 날짜 정보
     private var startCalendar: Calendar? = null
@@ -35,6 +53,9 @@ class RentRequestActivity : AppCompatActivity() {
         val title = intent.getStringExtra("TITLE") ?: "상품 정보 없음"
         pricePerDay = intent.getIntExtra("PRICE", 0)
         deposit = intent.getIntExtra("DEPOSIT", 0)
+        itemId = intent.getIntExtra("ITEM_ID", -1)
+        lenderId = intent.getIntExtra("LENDER_ID", -1)
+        sellerNickname = intent.getStringExtra("SELLER_NICKNAME")
         // val imageUrl = intent.getStringExtra("IMAGE_URL")
 
         // 2. UI 초기화
@@ -89,12 +110,7 @@ class RentRequestActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // 성공 로직
-            val methodText = if (selectedDeliveryMethod == "DIRECT") "직거래" else "택배"
-            Toast.makeText(this, "[$methodText] 대여 요청이 전송되었습니다.", Toast.LENGTH_LONG).show()
-
-            // 추후 서버 API 호출 시 selectedDeliveryMethod 값도 같이 보내면 됩니다.
-            finish()
+            sendRentRequest(title)
         }
     }
 
@@ -133,12 +149,170 @@ class RentRequestActivity : AppCompatActivity() {
     }
 
     private fun updatePriceUI(days: Int) {
+        selectedDays = days
         val rentFee = pricePerDay * days
+        lastRentFee = rentFee
         val totalAmount = rentFee + deposit
+        lastTotalAmount = totalAmount
 
         binding.textDaysCount.text = "대여료 (${days}일)"
         binding.textRentFee.text = "${numberFormat.format(rentFee)}원"
         binding.textDepositFee.text = "${numberFormat.format(deposit)}원"
         binding.textTotalPrice.text = "${numberFormat.format(totalAmount)}원"
+    }
+
+    private fun sendRentRequest(title: String) {
+        val borrowerId = AuthTokenManager.getUserId()
+        val startText = binding.textStartDate.text.toString()
+        val endText = binding.textEndDate.text.toString()
+
+        if (borrowerId == null || itemId <= 0 || lenderId <= 0) {
+            Toast.makeText(this, "로그인 또는 상품 정보를 확인해주세요.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val requestBody = RentalRequest(
+            itemId = itemId,
+            lenderId = lenderId,
+            borrowerId = borrowerId,
+            startDate = startText,
+            endDate = endText,
+            rentFee = lastRentFee,
+            deposit = deposit,
+            totalAmount = lastTotalAmount,
+            deliveryMethod = selectedDeliveryMethod ?: ""
+        )
+
+        RetrofitClient.getApiService().createRentalRequest(requestBody)
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (!response.isSuccessful) {
+                        Toast.makeText(this@RentRequestActivity, "대여 요청 저장 실패", Toast.LENGTH_SHORT).show()
+                        return
+                    }
+
+                    val raw = response.body()?.data ?: return
+                    val gson = Gson()
+                    val type = object : TypeToken<Map<String, Any>>() {}.type
+                    val mapData: Map<String, Any> = gson.fromJson(gson.toJson(raw), type)
+                    val transactionId = mapData["transactionId"]?.toString()?.toLongOrNull()
+                    lastTransactionId = transactionId
+
+                    if (transactionId == null) {
+                        Toast.makeText(this@RentRequestActivity, "거래 정보를 가져오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                        return
+                    }
+
+                    createRoomAndSendMessages(title, transactionId)
+                }
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Toast.makeText(this@RentRequestActivity, "대여 요청 저장 실패", Toast.LENGTH_SHORT).show()
+                }
+            })
+    }
+
+    private fun createRoomAndSendMessages(title: String, transactionId: Long) {
+        val borrowerId = AuthTokenManager.getUserId() ?: return
+        val request = ChatRoomCreateRequest(itemId, lenderId, borrowerId)
+
+        RetrofitClient.getApiService().createChatRoom(request)
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (!response.isSuccessful) {
+                        Toast.makeText(this@RentRequestActivity, "채팅방 생성 실패", Toast.LENGTH_SHORT).show()
+                        return
+                    }
+
+                    val raw = response.body()?.data ?: return
+                    val gson = Gson()
+                    val type = object : TypeToken<Map<String, Any>>() {}.type
+                    val mapData: Map<String, Any> = gson.fromJson(gson.toJson(raw), type)
+                    val roomId = mapData["roomId"]?.toString()
+
+                    if (roomId.isNullOrEmpty()) {
+                        Toast.makeText(this@RentRequestActivity, "채팅방 정보를 가져오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                        return
+                    }
+
+                    RetrofitClient.getApiService()
+                        .sendChatMessage(roomId, ChatSendRequest(buildMessage(title)))
+                        .enqueue(object : Callback<MsgEntity> {
+                            override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                                if (response.isSuccessful) {
+                                    sendActionPrompt(roomId, transactionId)
+                                } else {
+                                    Toast.makeText(this@RentRequestActivity, "메시지 전송 실패", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+
+                            override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                                Toast.makeText(this@RentRequestActivity, "네트워크 오류", Toast.LENGTH_SHORT).show()
+                            }
+                        })
+                }
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Toast.makeText(this@RentRequestActivity, "채팅방 생성 실패", Toast.LENGTH_SHORT).show()
+                }
+            })
+    }
+
+    private fun sendActionPrompt(roomId: String, transactionId: Long) {
+        val gson = Gson()
+        val payload = RentalActionPayload(
+            transactionId = transactionId,
+            itemId = itemId,
+            startDate = binding.textStartDate.text.toString(),
+            endDate = binding.textEndDate.text.toString(),
+            rentFee = lastRentFee,
+            deposit = deposit,
+            totalAmount = lastTotalAmount,
+            deliveryMethod = if (selectedDeliveryMethod == "DIRECT") "직거래" else "택배"
+        )
+        val content = "[RENT_CONFIRM]" + gson.toJson(payload)
+
+        RetrofitClient.getApiService()
+            .sendChatMessage(roomId, ChatSendRequest(content))
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (response.isSuccessful) {
+                        Toast.makeText(this@RentRequestActivity, "대여 요청을 전송했습니다.", Toast.LENGTH_SHORT).show()
+                        openChatRoom(roomId)
+                    } else {
+                        Toast.makeText(this@RentRequestActivity, "확정 요청 전송 실패", Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Toast.makeText(this@RentRequestActivity, "네트워크 오류", Toast.LENGTH_SHORT).show()
+                }
+            })
+    }
+
+    private fun buildMessage(title: String): String {
+        val startText = binding.textStartDate.text.toString()
+        val endText = binding.textEndDate.text.toString()
+        val methodText = if (selectedDeliveryMethod == "DIRECT") "직거래" else "택배"
+
+        return """
+            [대여 요청]
+            상품: $title
+            기간: $startText ~ $endText (${selectedDays}일)
+            거래 방식: $methodText
+            대여료: ${numberFormat.format(lastRentFee)}원
+            보증금: ${numberFormat.format(deposit)}원
+            총 결제 예상: ${numberFormat.format(lastTotalAmount)}원
+        """.trimIndent()
+    }
+
+    private fun openChatRoom(roomId: String) {
+        val intent = Intent(this, ChatRoomActivity::class.java).apply {
+            putExtra("ROOM_ID", roomId)
+            putExtra("SELLER_NICKNAME", sellerNickname)
+            putExtra("PRODUCT_ID", itemId)
+        }
+        startActivity(intent)
+        finish()
     }
 }
