@@ -21,12 +21,14 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import java.text.DecimalFormat
+import java.text.SimpleDateFormat
 
 class ProductDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityProductDetailBinding
     private var currentProduct: ProductDTO? = null
     private val numberFormat = DecimalFormat("#,###")
+    private val dayFormat = SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,6 +82,9 @@ class ProductDetailActivity : AppCompatActivity() {
             intent.putExtra("TITLE", binding.textTitle.text.toString())
             intent.putExtra("PRICE", currentProduct?.price ?: 0)
             intent.putExtra("DEPOSIT", currentProduct?.deposit ?: 0)
+            intent.putExtra("ITEM_ID", currentProduct?.id ?: -1)
+            intent.putExtra("LENDER_ID", currentProduct?.userId ?: -1)
+            intent.putExtra("SELLER_NICKNAME", currentProduct?.sellerNickname)
             // intent.putExtra("IMAGE_URL", currentProduct?.imageUrls?.firstOrNull())
 
             startActivity(intent)
@@ -127,11 +132,7 @@ class ProductDetailActivity : AppCompatActivity() {
         binding.textSellerAddress.text = product.address ?: "위치 미설정"
 
         // 2. 이미지 슬라이더
-        val fixedImages = product.imageUrls?.map { img ->
-            if (img.startsWith("/")) {
-                ServerConfig.HTTP_BASE_URL.removeSuffix("/") + img
-            } else img
-        } ?: emptyList()
+        val fixedImages = product.imageUrls?.mapNotNull { ImageUrlUtils.resolve(it) } ?: emptyList()
 
         if (fixedImages.isNotEmpty()) {
             binding.viewPagerImages.adapter = DetailImageAdapter(fixedImages)
@@ -146,6 +147,8 @@ class ProductDetailActivity : AppCompatActivity() {
         } else {
             binding.textImageIndicator.visibility = View.GONE
         }
+
+        markReservedOnCalendar(product.reservedPeriods ?: emptyList())
 
         // 3. 내 물건인 경우 채팅 버튼 숨김 로직 (필요시 주석 해제)
         /*
@@ -184,6 +187,11 @@ class ProductDetailActivity : AppCompatActivity() {
                         val intent = Intent(this@ProductDetailActivity, ChatRoomActivity::class.java)
                         intent.putExtra("ROOM_ID", roomId)
                         intent.putExtra("SELLER_NICKNAME", product.sellerNickname)
+                        intent.putExtra("PRODUCT_ID", product.id?.toInt())
+                        intent.putExtra("PRODUCT_TITLE", product.title)
+                        intent.putExtra("PRODUCT_PRICE", product.price)
+                        intent.putExtra("PRODUCT_DEPOSIT", product.deposit ?: 0)
+                        intent.putExtra("LENDER_ID", product.userId)
                         startActivity(intent)
                     } else {
                         Toast.makeText(this@ProductDetailActivity, "채팅방 입장에 실패했습니다.", Toast.LENGTH_SHORT).show()
@@ -196,5 +204,55 @@ class ProductDetailActivity : AppCompatActivity() {
                 Toast.makeText(this@ProductDetailActivity, "네트워크 오류", Toast.LENGTH_SHORT).show()
             }
         })
+    }
+
+    private fun markReservedOnCalendar(periods: List<String>) {
+        if (periods.isEmpty()) {
+            binding.textReservedPeriods.visibility = View.GONE
+            return
+        }
+
+        val reservedDays = mutableSetOf<Long>()
+
+        for (range in periods) {
+            val parts = range.split("~")
+            if (parts.size != 2) continue
+            val start = runCatching { dayFormat.parse(parts[0]) }.getOrNull()
+            val end = runCatching { dayFormat.parse(parts[1]) }.getOrNull()
+            if (start != null && end != null) {
+                val cal = java.util.Calendar.getInstance().apply {
+                    time = start
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }
+                val endCal = java.util.Calendar.getInstance().apply {
+                    time = end
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }
+
+                while (!cal.after(endCal)) {
+                    reservedDays.add(cal.timeInMillis)
+                    cal.add(java.util.Calendar.DATE, 1)
+                }
+            }
+        }
+
+        binding.textReservedPeriods.visibility = View.VISIBLE
+        binding.textReservedPeriods.text = "대여중: ${periods.joinToString(", ")}"
+
+        binding.calendarAvailability.setOnDateChangeListener { _, year, month, dayOfMonth ->
+            val cal = java.util.Calendar.getInstance().apply {
+                set(year, month, dayOfMonth, 0, 0, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            if (reservedDays.contains(cal.timeInMillis)) {
+                Toast.makeText(this, "이미 대여된 날짜입니다.", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }

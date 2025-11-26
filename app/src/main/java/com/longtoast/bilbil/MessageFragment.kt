@@ -80,6 +80,9 @@ class MessageFragment : Fragment() {
             val intent = Intent(requireContext(), ChatRoomActivity::class.java).apply {
                 putExtra("ROOM_ID", room.roomId.toString())
                 putExtra("SELLER_NICKNAME", room.partnerNickname)
+                putExtra("PRODUCT_ID", room.itemId)
+                putExtra("PRODUCT_TITLE", room.itemTitle)
+                putExtra("PRODUCT_PRICE", room.itemPrice)
             }
             startActivity(intent)
         }

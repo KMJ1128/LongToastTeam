@@ -130,7 +130,8 @@ public class ReadProductService {
                 .map(item -> convertToDTO(
                         item,
                         mainImageMap.get(item.getId()),
-                        allImageUrlsMap.get(item.getId())
+                        allImageUrlsMap.get(item.getId()),
+                        List.of()
                 ))
                 .collect(Collectors.toList());
     }
@@ -138,7 +139,7 @@ public class ReadProductService {
     // =====================================================
     // Item → ProductDTO 변환 (이미지 절대경로 포함)
     // =====================================================
-    private ProductDTO convertToDTO(Item item, String mainImageUrl, List<String> imageUrls) {
+    private ProductDTO convertToDTO(Item item, String mainImageUrl, List<String> imageUrls, List<String> reservedPeriods) {
 
         // 상대경로 → 절대경로 변환
         String resolvedMain = (mainImageUrl != null) ? (baseUrl + mainImageUrl) : null;
@@ -167,6 +168,7 @@ public class ReadProductService {
                 .sellerId(item.getUser() != null ? item.getUser().getId() : null)
                 .sellerNickname(item.getUser() != null ? item.getUser().getNickname() : null)
                 .sellerCreditScore(item.getUser() != null ? item.getUser().getCreditScore() : 0)
+                .reservedPeriods(reservedPeriods)
                 .build();
     }
 
@@ -193,7 +195,16 @@ public class ReadProductService {
         System.out.println("allImages = " + allList);
         System.out.println("==========================");
 
-        return convertToDTO(item, main, allList);
+        List<Transaction> accepted = transactionRepository.findByItem_IdAndStatusIn(
+                item.getId(),
+                List.of(Transaction.Status.ACCEPTED)
+        );
+
+        List<String> reservedPeriods = accepted.stream()
+                .map(tx -> tx.getStartDate() + "~" + tx.getEndDate())
+                .collect(Collectors.toList());
+
+        return convertToDTO(item, main, allList, reservedPeriods);
     }
 
     private Sort createSortCriteria(String sort) {

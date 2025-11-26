@@ -1,6 +1,5 @@
 package com.longtoast.bilbil
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -8,28 +7,36 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.widget.SearchView
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.chip.Chip
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.longtoast.bilbil.adapter.CategoryAdapter
 import com.longtoast.bilbil.adapter.PopularSearchAdapter
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.databinding.FragmentHomeBinding
 import com.longtoast.bilbil.dto.MsgEntity
-import com.longtoast.bilbil.dto.SearchHistoryDTO
 import com.longtoast.bilbil.dto.PopularSearchDTO
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
+import com.longtoast.bilbil.dto.ProductListDTO
+import com.longtoast.bilbil.dto.SearchHistoryDTO
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import android.widget.Toast
+import com.longtoast.bilbil.ProductAdapter
+import com.longtoast.bilbil.ProductDetailActivity
 
 class HomeFragment : Fragment() {
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private lateinit var popularAdapter: PopularSearchAdapter
+    private lateinit var productAdapter: ProductAdapter
+    private lateinit var productLayoutManager: RecyclerView.LayoutManager
 
     override fun onResume() {
         super.onResume()
@@ -53,6 +60,8 @@ class HomeFragment : Fragment() {
         setupSearchBar()
         setupCategoryRecycler()
         setupPopularRecycler()
+        setupProductRecycler()
+        loadProducts()
 
 
     }
@@ -166,8 +175,70 @@ class HomeFragment : Fragment() {
         }
     }
 
+    private fun setupProductRecycler() {
+        productLayoutManager = LinearLayoutManager(requireContext())
+        productAdapter = ProductAdapter(emptyList()) { itemId ->
+            Log.d("HOME_PRODUCTS", "상품 클릭: $itemId")
+            val intent = Intent(requireContext(), ProductDetailActivity::class.java).apply {
+                putExtra("ITEM_ID", itemId)
+            }
+            startActivity(intent)
+        }
+
+        binding.recyclerProducts.apply {
+            layoutManager = productLayoutManager
+            adapter = productAdapter
+            isNestedScrollingEnabled = false
+        }
+    }
+
     private fun togglePopularList(show: Boolean) {
         binding.popularRecyclerView.visibility = if (show) View.VISIBLE else View.GONE
+    }
+
+    private fun loadProducts() {
+        binding.productsProgress.isVisible = true
+        binding.textProductsEmpty.isVisible = false
+
+        RetrofitClient.getApiService().getProductLists()
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    binding.productsProgress.isVisible = false
+                    if (!response.isSuccessful) {
+                        Toast.makeText(requireContext(), "상품을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                        binding.textProductsEmpty.isVisible = true
+                        return
+                    }
+
+                    val rawData = response.body()?.data
+                    if (rawData == null) {
+                        binding.textProductsEmpty.isVisible = true
+                        return
+                    }
+
+                    try {
+                        val gson = Gson()
+                        val listType = object : TypeToken<List<ProductListDTO>>() {}.type
+                        val json = gson.toJson(rawData)
+                        val productList: List<ProductListDTO> = gson.fromJson(json, listType)
+
+                        if (productList.isEmpty()) {
+                            binding.textProductsEmpty.isVisible = true
+                        } else {
+                            productAdapter.updateList(productList)
+                            binding.textProductsEmpty.isVisible = false
+                        }
+                    } catch (e: Exception) {
+                        Log.e("HOME_PRODUCTS", "상품 목록 파싱 오류", e)
+                        binding.textProductsEmpty.isVisible = true
+                    }
+                }
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    binding.productsProgress.isVisible = false
+                    binding.textProductsEmpty.isVisible = true
+                }
+            })
     }
 
     // ⭐ 전역 인기 검색어 (검색창 클릭 시 아래 리스트로 표시)
@@ -299,3 +370,9 @@ class HomeFragment : Fragment() {
         _binding = null
     }
 }
+import com.longtoast.bilbil.dto.ProductListDTO
+import android.widget.Toast
+
+import androidx.core.view.isVisible
+
+import com.longtoast.bilbil.ProductAdapter

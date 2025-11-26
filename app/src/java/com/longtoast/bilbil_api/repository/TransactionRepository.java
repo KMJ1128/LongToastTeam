@@ -14,4 +14,9 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             List<Long> itemIds,
             Integer borrowerId
     );
+
+    List<Transaction> findByItem_IdAndStatusIn(
+            Long itemId,
+            List<Transaction.Status> statuses
+    );
 }

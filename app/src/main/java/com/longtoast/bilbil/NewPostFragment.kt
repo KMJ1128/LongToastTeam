@@ -17,6 +17,7 @@ import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.databinding.ActivityNewPostFragmentBinding
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ProductCreateRequest
+import com.longtoast.bilbil.dto.ProductDTO
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,6 +39,7 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
     private var productStatus: String = "AVAILABLE"
     private var selectedPriceUnit: String = ""
     private var rentalPriceString: String = ""
+    private var editingProduct: ProductDTO? = null
 
     private val selectedImageUris = mutableListOf<Uri>()
     private val MAX_IMAGE_COUNT = 4
@@ -82,6 +84,12 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        arguments?.getString(ARG_PRODUCT_JSON)?.let { json ->
+            editingProduct = Gson().fromJson(json, ProductDTO::class.java)
+        }
+
+        editingProduct?.let { prefillFields(it) }
 
         updatePriceTextView()
 
@@ -170,7 +178,7 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
             return
         }
 
-        if (selectedImageUris.isEmpty()) {
+        if (selectedImageUris.isEmpty() && editingProduct == null) {
             Toast.makeText(requireContext(), "최소 1장의 이미지가 필요합니다.", Toast.LENGTH_SHORT).show()
             return
         }
@@ -199,37 +207,79 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
                 address = selectedAddress!!
             )
 
-            // (2) JSON → RequestBody
-            val productRequestBody: RequestBody =
-                Gson().toJson(requestObj)
-                    .toRequestBody("application/json; charset=utf-8".toMediaType())
-
-            RetrofitClient.getApiService()
-                .createProduct(productRequestBody, imageParts)
-                .enqueue(object : Callback<MsgEntity> {
-                    override fun onResponse(
-                        call: Call<MsgEntity>,
-                        response: Response<MsgEntity>
-                    ) {
-                        binding.completeButton.isEnabled = true
-
-                        if (response.isSuccessful) {
-                            Toast.makeText(requireContext(), "등록 성공!", Toast.LENGTH_SHORT).show()
-                            parentFragmentManager.popBackStack()
-                        } else {
-                            val err = response.errorBody()?.string()
-                            Log.e("POST_API", "실패: ${response.code()} | $err")
-                            Toast.makeText(requireContext(), "등록 실패", Toast.LENGTH_LONG).show()
+            editingProduct?.let { product ->
+                RetrofitClient.getApiService()
+                    .updateProduct(product.id, requestObj)
+                    .enqueue(object : Callback<MsgEntity> {
+                        override fun onResponse(
+                            call: Call<MsgEntity>,
+                            response: Response<MsgEntity>
+                        ) {
+                            binding.completeButton.isEnabled = true
+                            if (response.isSuccessful) {
+                                Toast.makeText(requireContext(), "수정되었습니다.", Toast.LENGTH_SHORT).show()
+                                parentFragmentManager.popBackStack()
+                            } else {
+                                Toast.makeText(requireContext(), "수정에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                            }
                         }
-                    }
 
-                    override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                        binding.completeButton.isEnabled = true
-                        Log.e("POST_API", "서버 오류", t)
-                        Toast.makeText(requireContext(), "서버 통신 오류", Toast.LENGTH_LONG).show()
-                    }
-                })
+                        override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                            binding.completeButton.isEnabled = true
+                            Log.e("POST_API", "서버 오류", t)
+                            Toast.makeText(requireContext(), "서버 통신 오류", Toast.LENGTH_LONG).show()
+                        }
+                    })
+            } ?: run {
+                // (2) JSON → RequestBody
+                val productRequestBody: RequestBody =
+                    Gson().toJson(requestObj)
+                        .toRequestBody("application/json; charset=utf-8".toMediaType())
+
+                RetrofitClient.getApiService()
+                    .createProduct(productRequestBody, imageParts)
+                    .enqueue(object : Callback<MsgEntity> {
+                        override fun onResponse(
+                            call: Call<MsgEntity>,
+                            response: Response<MsgEntity>
+                        ) {
+                            binding.completeButton.isEnabled = true
+
+                            if (response.isSuccessful) {
+                                Toast.makeText(requireContext(), "등록 성공!", Toast.LENGTH_SHORT).show()
+                                parentFragmentManager.popBackStack()
+                            } else {
+                                val err = response.errorBody()?.string()
+                                Log.e("POST_API", "실패: ${response.code()} | $err")
+                                Toast.makeText(requireContext(), "등록 실패", Toast.LENGTH_LONG).show()
+                            }
+                        }
+
+                        override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                            binding.completeButton.isEnabled = true
+                            Log.e("POST_API", "서버 오류", t)
+                            Toast.makeText(requireContext(), "서버 통신 오류", Toast.LENGTH_LONG).show()
+                        }
+                    })
+            }
         }
+    }
+
+    private fun prefillFields(product: ProductDTO) {
+        binding.editTextTitle.setText(product.title)
+        binding.editTextDescription.setText(product.description ?: "")
+        binding.editTextCategory.setText(product.category ?: "")
+        binding.editTextDeposit.setText(product.deposit?.toString() ?: "")
+        binding.textViewAddress.text = product.address ?: product.tradeLocation ?: "주소 미지정"
+        selectedAddress = product.address ?: product.tradeLocation
+        selectedPriceUnit = "일"
+        rentalPriceString = product.price.toString()
+        productStatus = product.status ?: "AVAILABLE"
+        if (productStatus == "AVAILABLE") binding.toggleStatusGroup.check(R.id.button_rent_available)
+        else binding.toggleStatusGroup.check(R.id.button_rent_unavailable)
+
+        binding.completeButton.text = "상품 수정"
+        updatePriceTextView()
     }
 
     // (3) 이미지 URI → Multipart 변환 함수
@@ -252,6 +302,18 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         }
 
         return parts
+    }
+
+    companion object {
+        private const val ARG_PRODUCT_JSON = "ARG_PRODUCT_JSON"
+
+        fun newInstance(product: ProductDTO): NewPostFragment {
+            return NewPostFragment().apply {
+                arguments = Bundle().apply {
+                    putString(ARG_PRODUCT_JSON, Gson().toJson(product))
+                }
+            }
+        }
     }
 
     override fun onDestroyView() {
