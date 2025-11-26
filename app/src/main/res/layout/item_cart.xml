@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp"
+    android:background="@android:color/white"
+    android:layout_marginBottom="1dp"> <CheckBox
+    android:id="@+id/checkbox_cart"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toTopOf="parent"
+    app:layout_constraintBottom_toBottomOf="parent"/>
+
+    <ImageView
+        android:id="@+id/image_cart_item"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:scaleType="centerCrop"
+        android:background="#EEEEEE"
+        android:src="@drawable/ic_default_category"
+        android:layout_marginStart="12dp"
+        app:layout_constraintStart_toEndOf="@id/checkbox_cart"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginStart="12dp"
+        app:layout_constraintStart_toEndOf="@id/image_cart_item"
+        app:layout_constraintEnd_toStartOf="@id/btn_delete_item"
+        app:layout_constraintTop_toTopOf="@id/image_cart_item"
+        app:layout_constraintBottom_toBottomOf="@id/image_cart_item">
+
+        <TextView
+            android:id="@+id/text_cart_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="상품 제목"
+            android:textSize="16sp"
+            android:textColor="#222222"
+            android:maxLines="1"
+            android:ellipsize="end"/>
+
+        <TextView
+            android:id="@+id/text_cart_price"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="10,000원"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="#222222"
+            android:layout_marginTop="4dp"/>
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/btn_delete_item"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_menu_close_clear_cancel"
+        app:tint="#CCCCCC"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
