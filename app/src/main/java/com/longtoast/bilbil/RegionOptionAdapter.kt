@@ -24,11 +24,14 @@ class RegionOptionAdapter(
     override fun onBindViewHolder(holder: RegionViewHolder, position: Int) {
         val name = items[position]
         holder.bind(name, position == selectedPosition)
+
         holder.itemView.setOnClickListener {
             val previous = selectedPosition
             selectedPosition = holder.bindingAdapterPosition
+
             notifyItemChanged(previous)
             notifyItemChanged(selectedPosition)
+
             onClick(name)
         }
     }
