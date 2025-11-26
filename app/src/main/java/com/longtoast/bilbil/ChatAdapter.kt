@@ -26,7 +26,7 @@ class ChatAdapter(
     private val VIEW_TYPE_RECEIVED = 2
     private val VIEW_TYPE_RENT_ACTION = 3
 
-    // 💡 String인 currentUserId를 Int로 변환해서 비교에 사용
+    // String인 currentUserId를 Int로 변환해서 비교
     private val currentUserIdInt: Int? = currentUserId.toIntOrNull()
 
     private val serverFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
@@ -39,7 +39,6 @@ class ChatAdapter(
     // 서버 상대 경로를 절대 URL로 변환
     private fun resolveImageUrl(relativeOrFull: String?): String? {
         if (relativeOrFull.isNullOrEmpty()) return null
-
         return ImageUrlUtils.resolve(relativeOrFull)
     }
 
@@ -84,7 +83,7 @@ class ChatAdapter(
         private val dateHeader: TextView = view.findViewById(R.id.text_date_header_received)
 
         fun bind(message: ChatMessage, position: Int) {
-            // 텍스트
+
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
                 messageText.visibility = View.VISIBLE
@@ -92,7 +91,6 @@ class ChatAdapter(
                 messageText.visibility = View.GONE
             }
 
-            // 이미지
             val fullUrl = resolveImageUrl(message.imageUrl)
             if (!fullUrl.isNullOrEmpty() && imageAttachment != null) {
                 imageAttachment.visibility = View.VISIBLE
@@ -112,7 +110,6 @@ class ChatAdapter(
     override fun getItemViewType(position: Int): Int {
         val message = messages[position]
 
-        // 디버그용 로그
         Log.d(
             "CHAT_ADAPTER_VIEW",
             "Checking pos $position: MsgSenderID=${message.senderId}, CurrentID=$currentUserIdInt, IsSent=${message.senderId == currentUserIdInt}"
@@ -200,23 +197,20 @@ class ChatAdapter(
 
             val rentInfo = payload?.let {
                 "기간: ${it.startDate} ~ ${it.endDate}\n거래 방식: ${it.deliveryMethod}\n총 결제 예상: ${numberFormat.format(it.totalAmount)}원"
-            } ?: "세부 정보를 불러오지 못했습니다."
+            } ?: ""
 
             prompt.text = "상대방으로부터 대여 확인 요청이 들어왔습니다. 동의 하십니까?\n$rentInfo"
 
+            // 버튼 상태
             confirmButton.text = if (isSender) "요청 전송됨" else "대여 확정하기"
             confirmButton.isEnabled = !isSender && payload != null
 
-            // payload가 없거나 이미 내가 보낸 요청이면 클릭 리스너 제거
-            if (!confirmButton.isEnabled) {
-                confirmButton.setOnClickListener(null)
-            } else {
-                confirmButton.setOnClickListener {
-                    payload?.let { action ->
-                        confirmButton.isEnabled = false
-                        confirmButton.text = "처리 중..."
-                        onRentalConfirm?.invoke(action)
-                    }
+            // 🔥 최종 병합된 클릭 처리
+            confirmButton.setOnClickListener {
+                payload?.let { action ->
+                    confirmButton.isEnabled = false
+                    confirmButton.text = "처리 중..."
+                    onRentalConfirm?.invoke(action)
                 }
             }
 

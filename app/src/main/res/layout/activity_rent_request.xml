@@ -169,6 +169,69 @@
                     android:padding="12dp"
                     android:textColor="#222222"/>
             </RadioGroup>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="추가 비용 선택"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp"/>
+
+            <RadioGroup
+                android:id="@+id/radio_group_extra_fee"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <RadioButton
+                    android:id="@+id/radio_extra_none"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="없음"
+                    android:textSize="16sp"/>
+
+                <RadioButton
+                    android:id="@+id/radio_extra_yes"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="있음"
+                    android:textSize="16sp"/>
+            </RadioGroup>
+
+            <!-- 🔥 추가 비용 UI (기본 숨김) -->
+            <LinearLayout
+                android:id="@+id/layout_extra_fee"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="16dp"
+                android:background="@android:color/white"
+                android:visibility="gone">
+
+                <EditText
+                    android:id="@+id/input_extra_fee"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="추가 비용 입력"
+                    android:inputType="number"
+                    android:textSize="16sp"
+                    android:padding="8dp"
+                    android:background="@drawable/bg_btn_stroke_gray"/>
+
+                <TextView
+                    android:id="@+id/text_extra_fee"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0원"
+                    android:textSize="16sp"
+                    android:layout_marginStart="12dp"/>
+            </LinearLayout>
+
+
 
             <TextView
                 android:layout_width="wrap_content"

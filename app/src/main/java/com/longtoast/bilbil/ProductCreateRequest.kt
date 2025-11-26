@@ -5,6 +5,7 @@ package com.longtoast.bilbil.dto
 data class ProductCreateRequest(
     val title: String,
     val price: Int,
+    val price_unit: Int,
     val description: String,
     val category: String,
     val status: String,      // "AVAILABLE" 또는 "UNAVAILABLE"

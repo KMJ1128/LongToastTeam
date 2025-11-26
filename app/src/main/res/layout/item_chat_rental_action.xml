@@ -19,7 +19,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="@drawable/chat_bubble_received"
+        android:background="@drawable/bg_chat_received"
         android:padding="12dp"
         android:layout_gravity="start"
         android:elevation="2dp">
