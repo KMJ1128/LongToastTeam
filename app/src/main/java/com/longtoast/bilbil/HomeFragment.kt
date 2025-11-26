@@ -1,12 +1,11 @@
 package com.longtoast.bilbil
-
+import androidx.core.view.isVisible
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.appcompat.widget.SearchView
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -345,9 +344,4 @@ class HomeFragment : Fragment() {
         _binding = null
     }
 }
-import com.longtoast.bilbil.dto.ProductListDTO
-import android.widget.Toast
 
-import androidx.core.view.isVisible
-
-import com.longtoast.bilbil.ProductAdapter

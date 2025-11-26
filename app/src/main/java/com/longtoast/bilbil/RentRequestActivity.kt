@@ -47,13 +47,14 @@ class RentRequestActivity : AppCompatActivity() {
     private var startCalendar: Calendar? = null
     private var endCalendar: Calendar? = null
 
+    private var selectedDeliveryMethod: String? = null   // ⭐ 거래 방식(DIRECT/PARCEL)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityRentRequestBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         loadIntentData()
-        setupUI()
         setupListeners()
     }
 
@@ -85,7 +86,7 @@ class RentRequestActivity : AppCompatActivity() {
     }
 
     // ------------------------------
-    // ⭐ 날짜 선택
+    // ⭐ 날짜 선택 & 라디오/버튼 리스너
     // ------------------------------
     private fun setupListeners() {
 
@@ -134,7 +135,7 @@ class RentRequestActivity : AppCompatActivity() {
             }
         }
 
-        // 추가 비용
+        // 추가 비용 여부
         binding.radioGroupExtraFee.setOnCheckedChangeListener { _, id ->
             when (id) {
                 R.id.radio_extra_none -> {
@@ -147,6 +148,7 @@ class RentRequestActivity : AppCompatActivity() {
             }
         }
 
+        // 추가 비용 입력 필드
         binding.inputExtraFee.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 extraFee = s.toString().toIntOrNull() ?: 0
@@ -156,7 +158,7 @@ class RentRequestActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
 
-        // 제출
+        // 대여 요청 버튼
         binding.btnSubmitRent.setOnClickListener { validateAndRequest() }
     }
 
