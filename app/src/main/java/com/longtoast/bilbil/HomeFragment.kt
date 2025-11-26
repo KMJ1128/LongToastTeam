@@ -19,6 +19,7 @@ import com.longtoast.bilbil.databinding.FragmentHomeBinding
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.SearchHistoryDTO
 import com.longtoast.bilbil.dto.PopularSearchDTO
+import com.longtoast.bilbil.dto.ProductListDTO
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import retrofit2.Call
@@ -31,11 +32,13 @@ class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private lateinit var popularAdapter: PopularSearchAdapter
+    private lateinit var nearbyItemsAdapter: ProductAdapter  // 🆕
 
     override fun onResume() {
         super.onResume()
         Log.d("SEARCH_HISTORY", "HomeFragment.onResume → 최근 검색어 새로 로드")
         loadSearchHistory()
+        loadNearbyItems()  // 🆕 내 지역 물품 로드
     }
 
     override fun onCreateView(
@@ -52,41 +55,138 @@ class HomeFragment : Fragment() {
         Log.d("DEBUG_FLOW", "HomeFragment.onViewCreated() 실행됨")
 
         setupMenuButton()
-
         setupSearchBar()
         setupCategoryRecycler()
         setupPopularRecycler()
-
-
+        setupNearbyItemsRecycler()  // 🆕
+        updateLocationText()  // 🆕
     }
 
-    // 🔍 검색 바 설정
+    // 🆕 위치 텍스트 업데이트
+    private fun updateLocationText() {
+        val address = AuthTokenManager.getAddress()
+        if (address != null) {
+            // "서울특별시 강남구 역삼동" → "역삼동"으로 간단하게
+            val shortAddress = address.split(" ").lastOrNull() ?: address
+            binding.locationText.text = shortAddress
+        } else {
+            binding.locationText.text = "내 위치"
+        }
+    }
+
+    // 🆕 내 지역 물품 RecyclerView 설정
+    private fun setupNearbyItemsRecycler() {
+        nearbyItemsAdapter = ProductAdapter(emptyList()) { itemId ->
+            val intent = Intent(requireContext(), ProductDetailActivity::class.java).apply {
+                putExtra("ITEM_ID", itemId)
+            }
+            startActivity(intent)
+        }
+
+        binding.nearbyItemsRecyclerView.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = nearbyItemsAdapter
+        }
+    }
+
+    // 🆕 내 지역 물품 로드
+    private fun loadNearbyItems() {
+        val myAddress = AuthTokenManager.getAddress()
+
+        if (myAddress == null) {
+            Log.d("NEARBY_ITEMS", "주소 정보 없음")
+            binding.nearbyEmptyText.visibility = View.VISIBLE
+            binding.nearbyEmptyText.text = "위치 정보를 설정해주세요"
+            return
+        }
+
+        Log.d("NEARBY_ITEMS", "내 지역 물품 로드 시작: $myAddress")
+
+        binding.nearbyProgressBar.visibility = View.VISIBLE
+        binding.nearbyEmptyText.visibility = View.GONE
+
+        // API 호출: 내 주소와 같은 지역의 물품만 가져오기
+        RetrofitClient.getApiService().getProductLists(
+            title = null,
+            category = null,
+            sort = null
+        ).enqueue(object : Callback<MsgEntity> {
+            override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                binding.nearbyProgressBar.visibility = View.GONE
+
+                if (!response.isSuccessful) {
+                    Log.e("NEARBY_ITEMS", "API 실패: ${response.code()}")
+                    showEmptyState()
+                    return
+                }
+
+                val rawData = response.body()?.data
+                if (rawData == null) {
+                    Log.e("NEARBY_ITEMS", "rawData=null")
+                    showEmptyState()
+                    return
+                }
+
+                try {
+                    val gson = Gson()
+                    val listType = object : TypeToken<List<ProductListDTO>>() {}.type
+                    val allProducts: List<ProductListDTO> = gson.fromJson(gson.toJson(rawData), listType)
+
+                    // 🔍 내 주소와 같은 지역의 물품만 필터링
+                    val nearbyProducts = allProducts.filter { product ->
+                        product.address?.contains(myAddress) == true ||
+                                myAddress.contains(product.address ?: "")
+                    }
+
+                    Log.d("NEARBY_ITEMS", "전체: ${allProducts.size}, 내 지역: ${nearbyProducts.size}")
+
+                    if (nearbyProducts.isEmpty()) {
+                        showEmptyState()
+                    } else {
+                        nearbyItemsAdapter.updateList(nearbyProducts)
+                        binding.nearbyEmptyText.visibility = View.GONE
+                    }
+
+                } catch (e: Exception) {
+                    Log.e("NEARBY_ITEMS", "JSON 파싱 오류", e)
+                    showEmptyState()
+                }
+            }
+
+            override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                Log.e("NEARBY_ITEMS", "네트워크 실패", t)
+                binding.nearbyProgressBar.visibility = View.GONE
+                showEmptyState()
+            }
+        })
+    }
+
+    // 🆕 빈 상태 표시
+    private fun showEmptyState() {
+        binding.nearbyEmptyText.visibility = View.VISIBLE
+        binding.nearbyEmptyText.text = "우리 동네에 등록된 물품이 없습니다"
+    }
+
+    // 검색 바 설정
     private fun setupSearchBar() {
         binding.searchBar.apply {
-            // 기본 SearchView 모양 유지 (아이콘 + 힌트 + X 버튼)
             setIconifiedByDefault(true)
             queryHint = "근처 물건을 검색해 보세요"
 
-            // ✅ 1) 검색창 아무 곳이나 탭하면 활성화 + 인기검색어 열기
             setOnClickListener {
-                // 접혀있으면 펼치고
                 if (isIconified) {
                     setIconified(false)
                 }
-                // 포커스 주고
                 requestFocus()
-                // 인기 검색어 보여주기 + 로드
                 togglePopularList(true)
                 loadPopularSearches()
             }
 
-            // ✅ 2) X 버튼/닫기 눌러서 '접을' 때
             setOnCloseListener {
                 togglePopularList(false)
-                false   // false: 기본 동작(접기)도 같이 실행
+                false
             }
 
-            // ✅ 3) 바깥 터치해서 포커스 잃으면 → 검색창/리스트 둘 다 접기
             setOnQueryTextFocusChangeListener { _, hasFocus ->
                 if (!hasFocus) {
                     togglePopularList(false)
@@ -96,7 +196,6 @@ class HomeFragment : Fragment() {
                 }
             }
 
-            // ✅ 4) 키보드의 검색 버튼 눌렀을 때
             setOnQueryTextListener(object : SearchView.OnQueryTextListener {
                 override fun onQueryTextSubmit(query: String?): Boolean {
                     val keyword = query?.trim().orEmpty()
@@ -117,7 +216,6 @@ class HomeFragment : Fragment() {
             })
         }
 
-        // 🔥 바깥(스크롤 영역)을 터치하면 검색창 포커스 제거 → 위 FocusChangeListener가 처리
         binding.scrollView.setOnTouchListener { _, _ ->
             if (binding.searchBar.hasFocus()) {
                 binding.searchBar.clearFocus()
@@ -126,7 +224,6 @@ class HomeFragment : Fragment() {
         }
     }
 
-    // 검색결과 화면으로 이동
     private fun moveToSearchResult(keyword: String, isCategory: Boolean) {
         val intent = Intent(requireContext(), SearchResultActivity::class.java).apply {
             putExtra("SEARCH_QUERY", keyword)
@@ -136,7 +233,6 @@ class HomeFragment : Fragment() {
         startActivity(intent)
     }
 
-    // 카테고리 RecyclerView
     private fun setupCategoryRecycler() {
         val categoryList = listOf("자전거", "가구", "캠핑", "전자제품", "운동", "의류")
 
@@ -152,7 +248,6 @@ class HomeFragment : Fragment() {
             }
     }
 
-    // 🔍 검색창 아래에 표시할 인기 검색어 리스트용 RecyclerView
     private fun setupPopularRecycler() {
         popularAdapter = PopularSearchAdapter(emptyList()) { keyword ->
             Log.d("POPULAR_SEARCH", "인기 검색어 클릭 → $keyword")
@@ -173,7 +268,6 @@ class HomeFragment : Fragment() {
         binding.popularRecyclerView.visibility = if (show) View.VISIBLE else View.GONE
     }
 
-    // ⭐ 전역 인기 검색어 (검색창 클릭 시 아래 리스트로 표시)
     private fun loadPopularSearches() {
         Log.d("POPULAR_SEARCH", "인기 검색어 불러오기 시작")
 
@@ -181,17 +275,12 @@ class HomeFragment : Fragment() {
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (!response.isSuccessful) {
-                        Log.e(
-                            "POPULAR_SEARCH",
-                            "API 실패: code=${response.code()} | body=${response.errorBody()?.string()}"
-                        )
+                        Log.e("POPULAR_SEARCH", "API 실패: code=${response.code()}")
                         togglePopularList(false)
                         return
                     }
 
                     val rawData = response.body()?.data
-                    Log.d("POPULAR_SEARCH", "rawData=$rawData")
-
                     if (rawData == null) {
                         Log.e("POPULAR_SEARCH", "rawData=null")
                         togglePopularList(false)
@@ -202,18 +291,13 @@ class HomeFragment : Fragment() {
                         val gson = Gson()
                         val listType = object : TypeToken<List<PopularSearchDTO>>() {}.type
                         val json = gson.toJson(rawData)
-
-                        Log.d("POPULAR_SEARCH", "rawData JSON=$json")
-
                         val popularList: List<PopularSearchDTO> = gson.fromJson(json, listType)
 
                         if (popularList.isEmpty()) {
-                            Log.d("POPULAR_SEARCH", "인기 검색어 없음")
                             togglePopularList(false)
                             return
                         }
 
-                        Log.d("POPULAR_SEARCH", "인기 검색어 개수=${popularList.size}")
                         popularAdapter.updateList(popularList)
                         togglePopularList(true)
                     } catch (e: Exception) {
@@ -229,7 +313,6 @@ class HomeFragment : Fragment() {
             })
     }
 
-    // ⭐ 내가 전에 검색했던 검색어 (최근 검색어) → Chip 으로 표시
     private fun loadSearchHistory() {
         Log.d("SEARCH_HISTORY", "최근 검색어 불러오기 시작")
 
@@ -237,18 +320,12 @@ class HomeFragment : Fragment() {
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (!response.isSuccessful) {
-                        Log.e(
-                            "SEARCH_HISTORY",
-                            "API 실패: code=${response.code()} | body=${response.errorBody()?.string()}"
-                        )
+                        Log.e("SEARCH_HISTORY", "API 실패")
                         return
                     }
 
                     val rawData = response.body()?.data
-                    Log.d("SEARCH_HISTORY", "rawData=$rawData")
-
                     if (rawData == null) {
-                        Log.e("SEARCH_HISTORY", "rawData=null")
                         renderHistoryChips(emptyList())
                         return
                     }
@@ -256,12 +333,8 @@ class HomeFragment : Fragment() {
                     try {
                         val gson = Gson()
                         val listType = object : TypeToken<List<SearchHistoryDTO>>() {}.type
-                        val json = gson.toJson(rawData)
-
-                        Log.d("SEARCH_HISTORY", "rawData JSON=$json")
-
                         val historyList: List<SearchHistoryDTO> =
-                            gson.fromJson(json, listType)
+                            gson.fromJson(gson.toJson(rawData), listType)
 
                         renderHistoryChips(historyList)
                     } catch (e: Exception) {
