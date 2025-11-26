@@ -5,6 +5,7 @@ import com.longtoast.bilbil.dto.KakaoTokenRequest
 import com.longtoast.bilbil.dto.LocationRequest
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ChatMessage
+import com.longtoast.bilbil.dto.ChatSendRequest
 import com.longtoast.bilbil.dto.NaverTokenRequest
 import com.longtoast.bilbil.dto.MemberDTO
 import com.longtoast.bilbil.dto.ReviewCreateRequest
@@ -14,6 +15,7 @@ import okhttp3.RequestBody
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.POST
 import retrofit2.http.GET
 import retrofit2.http.Multipart
@@ -29,6 +31,9 @@ interface ApiService {
 
     @POST("/naver/login/token")
     fun loginWithNaverToken(@Body request: NaverTokenRequest): Call<MsgEntity>
+
+    @GET("/member/info")
+    fun getMyInfo(): Call<MsgEntity>
 
     @GET("/products/myitems")
     fun getMyRegisteredProducts(): Call<MsgEntity>
@@ -49,6 +54,15 @@ interface ApiService {
         @Part("product") productJson: RequestBody,
         @Part images: List<MultipartBody.Part>
     ): Call<MsgEntity>
+
+    @PUT("/writeproduct/update/{itemId}")
+    fun updateProduct(
+        @Path("itemId") itemId: Int,
+        @Body request: ProductCreateRequest
+    ): Call<MsgEntity>
+
+    @DELETE("/writeproduct/delete/{itemId}")
+    fun deleteProduct(@Path("itemId") itemId: Int): Call<MsgEntity>
 
     // 🔥 [수정됨] 백엔드: @GetMapping("/{itemId}") -> /products/{itemId} 라고 가정
     // 만약 Controller 위에 @RequestMapping("/products")가 있다면 아래가 맞습니다.
@@ -76,6 +90,12 @@ interface ApiService {
     @GET("/api/chat/history/{roomId}")
     fun getChatHistory(@Path("roomId") roomId: String): Call<MsgEntity>
 
+    @POST("/api/chat/room/{roomId}/message")
+    fun sendChatMessage(
+        @Path("roomId") roomId: String,
+        @Body request: ChatSendRequest
+    ): Call<MsgEntity>
+
     @Multipart
     @POST("/api/chat/room/{roomId}/image")
     fun uploadChatImage(
@@ -84,9 +104,12 @@ interface ApiService {
     ): Call<MsgEntity>
 
     // 🔥 프로필 업데이트 API (단 하나만)
+    @Multipart
     @PUT("/member/profile")
-    fun updateProfile(@Body memberDTO: MemberDTO): Call<MsgEntity>
-
+    fun updateProfile(
+        @Part("member") memberJson: RequestBody,
+        @Part profileImage: MultipartBody.Part?
+    ): Call<MsgEntity>
     @GET("/search/popular")
     fun getPopularSearches(): Call<MsgEntity>
 

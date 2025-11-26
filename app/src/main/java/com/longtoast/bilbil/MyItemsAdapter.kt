@@ -9,11 +9,14 @@ import androidx.recyclerview.widget.RecyclerView
 import com.longtoast.bilbil.dto.ProductDTO
 import android.widget.Button
 import com.bumptech.glide.Glide
+import com.google.android.material.button.MaterialButton
 
 class MyItemsAdapter(
     private val productList: List<ProductDTO>,
     private val onItemClicked: (ProductDTO) -> Unit,
-    private val onReviewClicked: ((ProductDTO) -> Unit)? = null
+    private val onReviewClicked: ((ProductDTO) -> Unit)? = null,
+    private val onEditClicked: ((ProductDTO) -> Unit)? = null,
+    private val onDeleteClicked: ((ProductDTO) -> Unit)? = null
 ) : RecyclerView.Adapter<MyItemsAdapter.ItemViewHolder>() {
 
     inner class ItemViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -24,6 +27,9 @@ class MyItemsAdapter(
         val status: TextView = view.findViewById(R.id.text_item_status)
         val thumbnail: ImageView = view.findViewById(R.id.image_item_thumbnail)
         val reviewButton: Button = view.findViewById(R.id.btn_write_review)
+        val editButton: MaterialButton = view.findViewById(R.id.btn_edit_item)
+        val deleteButton: MaterialButton = view.findViewById(R.id.btn_delete_item)
+        val actionContainer: View = view.findViewById(R.id.layout_item_actions)
 
         fun bind(product: ProductDTO) {
 
@@ -46,17 +52,7 @@ class MyItemsAdapter(
 
             // 🚨 이미지 URL 처리 (Base64 → URL 방식으로 변경)
             val rawUrl = product.imageUrls?.firstOrNull()
-            val finalUrl = when {
-                rawUrl.isNullOrEmpty() -> null
-
-                rawUrl.startsWith("/") ->
-                    ServerConfig.HTTP_BASE_URL.removeSuffix("/") + rawUrl
-
-                rawUrl.startsWith("http") ->
-                    rawUrl
-
-                else -> null
-            }
+            val finalUrl = ImageUrlUtils.resolve(rawUrl)
 
             Glide.with(thumbnail.context)
                 .load(finalUrl)
@@ -82,6 +78,10 @@ class MyItemsAdapter(
                 reviewButton.visibility = View.GONE
                 reviewButton.setOnClickListener(null)
             }
+
+            actionContainer.visibility = View.VISIBLE
+            editButton.setOnClickListener { onEditClicked?.invoke(product) }
+            deleteButton.setOnClickListener { onDeleteClicked?.invoke(product) }
         }
     }
 

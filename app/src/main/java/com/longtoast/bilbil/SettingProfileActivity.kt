@@ -20,6 +20,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.gson.Gson
 import com.longtoast.bilbil.dto.MemberDTO
 import com.longtoast.bilbil.dto.MsgEntity
 import java.io.File
@@ -28,6 +29,13 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import com.longtoast.bilbil.api.RetrofitClient
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.MultipartBody
+
+import okhttp3.RequestBody.Companion.asRequestBody
+
+import java.io.FileOutputStream
 
 class SettingProfileActivity : AppCompatActivity() {
 
@@ -261,11 +269,12 @@ class SettingProfileActivity : AppCompatActivity() {
         }
 
     private fun submitProfile(address: String, latitude: Double, longitude: Double) {
-        // 1. DTO 생성
+
+        // 1. MemberDTO → JSON 변환
         val updateRequest = MemberDTO(
             id = userId,
             nickname = pendingNickname,
-            username = userName, // 💡 [수정] username 필드 포함
+            username = userName,
             address = address,
             locationLatitude = latitude,
             locationLongitude = longitude,
@@ -274,50 +283,73 @@ class SettingProfileActivity : AppCompatActivity() {
             createdAt = null
         )
 
-        // 2. 🔑 [핵심] API 호출 전에 AuthTokenManager에 토큰/ID를 저장합니다.
-        // RetrofitClient의 Interceptor가 이 저장된 토큰을 즉시 사용합니다.
+        val gson = Gson()
+        val memberJson = gson.toJson(updateRequest)
+
+        val memberRequestBody = memberJson
+            .toRequestBody("application/json; charset=utf-8".toMediaType())
+
+
+        // 2. 프로필 이미지 → Multipart 변환
+        var imagePart: MultipartBody.Part? = null
+
+        if (profileBitmap != null) {
+            try {
+                val file = File(cacheDir, "profile_upload.jpg")
+
+                val fos = FileOutputStream(file)
+                profileBitmap!!.compress(Bitmap.CompressFormat.JPEG, 90, fos)
+                fos.flush()
+                fos.close()
+
+                val reqFile = file.asRequestBody("image/jpeg".toMediaType())
+                imagePart = MultipartBody.Part.createFormData(
+                    "profileImage",
+                    file.name,
+                    reqFile
+                )
+
+                Log.d("PROFILE_API", "이미지 multipart 변환 성공 → ${file.name}")
+
+            } catch (e: Exception) {
+                Log.e("PROFILE_API", "이미지 변환 실패", e)
+            }
+        } else {
+            Log.d("PROFILE_API", "프로필 이미지 없음 → null 로 전송")
+        }
+
+
+        // 3. 서버 요청 전 인증 데이터 저장
         serviceToken?.let { AuthTokenManager.saveToken(it) }
         AuthTokenManager.saveUserId(userId)
-        Log.d("PROFILE_COMPLETE", "✅ JWT 및 User ID 저장 완료. API 호출 시작.")
 
 
-        // 3. 🔑 [수정] RetrofitClient의 기본 ApiService를 사용합니다.
-        RetrofitClient.getApiService().updateProfile(updateRequest)
-            .enqueue(object : Callback<MsgEntity> {
-                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                    if (response.isSuccessful) {
-                        Log.d("PROFILE_COMPLETE", "✅ 프로필 업데이트 성공 (200/201). 홈 이동.")
+        // 4. API 호출 (Multipart)
+        RetrofitClient.getApiService().updateProfile(
+            memberRequestBody,
+            imagePart
+        ).enqueue(object : Callback<MsgEntity> {
 
-                        // 🆕 닉네임 저장 추가 (이 한 줄만 추가)
-                        AuthTokenManager.saveNickname(pendingNickname)
+            override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
 
-                        // 🆕 주소 저장 추가
-                        AuthTokenManager.saveAddress(address)
-
-                        Toast.makeText(this@SettingProfileActivity, "프로필 설정 및 저장 완료!", Toast.LENGTH_SHORT).show()
-
-                        val intent = Intent(this@SettingProfileActivity, HomeHostActivity::class.java)
-                        startActivity(intent)
-                        finishAffinity()
-                    } else if (response.code() == 403 || response.code() == 401) {
-                        Log.e("PROFILE_API", "프로필 업데이트 실패: 인증 거부 (403/401). 토큰 무효화.")
-                        Toast.makeText(this@SettingProfileActivity, "인증 오류. 다시 로그인해주세요.", Toast.LENGTH_LONG).show()
-                        AuthTokenManager.clearToken()
-                        startActivity(Intent(this@SettingProfileActivity, MainActivity::class.java))
-                        finishAffinity()
-                    }
-                    else {
-                        val errorBody = response.errorBody()?.string()
-                        Log.e("PROFILE_API", "프로필 업데이트 실패: ${response.code()}, 메시지: $errorBody")
-                        // 💡 충돌 해결: 한 줄 코드 방식 채택
-                        Toast.makeText(this@SettingProfileActivity, "프로필 저장 실패: ${response.code()}", Toast.LENGTH_LONG).show()
-                    }
+                if (!response.isSuccessful) {
+                    Log.e("PROFILE_API", "프로필 업데이트 실패: ${response.code()}, ${response.errorBody()?.string()}")
+                    Toast.makeText(this@SettingProfileActivity, "프로필 저장 실패: ${response.code()}", Toast.LENGTH_LONG).show()
+                    return
                 }
 
-                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                    Log.e("PROFILE_API", "서버 통신 오류", t)
-                    Toast.makeText(this@SettingProfileActivity, "서버 연결 오류", Toast.LENGTH_LONG).show()
-                }
-            })
+                Toast.makeText(this@SettingProfileActivity, "프로필 설정 및 저장 완료!", Toast.LENGTH_SHORT).show()
+                Log.d("PROFILE_API", "프로필 업데이트 성공!")
+
+                startActivity(Intent(this@SettingProfileActivity, HomeHostActivity::class.java))
+                finishAffinity()
+            }
+
+            override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                Log.e("PROFILE_API", "서버 통신 오류", t)
+                Toast.makeText(this@SettingProfileActivity, "서버 연결 오류", Toast.LENGTH_LONG).show()
+            }
+        })
     }
+
 }
