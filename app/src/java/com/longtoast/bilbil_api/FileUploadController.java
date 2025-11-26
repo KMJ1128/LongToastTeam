@@ -41,7 +41,7 @@ public class FileUploadController {
 
 
     // ⚠️ 서버 환경에 맞게 이 경로를 반드시 수정하세요!
-    private static final String UPLOAD_DIR = "/opt/app/uploads/";
+    private static final String UPLOAD_DIR = "/uploads/";
     private final Path uploadPath = Paths.get(UPLOAD_DIR);
 
     // 1. 파일 업로드 및 목록을 보여주는 핸들러 (showUploadForm 수정)

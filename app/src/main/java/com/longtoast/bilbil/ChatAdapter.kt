@@ -8,6 +8,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.longtoast.bilbil.dto.ChatMessage
+import com.longtoast.bilbil.ImageUrlUtils
 import java.text.SimpleDateFormat
 import java.util.*
 import android.util.Log
@@ -25,18 +26,14 @@ class ChatAdapter(
 
     private val serverFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
     private val displayFormat = SimpleDateFormat("a h:mm", Locale.getDefault())
+    private val dateKeyFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private val dateHeaderFormat = SimpleDateFormat("yyyy년 MM월 dd일", Locale.getDefault())
 
     // 서버 상대 경로를 절대 URL로 변환
     private fun resolveImageUrl(relativeOrFull: String?): String? {
         if (relativeOrFull.isNullOrEmpty()) return null
 
-        return if (relativeOrFull.startsWith("/")) {
-            // "/uploads/..." 형태 → HTTP_BASE_URL과 결합
-            ServerConfig.HTTP_BASE_URL.removeSuffix("/") + relativeOrFull
-        } else {
-            // 이미 http로 시작하면 그대로 사용
-            relativeOrFull
-        }
+        return ImageUrlUtils.resolve(relativeOrFull)
     }
 
     // 🔹 보낸 메시지 ViewHolder
@@ -44,8 +41,9 @@ class ChatAdapter(
         private val messageText: TextView = view.findViewById(R.id.text_message_sent)
         private val timestampText: TextView = view.findViewById(R.id.text_timestamp_sent)
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_sent)
+        private val dateHeader: TextView = view.findViewById(R.id.text_date_header_sent)
 
-        fun bind(message: ChatMessage) {
+        fun bind(message: ChatMessage, position: Int) {
             // 텍스트
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
@@ -66,6 +64,7 @@ class ChatAdapter(
             }
 
             timestampText.text = formatTime(message.sentAt)
+            bindDateHeader(dateHeader, position, message)
         }
     }
 
@@ -75,8 +74,9 @@ class ChatAdapter(
         private val timestampText: TextView = view.findViewById(R.id.text_timestamp_received)
         private val nicknameText: TextView = view.findViewById(R.id.text_nickname_received)
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_received)
+        private val dateHeader: TextView = view.findViewById(R.id.text_date_header_received)
 
-        fun bind(message: ChatMessage) {
+        fun bind(message: ChatMessage, position: Int) {
             // 텍스트
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
@@ -98,6 +98,7 @@ class ChatAdapter(
 
             timestampText.text = formatTime(message.sentAt)
             nicknameText.text = "상대방(${message.senderId})"
+            bindDateHeader(dateHeader, position, message)
         }
     }
 
@@ -131,8 +132,8 @@ class ChatAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val message = messages[position]
         when (holder.itemViewType) {
-            VIEW_TYPE_SENT -> (holder as SentMessageViewHolder).bind(message)
-            VIEW_TYPE_RECEIVED -> (holder as ReceivedMessageViewHolder).bind(message)
+            VIEW_TYPE_SENT -> (holder as SentMessageViewHolder).bind(message, position)
+            VIEW_TYPE_RECEIVED -> (holder as ReceivedMessageViewHolder).bind(message, position)
         }
     }
 
@@ -146,6 +147,28 @@ class ChatAdapter(
         } catch (e: Exception) {
             Log.e("ChatAdapter", "시간 파싱 오류: $isoTimeString", e)
             "시간 오류"
+        }
+    }
+
+    private fun bindDateHeader(headerView: TextView, position: Int, message: ChatMessage) {
+        val currentKey = getDateKey(message)
+        val previousKey = if (position > 0) getDateKey(messages[position - 1]) else null
+
+        if (currentKey != null && currentKey != previousKey) {
+            headerView.visibility = View.VISIBLE
+            val parsedDate = try { serverFormat.parse(message.sentAt) } catch (e: Exception) { null }
+            headerView.text = parsedDate?.let { dateHeaderFormat.format(it) } ?: currentKey
+        } else {
+            headerView.visibility = View.GONE
+        }
+    }
+
+    private fun getDateKey(message: ChatMessage): String? {
+        return try {
+            val date = serverFormat.parse(message.sentAt)
+            if (date != null) dateKeyFormat.format(date) else null
+        } catch (e: Exception) {
+            null
         }
     }
 }

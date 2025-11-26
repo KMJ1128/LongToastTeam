@@ -50,7 +50,7 @@ public class SecurityConfig {
                                 "/",
                                 "/kakao/**",
                                 "/naver/**",
-                                "/api/chat/room",
+                                "/api/chat/room/**",
                                 "/api/chat/history/**",
                                 "/products/**",
                                 "/writeproduct/**",

@@ -80,6 +80,9 @@ class ProductDetailActivity : AppCompatActivity() {
             intent.putExtra("TITLE", binding.textTitle.text.toString())
             intent.putExtra("PRICE", currentProduct?.price ?: 0)
             intent.putExtra("DEPOSIT", currentProduct?.deposit ?: 0)
+            intent.putExtra("ITEM_ID", currentProduct?.id ?: -1)
+            intent.putExtra("LENDER_ID", currentProduct?.userId ?: -1)
+            intent.putExtra("SELLER_NICKNAME", currentProduct?.sellerNickname)
             // intent.putExtra("IMAGE_URL", currentProduct?.imageUrls?.firstOrNull())
 
             startActivity(intent)
@@ -127,11 +130,7 @@ class ProductDetailActivity : AppCompatActivity() {
         binding.textSellerAddress.text = product.address ?: "위치 미설정"
 
         // 2. 이미지 슬라이더
-        val fixedImages = product.imageUrls?.map { img ->
-            if (img.startsWith("/")) {
-                ServerConfig.HTTP_BASE_URL.removeSuffix("/") + img
-            } else img
-        } ?: emptyList()
+        val fixedImages = product.imageUrls?.mapNotNull { ImageUrlUtils.resolve(it) } ?: emptyList()
 
         if (fixedImages.isNotEmpty()) {
             binding.viewPagerImages.adapter = DetailImageAdapter(fixedImages)

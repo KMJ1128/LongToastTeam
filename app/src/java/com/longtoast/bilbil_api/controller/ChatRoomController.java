@@ -5,6 +5,7 @@ import com.longtoast.bilbil_api.domain.ChatRoom;
 import com.longtoast.bilbil_api.dto.MsgEntity;
 import com.longtoast.bilbil_api.service.ChatRoomService;
 import com.longtoast.bilbil_api.service.ChatService;
+import com.longtoast.bilbil_api.service.ChatRoomListService;
 import com.longtoast.bilbil_api.model.ChatMessage;
 import lombok.Builder;
 import lombok.Data;
@@ -17,6 +18,8 @@ import org.springframework.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +34,8 @@ public class ChatRoomController {
 
     private final ChatRoomService chatRoomService;
     private final ChatService chatService; // ChatService 주입
+    private final ChatRoomListService chatRoomListService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     // 클라이언트가 요청 본문에 담아 보낼 데이터 구조 정의 (DTO)
     @Data
@@ -39,6 +44,12 @@ public class ChatRoomController {
         private Integer itemId;
         private Integer lenderId; // 판매자 ID
         private Integer borrowerId; // 구매자 ID
+    }
+
+    @Data
+    public static class ChatSendRequest {
+        private String content;
+        private String imageUrl;
     }
 
 
@@ -135,6 +146,36 @@ public class ChatRoomController {
         }
     }
 
+    @PostMapping("/room/{roomId}/message")
+    public ResponseEntity<MsgEntity> sendMessage(
+            @PathVariable Integer roomId,
+            @RequestBody ChatSendRequest request,
+            @AuthenticationPrincipal Integer currentUserId
+    ) {
+        if (currentUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new MsgEntity("인증 오류", "로그인이 필요합니다."));
+        }
+
+        if (!StringUtils.hasText(request.getContent()) && !StringUtils.hasText(request.getImageUrl())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new MsgEntity("요청 오류", "메시지 내용이 비어 있습니다."));
+        }
+
+        try {
+            ChatMessage saved = chatService.saveChatMessage(roomId, currentUserId, request.getContent(), request.getImageUrl());
+
+            messagingTemplate.convertAndSend("/topic/signal/" + roomId, saved);
+            pushChatListUpdate(roomId, saved);
+
+            return ResponseEntity.ok(new MsgEntity("메시지 전송 성공", saved));
+        } catch (Exception e) {
+            log.error("채팅 메시지 저장 중 오류", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new MsgEntity("내부 서버 오류", "메시지를 전송할 수 없습니다."));
+        }
+    }
+
     /**
      * POST /api/chat/room/{roomId}/image
      * 채팅방에서 사용할 이미지를 Multipart로 업로드한 뒤 URL을 반환합니다.
@@ -167,6 +208,39 @@ public class ChatRoomController {
             log.error("채팅 이미지 업로드 실패", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new MsgEntity("내부 서버 오류", "이미지 업로드 중 문제가 발생했습니다."));
+        }
+    }
+
+    private void pushChatListUpdate(Integer roomId, ChatMessage savedMessage) {
+        try {
+            ChatRoom chatRoom = chatRoomListService.getChatRoomById(roomId);
+
+            Integer senderId = savedMessage.getSender().getId();
+            Integer partnerId = chatRoom.getLender().getId().equals(senderId)
+                    ? chatRoom.getBorrower().getId() : chatRoom.getLender().getId();
+
+            Map<String, Object> updatePayload = new HashMap<>();
+            updatePayload.put("roomId", chatRoom.getId());
+            String lastMessageContent = StringUtils.hasText(savedMessage.getContent())
+                    ? savedMessage.getContent()
+                    : (StringUtils.hasText(savedMessage.getImageUrl()) ? "[사진]" : "");
+            updatePayload.put("lastMessageContent", lastMessageContent);
+            updatePayload.put("lastMessageTime", savedMessage.getSentAt());
+
+            messagingTemplate.convertAndSendToUser(
+                    partnerId.toString(),
+                    "/queue/chat-list-update",
+                    updatePayload
+            );
+
+            messagingTemplate.convertAndSendToUser(
+                    senderId.toString(),
+                    "/queue/chat-list-update",
+                    updatePayload
+            );
+
+        } catch (Exception e) {
+            log.error("채팅 목록 업데이트 알림 실패", e);
         }
     }
 }
