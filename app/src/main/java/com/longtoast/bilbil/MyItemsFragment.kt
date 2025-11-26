@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.*
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.button.MaterialButtonToggleGroup
@@ -214,10 +215,49 @@ class MyItemsFragment : Fragment() {
                     putExtra("TRANSACTION_ID", transactionId.toInt())
                 }
                 startActivity(intent)
-            }
+            },
+            onEditClicked = { product -> openEditScreen(product) },
+            onDeleteClicked = { product -> confirmDelete(product) }
         )
 
         b.recyclerViewMyItems.adapter = adapter
+    }
+
+    private fun openEditScreen(product: ProductDTO) {
+        val host = activity as? HomeHostActivity
+        host?.setBottomNavVisibility(View.GONE)
+
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.main_fragment_container, NewPostFragment.newInstance(product))
+            .addToBackStack(null)
+            .commit()
+    }
+
+    private fun confirmDelete(product: ProductDTO) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("상품 삭제")
+            .setMessage("'${product.title}' 상품을 삭제하시겠습니까?")
+            .setPositiveButton("삭제") { _, _ -> deleteProduct(product) }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    private fun deleteProduct(product: ProductDTO) {
+        RetrofitClient.getApiService().deleteProduct(product.id)
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (response.isSuccessful) {
+                        Toast.makeText(requireContext(), "삭제되었습니다.", Toast.LENGTH_SHORT).show()
+                        if (currentTab == Tab.REGISTERED) loadRegisteredItems() else loadRentedItems()
+                    } else {
+                        Toast.makeText(requireContext(), "삭제에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Toast.makeText(requireContext(), "네트워크 오류", Toast.LENGTH_SHORT).show()
+                }
+            })
     }
 
     // -----------------------------------------------------

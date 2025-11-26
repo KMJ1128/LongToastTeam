@@ -41,4 +41,7 @@ public class ProductDTO {
     private LocalDateTime created_at;
     // ✅ 거래 PK
     private Long transactionId;
+
+    // ✅ 확정된 대여 기간 (yyyy-MM-dd~yyyy-MM-dd)
+    private List<String> reservedPeriods;
 }
