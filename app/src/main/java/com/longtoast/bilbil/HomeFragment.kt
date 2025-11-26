@@ -29,6 +29,9 @@ import com.longtoast.bilbil.dto.SearchHistoryDTO
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import android.widget.Toast
+import com.longtoast.bilbil.ProductAdapter
+import com.longtoast.bilbil.ProductDetailActivity
 
 class HomeFragment : Fragment() {
 
@@ -342,3 +345,9 @@ class HomeFragment : Fragment() {
         _binding = null
     }
 }
+import com.longtoast.bilbil.dto.ProductListDTO
+import android.widget.Toast
+
+import androidx.core.view.isVisible
+
+import com.longtoast.bilbil.ProductAdapter
