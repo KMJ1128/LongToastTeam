@@ -45,7 +45,7 @@ class RentRequestActivity : AppCompatActivity() {
     private var lastRentFee: Int = 0
     private var lastTotalAmount: Int = 0
     private var extraFee: Int = 0
-
+    private var borrowerIdFromIntent: Int = -1
     private var startCalendar: Calendar? = null
     private var endCalendar: Calendar? = null
     private var imageUrl: String? = null
@@ -56,7 +56,7 @@ class RentRequestActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityRentRequestBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
+        borrowerIdFromIntent = intent.getIntExtra("BORROWER_ID", -1)
         // 상품 ID 받기
         itemId = intent.getIntExtra("ITEM_ID", -1)
         if (itemId <= 0) {
@@ -376,7 +376,7 @@ class RentRequestActivity : AppCompatActivity() {
 
     private fun sendRentRequestMessage(title: String) {
 
-        val borrowerId = AuthTokenManager.getUserId()
+        val borrowerId = borrowerIdFromIntent
         if (borrowerId == null || itemId <= 0 || lenderId <= 0) {
             Toast.makeText(this, "로그인 또는 상품 정보를 확인해주세요.", Toast.LENGTH_SHORT).show()
             return

@@ -143,6 +143,9 @@ interface ApiService {
     @POST("/api/rental/approve")
     fun approveRental(@Body request: RentalApproveRequest): Call<MsgEntity>
 
+    @GET("/api/chat/room/{roomId}/info")
+    fun getChatRoomInfo(@Path("roomId") roomId: Int): Call<MsgEntity>
+
     @GET("/api/rental/item/{itemId}/schedules")
     fun getRentalSchedules(
         @Path("itemId") itemId: Long

@@ -131,8 +131,12 @@ class ChatRoomActivity : AppCompatActivity() {
         }
 
         val intent = Intent(this, RentRequestActivity::class.java).apply {
-            putExtra("ITEM_ID", id)  // ⭐ 이것만 넘기면 된다
+            putExtra("ITEM_ID", id)
+            putExtra("BORROWER_ID", senderId)  // ⭐ 현재 사용자 = 대여자
+            putExtra("LENDER_ID", lenderId)    // 기존 판매자 정보
         }
+        Log.d("대여자ChatRoomActivity", "Lender ID: $lenderId")
+        Log.d("차입자ChatRoomActivity", "Borrower ID: $senderId")
         startActivity(intent)
     }
 
@@ -270,7 +274,9 @@ class ChatRoomActivity : AppCompatActivity() {
 
             if (content.isEmpty() && imageUrl == null) return@launch
 
-            val escapedContent = content.replace("\"", "\\\"")
+            val escapedContent = content.replace("\\", "\\\\")   // 역슬래시 먼저
+                .replace("\"", "\\\"")   // 따옴표
+                .replace("\n", "\\n")    // 🔥 개행 escape 추가!!!
             val payloadJson = buildString {
                 append("{\"senderId\":$senderId")
                 if (escapedContent.isNotEmpty()) append(",\"content\":\"$escapedContent\"")
