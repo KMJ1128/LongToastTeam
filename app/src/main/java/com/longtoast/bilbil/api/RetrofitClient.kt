@@ -19,7 +19,7 @@ object RetrofitClient {
     //private const val BASE_URL = ServerConfig.HTTP_BASE_URL
     //private const val BASE_URL = "http://192.168.45.105:8080/"
     //private const val BASE_URL = "http://172.16.101.164:8080/"
-    private const val BASE_URL = "http://172.16.104.175:8080/"
+    private const val BASE_URL = "http://172.16.105.93:8080/"
 
     // ------------------------------------------------------------------
     // 🔐 1. Authorization 헤더 자동 추가 Interceptor
