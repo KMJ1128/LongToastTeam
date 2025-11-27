@@ -4,8 +4,10 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -19,7 +21,7 @@ import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.dto.ChatMessage
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.RentalActionPayload
-import com.longtoast.bilbil.dto.RentalDecisionRequest
+import com.longtoast.bilbil.dto.RentalApproveRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -48,13 +50,11 @@ class ChatRoomActivity : AppCompatActivity() {
     private lateinit var toolbar: MaterialToolbar
 
     private var selectedImageUri: Uri? = null
-
     private val chatMessages = mutableListOf<ChatMessage>()
     private val tempMessageMap = mutableMapOf<Long, ChatMessage>()
 
     private val WEBSOCKET_URL = ServerConfig.WEBSOCKET_URL
 
-    // ✅ FIX: ROOM_ID를 먼저 String으로 읽고, 안 되면 Int로 읽기
     private val roomId: Int by lazy {
         val fromString = intent.getStringExtra("ROOM_ID")?.toIntOrNull()
         fromString ?: intent.getIntExtra("ROOM_ID", -1)
@@ -94,12 +94,22 @@ class ChatRoomActivity : AppCompatActivity() {
         }
 
         toolbar = findViewById(R.id.toolbar_chat)
+        setSupportActionBar(toolbar)
+
         recyclerChat = findViewById(R.id.recycler_view_chat)
         editMessage = findViewById(R.id.edit_text_message)
         buttonSend = findViewById(R.id.button_send)
         buttonAttachImage = findViewById(R.id.button_attach_image)
 
-        setupToolbar()
+        // 🔹 Toolbar 내부 뷰들
+        val titleText = findViewById<TextView>(R.id.text_chat_title)
+        val rentAgreeButton = findViewById<Button>(R.id.btn_rent_agree)
+
+        titleText.text = intent.getStringExtra("SELLER_NICKNAME") ?: "채팅"
+
+        rentAgreeButton.setOnClickListener {
+            openRentRequestForm()
+        }
 
         chatAdapter = ChatAdapter(chatMessages, senderId.toString()) { payload ->
             confirmRental(payload)
@@ -112,7 +122,7 @@ class ChatRoomActivity : AppCompatActivity() {
         setupListeners()
     }
 
-    /** 🔵 대여 요청 폼 열기 (병합 완성본) */
+    /** 🔵 RentRequestActivity 로 이동 */
     private fun openRentRequestForm() {
         val id = productId
         if (id == null || id <= 0) {
@@ -120,34 +130,14 @@ class ChatRoomActivity : AppCompatActivity() {
             return
         }
 
-        val chatIntent = intent
         val intent = Intent(this, RentRequestActivity::class.java).apply {
             putExtra("ITEM_ID", id)
-            putExtra("TITLE", productTitle)
-            putExtra("PRICE", productPrice)
-            putExtra("DEPOSIT", productDeposit)
-            putExtra("LENDER_ID", lenderId)
-            putExtra("SELLER_NICKNAME", chatIntent.getStringExtra("SELLER_NICKNAME"))
+            putExtra("BORROWER_ID", senderId)  // ⭐ 현재 사용자 = 대여자
+            putExtra("LENDER_ID", lenderId)    // 기존 판매자 정보
         }
+        Log.d("대여자ChatRoomActivity", "Lender ID: $lenderId")
+        Log.d("차입자ChatRoomActivity", "Borrower ID: $senderId")
         startActivity(intent)
-    }
-
-    private fun setupToolbar() {
-        toolbar.title = intent.getStringExtra("SELLER_NICKNAME") ?: "채팅"
-        toolbar.inflateMenu(R.menu.menu_chat_room)
-
-        toolbar.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-
-                // 🔥 단독 버튼 하나만 처리
-                R.id.action_rent_agree -> {
-                    openRentRequestForm()
-                    true
-                }
-
-                else -> false
-            }
-        }
     }
 
     private fun setupListeners() {
@@ -158,19 +148,14 @@ class ChatRoomActivity : AppCompatActivity() {
                 editMessage.text.clear()
             }
         }
+
         buttonAttachImage.setOnClickListener {
             pickImageLauncher.launch("image/*")
         }
     }
 
-    /** 🔵 채팅방 히스토리 불러오기 */
+    /** 🔵 과거 채팅 불러오기 */
     private fun fetchChatHistory() {
-        if (roomId <= 0) {
-            Toast.makeText(this, "채팅방 정보를 확인할 수 없습니다.", Toast.LENGTH_SHORT).show()
-            finish()
-            return
-        }
-
         RetrofitClient.getApiService().getChatHistory(roomId)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
@@ -193,8 +178,6 @@ class ChatRoomActivity : AppCompatActivity() {
                         } catch (e: Exception) {
                             Log.e("CHAT_HISTORY", "파싱 오류", e)
                         }
-                    } else {
-                        Log.e("CHAT_HISTORY", "내역 조회 실패: ${response.code()}")
                     }
                 }
 
@@ -227,31 +210,22 @@ class ChatRoomActivity : AppCompatActivity() {
             override fun onMessage(webSocket: WebSocket, text: String) {
                 runOnUiThread { handleStompFrame(text) }
             }
-
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
-                Toast.makeText(this@ChatRoomActivity, "서버 연결 실패", Toast.LENGTH_SHORT).show()
-            }
-
-            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                webSocket.close(1000, null)
-            }
         })
     }
 
-    /** 🔵 STOMP 프레임 처리 */
+    /** 🔵 STOMP 메시지 처리 */
     private fun handleStompFrame(frame: String) {
         when {
             frame.startsWith("CONNECTED") -> {
-                val subscribeFrame =
+                webSocket.send(
                     "SUBSCRIBE\nid:sub-0\ndestination:/topic/signal/$roomId\n\n\u0000"
-                webSocket.send(subscribeFrame)
+                )
             }
 
             frame.startsWith("MESSAGE") -> {
                 val parts = frame.split("\n\n")
                 if (parts.size > 1) {
                     val payload = parts[1].replace("\u0000", "")
-
                     try {
                         val gson = Gson()
                         val received = gson.fromJson(payload, ChatMessage::class.java)
@@ -291,23 +265,22 @@ class ChatRoomActivity : AppCompatActivity() {
     /** 🔵 메시지 전송 */
     private fun sendMessage(content: String, imageUri: Uri? = null) {
         lifecycleScope.launch {
-            val finalImageUri = imageUri ?: selectedImageUri
+
             var imageUrl: String? = null
 
-            if (finalImageUri != null) {
-                imageUrl = uploadChatImage(finalImageUri)
-                if (imageUrl == null) {
-                    Toast.makeText(this@ChatRoomActivity, "이미지 업로드 실패", Toast.LENGTH_SHORT).show()
-                }
+            if (imageUri != null) {
+                imageUrl = uploadChatImage(imageUri)
             }
 
-            if (content.isEmpty() && imageUrl.isNullOrEmpty()) return@launch
+            if (content.isEmpty() && imageUrl == null) return@launch
 
-            val escapedContent = content.replace("\"", "\\\"")
+            val escapedContent = content.replace("\\", "\\\\")   // 역슬래시 먼저
+                .replace("\"", "\\\"")   // 따옴표
+                .replace("\n", "\\n")    // 🔥 개행 escape 추가!!!
             val payloadJson = buildString {
                 append("{\"senderId\":$senderId")
                 if (escapedContent.isNotEmpty()) append(",\"content\":\"$escapedContent\"")
-                if (!imageUrl.isNullOrEmpty()) append(",\"imageUrl\":\"$imageUrl\"")
+                if (imageUrl != null) append(",\"imageUrl\":\"$imageUrl\"")
                 append("}")
             }
 
@@ -343,22 +316,19 @@ class ChatRoomActivity : AppCompatActivity() {
 
             val body = RequestBody.create("image/jpeg".toMediaTypeOrNull(), bytes)
             val part = MultipartBody.Part.createFormData(
-                name = "image",
-                filename = "chat_${System.currentTimeMillis()}.jpg",
-                body = body
+                "image",
+                "chat_${System.currentTimeMillis()}.jpg",
+                body
             )
 
-            val response = RetrofitClient.getApiService()
-                .uploadChatImage(roomId, part)
-                .execute()
-
+            val response = RetrofitClient.getApiService().uploadChatImage(roomId, part).execute()
             if (!response.isSuccessful || response.body() == null) return@withContext null
 
             val data = response.body()!!.data as? Map<*, *>
             return@withContext data?.get("imageUrl") as? String
 
         } catch (e: Exception) {
-            Log.e("UPLOAD_IMG", "오류", e)
+            Log.e("UPLOAD_IMG", "ERROR", e)
             return@withContext null
         }
     }
@@ -370,22 +340,52 @@ class ChatRoomActivity : AppCompatActivity() {
         }
     }
 
-    /** 🔵 대여 확정 처리 */
+    /** 🔥 대여 합의 ‘동의하기’ */
     private fun confirmRental(payload: RentalActionPayload) {
+
+        val request = RentalApproveRequest(
+            roomId = payload.roomId,
+            itemId = payload.itemId,
+            lenderId = payload.lenderId,
+            borrowerId = payload.borrowerId,
+            startDate = payload.startDate,
+            endDate = payload.endDate,
+            totalAmount = payload.totalAmount
+        )
+
         RetrofitClient.getApiService()
-            .acceptRental(RentalDecisionRequest(payload.transactionId))
+            .approveRental(request)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (response.isSuccessful) {
-                        sendMessage("대여가 확정되었습니다. 기간: ${payload.startDate} ~ ${payload.endDate}")
-                        Toast.makeText(this@ChatRoomActivity, "대여 확정 완료", Toast.LENGTH_SHORT).show()
+
+                        sendMessage(
+                            "📌 대여가 확정되었습니다!\n" +
+                                    "기간: ${payload.startDate} ~ ${payload.endDate}\n" +
+                                    "총 금액: ${payload.totalAmount}원"
+                        )
+
+                        Toast.makeText(
+                            this@ChatRoomActivity,
+                            "대여 확정 완료",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
                     } else {
-                        Toast.makeText(this@ChatRoomActivity, "대여 확정 실패", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@ChatRoomActivity,
+                            "대여 확정 실패",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                    Toast.makeText(this@ChatRoomActivity, "네트워크 오류", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@ChatRoomActivity,
+                        "네트워크 오류",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             })
     }
