@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    // ⭐ Glide compiler를 사용하기 위한 필수 플러그인
+    id("kotlin-kapt")
 }
 
 android {
@@ -85,7 +87,7 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     implementation("com.github.bumptech.glide:glide:4.15.1")
-
+    kapt("com.github.bumptech.glide:compiler:4.15.1")
     // Play Services Location
     implementation("com.google.android.gms:play-services-location:21.0.1")
 
