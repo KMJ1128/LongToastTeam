@@ -1,12 +1,11 @@
 package com.longtoast.bilbil.dto
 
-data class RentalActionPayload(
-    val transactionId: Long,
+data class RentalDecisionRequest(
+    val roomId: Int,          // 채팅방 ID
     val itemId: Int,
+    val lenderId: Int,
+    val borrowerId: Int,
     val startDate: String,
     val endDate: String,
-    val rentFee: Int,
-    val deposit: Int,
-    val totalAmount: Int,
-    val deliveryMethod: String
+    val totalAmount: Int
 )
