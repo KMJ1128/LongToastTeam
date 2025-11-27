@@ -51,6 +51,14 @@ class MyItemsFragment : Fragment() {
         safe { b ->
             b.recyclerViewMyItems.layoutManager = LinearLayoutManager(context)
             b.toggleMyActivity.check(b.btnRegistered.id)
+
+            b.swipeRefresh.setOnRefreshListener {
+                if (currentTab == Tab.REGISTERED) {
+                    loadRegisteredItems()
+                } else {
+                    loadRentedItems()
+                }
+            }
         }
 
         setupToggle()
@@ -73,6 +81,7 @@ class MyItemsFragment : Fragment() {
     private fun hideLoading() = safe { b ->
         b.loadingAnimation.cancelAnimation()
         b.loadingAnimation.visibility = View.GONE
+        b.swipeRefresh.isRefreshing = false
     }
 
     // -----------------------------------------------------

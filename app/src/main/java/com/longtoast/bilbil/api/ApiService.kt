@@ -11,6 +11,7 @@ import com.longtoast.bilbil.dto.NaverTokenRequest
 import com.longtoast.bilbil.dto.MemberDTO
 import com.longtoast.bilbil.dto.ReviewCreateRequest
 import com.longtoast.bilbil.dto.ProductCreateRequest
+import com.longtoast.bilbil.dto.RentalApproveRequest
 import com.longtoast.bilbil.dto.RentalDecisionRequest
 import com.longtoast.bilbil.dto.RentalRequest
 import okhttp3.MultipartBody
@@ -138,4 +139,14 @@ interface ApiService {
         @Header("Authorization") auth: String,
         @Body request: FcmTokenRequest
     ): Call<ResponseBody>
+
+    @POST("/api/rental/approve")
+    fun approveRental(@Body request: RentalApproveRequest): Call<MsgEntity>
+
+    @GET("/api/rental/item/{itemId}/schedules")
+    fun getRentalSchedules(
+        @Path("itemId") itemId: Long
+    ): Call<MsgEntity>
+
+
 }

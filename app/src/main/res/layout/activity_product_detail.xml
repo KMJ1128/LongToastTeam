@@ -209,12 +209,15 @@
                     android:textColor="#111111"
                     android:layout_marginBottom="12dp"/>
 
-                <CalendarView
+                <com.prolificinteractive.materialcalendarview.MaterialCalendarView
                     android:id="@+id/calendar_availability"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/bg_btn_stroke_gray"
-                    android:padding="4dp"/>
+                    app:mcv_showOtherDates="all"
+                    app:mcv_selectionMode="range"
+                    android:padding="8dp"
+                    android:layout_marginBottom="20dp"
+                    />
 
                 <TextView
                     android:id="@+id/text_reserved_periods"
