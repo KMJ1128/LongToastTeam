@@ -14,10 +14,12 @@ object RetrofitClient {
     // 🔥 Spring Boot 서버 주소 (Wi-Fi 동일 네트워크)
     // 💡 [통합] ServerConfig에서 주소를 가져와 중앙 관리합니다.
 
+    // ServerConfig에서 주소를 가져와 중앙에서 관리한다.
+
     //private const val BASE_URL = ServerConfig.HTTP_BASE_URL
     //private const val BASE_URL = "http://192.168.45.105:8080/"
     //private const val BASE_URL = "http://172.16.101.164:8080/"
-    private const val BASE_URL = "http://172.16.104.182:8080/"
+    private const val BASE_URL = "http://172.16.104.175:8080/"
 
     // ------------------------------------------------------------------
     // 🔐 1. Authorization 헤더 자동 추가 Interceptor

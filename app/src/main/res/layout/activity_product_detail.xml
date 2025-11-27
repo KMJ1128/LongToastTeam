@@ -182,6 +182,7 @@
                     </LinearLayout>
                 </LinearLayout>
 
+                <!-- 🔥 여기부터 상세 설명 -->
                 <TextView
                     android:id="@+id/text_description"
                     android:layout_width="match_parent"
@@ -190,7 +191,14 @@
                     android:textSize="16sp"
                     android:lineSpacingExtra="6dp"
                     android:textColor="#333333"
-                    android:layout_marginBottom="32dp"/>
+                    android:layout_marginBottom="24dp"/>
+
+                <!-- 대황 네이버 맵뷰 -->
+                <com.naver.maps.map.MapView
+                    android:id="@+id/detailMapView"
+                    android:layout_width="match_parent"
+                    android:layout_height="200dp"
+                    android:layout_marginTop="8dp" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -207,6 +215,15 @@
                     android:layout_height="wrap_content"
                     android:background="@drawable/bg_btn_stroke_gray"
                     android:padding="4dp"/>
+
+                <TextView
+                    android:id="@+id/text_reserved_periods"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="#d32f2f"
+                    android:textSize="13sp"
+                    android:visibility="gone"/>
 
             </LinearLayout>
         </LinearLayout>

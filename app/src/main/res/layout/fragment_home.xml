@@ -8,7 +8,6 @@
     android:background="@color/trust_surface"
     tools:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
 
-    <!-- 상단 영역 (위치 + 프로필 + 검색창) -->
     <LinearLayout
         android:id="@+id/topBar"
         android:layout_width="0dp"
@@ -19,27 +18,29 @@
         android:paddingHorizontal="16dp"
         android:paddingTop="40dp"
         android:paddingBottom="12dp"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- 상단: 위치 + 프로필 이미지 + 메뉴 -->
-
-        <!-- 검색창 -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="wrap_content">
 
-            <!-- 왼쪽 위치 영역 -->
             <LinearLayout
                 android:id="@+id/location_container"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
                 android:orientation="horizontal"
+                android:gravity="center_vertical"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent">
-
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"> <ImageView
+                android:id="@+id/location_icon"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@mipmap/ic_launcher"
+                android:tint="@android:color/white"
+                android:contentDescription="현재 위치 아이콘" />
 
                 <TextView
                     android:id="@+id/location_text"
@@ -52,7 +53,6 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- 오른쪽 프로필 이미지 -->
             <ImageView
                 android:id="@+id/profileImage"
                 android:layout_width="40dp"
@@ -62,24 +62,35 @@
                 android:contentDescription="프로필 이미지"
                 android:scaleType="centerCrop"
                 android:src="@drawable/no_profile"
-                app:layout_constraintEnd_toEndOf="parent"
-                tools:layout_editor_absoluteY="0dp" />
+                app:layout_constraintEnd_toStartOf="@id/menu_button"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
+            <ImageButton
+                android:id="@+id/menu_button"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/bg_circle_transparent"
+                android:contentDescription="메뉴 버튼"
+                android:scaleType="fitCenter"
+                android:tint="@android:color/white"
+                android:src="@drawable/hamburger"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" /> </androidx.constraintlayout.widget.ConstraintLayout>
 
         <androidx.appcompat.widget.SearchView
             android:id="@+id/search_bar"
             android:layout_width="match_parent"
             android:layout_height="46dp"
-            android:layout_marginTop="8dp"
             android:background="@drawable/bg_search_bar"
             android:imeOptions="actionSearch"
             android:inputType="text"
-            android:queryHint="근처 물건을 검색해 보세요" />
+            android:queryHint="근처 물건을 검색해 보세요"
+            android:layout_marginTop="8dp" />
 
     </LinearLayout>
 
-    <!-- 🔹 스크롤되는 나머지 내용 (근처 인기 + 최근검색어 + 카테고리) -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollView"
         android:layout_width="0dp"
@@ -96,7 +107,56 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- 최근 검색어 카드 -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="18dp"
+                android:background="@color/trust_card"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="6dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:text="근처 인기 물건"
+                        android:textColor="@color/trust_text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <ProgressBar
+                        android:id="@+id/products_progress"
+                        style="?android:attr/progressBarStyleSmall"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:id="@+id/text_products_empty"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:text="표시할 상품이 없습니다."
+                        android:textColor="@color/trust_text_secondary"
+                        android:visibility="gone" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recycler_products"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:nestedScrollingEnabled="false"
+                        tools:itemCount="3"
+                        tools:listitem="@layout/item_product_list" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -135,7 +195,6 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- 카테고리 카드 -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -172,7 +231,6 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- 🔥 인기 검색어 리스트 (검색창 아래 덮어씌워짐) -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/popularRecyclerView"
         android:layout_width="0dp"

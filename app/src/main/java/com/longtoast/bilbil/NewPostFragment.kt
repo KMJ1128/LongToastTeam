@@ -31,9 +31,6 @@ import retrofit2.Callback
 import retrofit2.Response
 import java.io.InputStream
 
-// --------------------
-// price_unit 매핑 유틸
-// --------------------
 object PriceUnitMapper {
     fun toInt(label: String): Int = when (label) {
         "일" -> 1
@@ -56,7 +53,7 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
     private val binding get() = _binding!!
 
     private var productStatus: String = "AVAILABLE"
-    private var selectedPriceUnit: String = ""   // "일", "월", "시간"
+    private var selectedPriceUnit: String = ""
     private var rentalPriceString: String = ""
     private var editingProduct: ProductDTO? = null
 
@@ -66,6 +63,8 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
     private var selectedAddress: String? = null
     private var selectedLatitude: Double? = null
     private var selectedLongitude: Double? = null
+
+
 
     private val galleryLauncher =
         registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
@@ -96,6 +95,7 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
+
     ): View {
         _binding = ActivityNewPostFragmentBinding.inflate(inflater, container, false)
         return binding.root
@@ -104,25 +104,18 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 수정모드 데이터 주입
         arguments?.getString(ARG_PRODUCT_JSON)?.let { json ->
             editingProduct = Gson().fromJson(json, ProductDTO::class.java)
         }
 
         editingProduct?.let { prefillFields(it) }
-
         updatePriceTextView()
 
-        // 등록 버튼
         binding.completeButton.setOnClickListener { submitPost() }
-
-        // 닫기 버튼
         binding.closeButton.setOnClickListener { parentFragmentManager.popBackStack() }
 
-        // 이미지
         binding.layoutCameraArea.setOnClickListener { openGalleryForImage() }
 
-        // 주소
         binding.textViewAddress.setOnClickListener {
             val userId = AuthTokenManager.getUserId()
             val token = AuthTokenManager.getToken()
@@ -139,15 +132,11 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
             mapResultLauncher.launch(intent)
         }
 
-        // 가격 단위 선택
         binding.editTextPrice.setOnClickListener { showPriceUnitSelectionDialog() }
-
         setupStatusToggleGroup()
     }
 
     override fun onPriceUnitSelected(price: String, unit: String) {
-        // price : "5000"
-        // unit : "일", "월", "시간"
         rentalPriceString = price
         selectedPriceUnit = unit
         updatePriceTextView()
@@ -167,7 +156,6 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
 
     private fun setupStatusToggleGroup() {
         binding.toggleStatusGroup.check(R.id.button_rent_available)
-
         binding.toggleStatusGroup.addOnButtonCheckedListener { _, id, isChecked ->
             if (isChecked) {
                 productStatus = if (id == R.id.button_rent_available) "AVAILABLE" else "UNAVAILABLE"
@@ -210,8 +198,6 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
 
             val price = rentalPriceString.toIntOrNull() ?: 0
             val deposit = depositText.toIntOrNull()
-
-            // price_unit 번호 변환
             val priceUnitInt = PriceUnitMapper.toInt(selectedPriceUnit)
 
             val requestObj = ProductCreateRequest(
@@ -223,45 +209,65 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
                 status = productStatus,
                 deposit = deposit,
                 imageUrls = emptyList(),
-                address = selectedAddress!!
+                address = selectedAddress!!,
+
+                // ★ 서버로 위도/경도 전달
+                latitude = selectedLatitude ?: 0.0,
+                longitude = selectedLongitude ?: 0.0
             )
 
             editingProduct?.let { product ->
                 RetrofitClient.getApiService()
                     .updateProduct(product.id, requestObj)
                     .enqueue(object : Callback<MsgEntity> {
-                        override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                        override fun onResponse(
+                            call: Call<MsgEntity>,
+                            response: Response<MsgEntity>
+                        ) {
                             binding.completeButton.isEnabled = true
                             if (response.isSuccessful) {
                                 Toast.makeText(requireContext(), "수정되었습니다.", Toast.LENGTH_SHORT).show()
                                 parentFragmentManager.popBackStack()
-                            } else Toast.makeText(requireContext(), "수정 실패", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(requireContext(), "수정에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                            }
                         }
 
                         override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
                             binding.completeButton.isEnabled = true
-                            Toast.makeText(requireContext(), "서버 오류", Toast.LENGTH_LONG).show()
+                            Log.e("POST_API", "서버 오류", t)
+                            Toast.makeText(requireContext(), "서버 통신 오류", Toast.LENGTH_LONG).show()
                         }
                     })
             } ?: run {
+
+                // (2) JSON → RequestBody
                 val productRequestBody: RequestBody =
-                    Gson().toJson(requestObj).toRequestBody("application/json; charset=utf-8".toMediaType())
+                    Gson().toJson(requestObj)
+                        .toRequestBody("application/json; charset=utf-8".toMediaType())
 
                 RetrofitClient.getApiService()
                     .createProduct(productRequestBody, imageParts)
                     .enqueue(object : Callback<MsgEntity> {
-                        override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                        override fun onResponse(
+                            call: Call<MsgEntity>,
+                            response: Response<MsgEntity>
+                        ) {
                             binding.completeButton.isEnabled = true
+
                             if (response.isSuccessful) {
                                 Toast.makeText(requireContext(), "등록 성공!", Toast.LENGTH_SHORT).show()
                                 parentFragmentManager.popBackStack()
                             } else {
+                                val err = response.errorBody()?.string()
+                                Log.e("POST_API", "실패: ${response.code()} | $err")
                                 Toast.makeText(requireContext(), "등록 실패", Toast.LENGTH_LONG).show()
                             }
                         }
 
                         override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
                             binding.completeButton.isEnabled = true
+                            Log.e("POST_API", "서버 오류", t)
                             Toast.makeText(requireContext(), "서버 통신 오류", Toast.LENGTH_LONG).show()
                         }
                     })
@@ -274,27 +280,21 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         binding.editTextDescription.setText(product.description ?: "")
         binding.editTextCategory.setText(product.category ?: "")
         binding.editTextDeposit.setText(product.deposit?.toString() ?: "")
-
         binding.textViewAddress.text = product.address ?: product.tradeLocation ?: "주소 미지정"
         selectedAddress = product.address ?: product.tradeLocation
-
+        selectedPriceUnit = "일"
         rentalPriceString = product.price.toString()
-
-        // 서버에서 숫자를 받아 문자열로 변환 ("일/월/시간")
         selectedPriceUnit = PriceUnitMapper.toLabel(product.price_unit)
 
         productStatus = product.status ?: "AVAILABLE"
-        if (productStatus == "AVAILABLE") {
-            binding.toggleStatusGroup.check(R.id.button_rent_available)
-        } else {
-            binding.toggleStatusGroup.check(R.id.button_rent_unavailable)
-        }
+        if (productStatus == "AVAILABLE") binding.toggleStatusGroup.check(R.id.button_rent_available)
+        else binding.toggleStatusGroup.check(R.id.button_rent_unavailable)
 
         binding.completeButton.text = "상품 수정"
-
         updatePriceTextView()
     }
 
+    // (3) 이미지 URI → Multipart 변환 함수
     private fun convertImagesToMultipart(uris: List<Uri>): List<MultipartBody.Part> {
         val parts = mutableListOf<MultipartBody.Part>()
 

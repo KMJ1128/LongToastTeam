@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "281550312226",
+    "project_id": "bilbil-dbd65",
+    "storage_bucket": "bilbil-dbd65.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:281550312226:android:58a4712de8d44b6d28cb7b",
+        "android_client_info": {
+          "package_name": "com.longtoast.bilbil"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDGYi6gmrq38cEvNqzehJ8PxGe7cNpkWn0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

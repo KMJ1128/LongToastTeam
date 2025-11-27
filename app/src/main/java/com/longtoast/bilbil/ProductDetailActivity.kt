@@ -22,11 +22,25 @@ import retrofit2.Callback
 import retrofit2.Response
 import java.text.DecimalFormat
 
-class ProductDetailActivity : AppCompatActivity() {
+// --- Naver Map Imports ---
+import com.naver.maps.map.MapView
+import com.naver.maps.map.NaverMap
+import com.naver.maps.map.OnMapReadyCallback
+import com.naver.maps.map.CameraUpdate
+import com.naver.maps.geometry.LatLng
+import com.naver.maps.map.overlay.Marker
+import com.naver.maps.map.overlay.OverlayImage
+
+class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var binding: ActivityProductDetailBinding
     private var currentProduct: ProductDTO? = null
     private val numberFormat = DecimalFormat("#,###")
+
+    // --- Naver Map Fields ---
+    private lateinit var mapView: MapView
+    private var naverMap: NaverMap? = null
+    private val marker = Marker()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,8 +54,21 @@ class ProductDetailActivity : AppCompatActivity() {
             return
         }
 
+        // ⭐ 네이버 지도 뷰 연결
+        mapView = binding.detailMapView
+        mapView.onCreate(savedInstanceState)
+        mapView.getMapAsync(this)
+
         setupListeners()
         loadProductDetail(itemId)
+    }
+
+    // 네이버 지도 준비 완료
+    override fun onMapReady(map: NaverMap) {
+        naverMap = map
+
+        // 지도 준비되면 상품 위치 찍기
+        currentProduct?.let { addMarkerAndMove(it) }
     }
 
     private fun setupListeners() {
@@ -55,7 +82,6 @@ class ProductDetailActivity : AppCompatActivity() {
             Toast.makeText(this, "더보기 기능 준비중", Toast.LENGTH_SHORT).show()
         }
 
-        // 장바구니
         binding.btnCart.setOnClickListener {
             currentProduct?.let { product ->
                 CartManager.addItem(product)
@@ -63,7 +89,6 @@ class ProductDetailActivity : AppCompatActivity() {
             } ?: Toast.makeText(this, "상품 정보를 불러오는 중입니다.", Toast.LENGTH_SHORT).show()
         }
 
-        // 대여하기
         binding.btnRent.setOnClickListener {
             val p = currentProduct ?: return@setOnClickListener
 
@@ -80,7 +105,6 @@ class ProductDetailActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // 채팅
         binding.btnStartChat.setOnClickListener { startChatting() }
     }
 
@@ -94,8 +118,15 @@ class ProductDetailActivity : AppCompatActivity() {
                     val product = gson.fromJson(gson.toJson(rawData), ProductDTO::class.java)
                     currentProduct = product
                     updateUI(product)
+
+                    // 지도 준비되었다면 좌표 적용
+                    naverMap?.let { addMarkerAndMove(product) }
                 } else {
-                    Toast.makeText(this@ProductDetailActivity, "정보를 불러올 수 없습니다.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@ProductDetailActivity,
+                        "정보를 불러올 수 없습니다.",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             } catch (e: Exception) {
                 Log.e("ProductDetail", "Load Error", e)
@@ -108,7 +139,6 @@ class ProductDetailActivity : AppCompatActivity() {
         binding.textCategoryTime.text = "${product.category ?: "기타"} · 1분 전"
         binding.textDescription.text = product.description ?: ""
 
-        // 가격 + 단위
         val priceUnitLabel = PriceUnitMapper.toLabel(product.price_unit)
         val priceStr = numberFormat.format(product.price)
         binding.textPrice.text = "$priceStr 원 / $priceUnitLabel"
@@ -119,24 +149,61 @@ class ProductDetailActivity : AppCompatActivity() {
             else "(보증금 없음)"
 
         binding.textSellerNickname.text = product.sellerNickname ?: "알 수 없음"
-        binding.textSellerAddress.text = product.address ?: "위치 미설정"
+        binding.textSellerAddress.text =
+            product.address ?: product.tradeLocation ?: "위치 미설정"
 
-        // 이미지
-        val fixedImages = product.imageUrls?.mapNotNull { ImageUrlUtils.resolve(it) } ?: emptyList()
+        val images = product.imageUrls?.mapNotNull { ImageUrlUtils.resolve(it) } ?: emptyList()
 
-        if (fixedImages.isNotEmpty()) {
-            binding.viewPagerImages.adapter = DetailImageAdapter(fixedImages)
-            binding.textImageIndicator.text = "1 / ${fixedImages.size}"
+        if (images.isNotEmpty()) {
+            binding.viewPagerImages.adapter = DetailImageAdapter(images)
+            binding.textImageIndicator.text = "1 / ${images.size}"
 
-            binding.viewPagerImages.registerOnPageChangeCallback(object :
-                ViewPager2.OnPageChangeCallback() {
-                override fun onPageSelected(position: Int) {
-                    binding.textImageIndicator.text = "${position + 1} / ${fixedImages.size}"
+            binding.viewPagerImages.registerOnPageChangeCallback(
+                object : ViewPager2.OnPageChangeCallback() {
+                    override fun onPageSelected(position: Int) {
+                        binding.textImageIndicator.text = "${position + 1} / ${images.size}"
+                    }
                 }
-            })
+            )
         } else {
             binding.textImageIndicator.visibility = View.GONE
         }
+    }
+
+    // 🔥 네이버 지도에 마커 찍고 카메라 이동 + 방어 로직
+    private fun addMarkerAndMove(product: ProductDTO) {
+        val map = naverMap ?: return
+        val lat = product.latitude
+        val lng = product.longitude
+
+        Log.d("ProductDetailMap", "product lat/lng = $lat / $lng")
+
+        // 좌표 없으면 서울 기본값
+        if (lat == null || lng == null) {
+            val seoul = LatLng(37.5665, 126.9780)
+            marker.position = seoul
+            marker.map = map
+            map.moveCamera(CameraUpdate.scrollTo(seoul))
+            return
+        }
+
+        // 한국 범위 밖이면 서울로 대체 (grid 방지)
+        if (lat !in 30.0..45.0 || lng !in 120.0..135.0) {
+            Log.w("ProductDetailMap", "한국 범위 밖 좌표: $lat, $lng → 서울로 대체")
+            val seoul = LatLng(37.5665, 126.9780)
+            marker.position = seoul
+            marker.map = map
+            map.moveCamera(CameraUpdate.scrollTo(seoul))
+            return
+        }
+
+        val position = LatLng(lat, lng)
+
+        marker.position = position
+        marker.map = map
+        marker.icon = OverlayImage.fromResource(R.drawable.ic_location_pin)
+
+        map.moveCamera(CameraUpdate.scrollTo(position))
     }
 
     private fun startChatting() {
@@ -161,7 +228,10 @@ class ProductDetailActivity : AppCompatActivity() {
                         val roomId = map["roomId"]?.toString()
 
                         if (roomId != null) {
-                            val intent = Intent(this@ProductDetailActivity, ChatRoomActivity::class.java)
+                            val intent = Intent(
+                                this@ProductDetailActivity,
+                                ChatRoomActivity::class.java
+                            )
                             intent.putExtra("ROOM_ID", roomId)
                             intent.putExtra("SELLER_NICKNAME", product.sellerNickname)
                             startActivity(intent)
@@ -170,8 +240,48 @@ class ProductDetailActivity : AppCompatActivity() {
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                    Toast.makeText(this@ProductDetailActivity, "네트워크 오류", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@ProductDetailActivity,
+                        "네트워크 오류",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             })
+    }
+
+    // --- MapView 라이프사이클 완전체 적용 ---
+    override fun onStart() {
+        super.onStart()
+        mapView.onStart()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        mapView.onResume()
+    }
+
+    override fun onPause() {
+        mapView.onPause()
+        super.onPause()
+    }
+
+    override fun onStop() {
+        mapView.onStop()
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        mapView.onDestroy()
+        super.onDestroy()
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        mapView.onLowMemory()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        mapView.onSaveInstanceState(outState)
     }
 }
