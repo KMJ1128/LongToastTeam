@@ -22,7 +22,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     companion object {
         // ⚠️ 네가 쓰는 서버 주소로 맞게 바꿔줘 (에뮬레이터면 보통 10.0.2.2)
-        private const val BASE_URL = "http://10.0.2.2:8080"
+        private const val BASE_URL = "http://172.16.105.93:8080/"
         private const val CHANNEL_ID = "default_channel"
     }
 

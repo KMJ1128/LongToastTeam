@@ -53,9 +53,15 @@ class ChatRoomActivity : AppCompatActivity() {
     private val tempMessageMap = mutableMapOf<Long, ChatMessage>()
 
     private val WEBSOCKET_URL = ServerConfig.WEBSOCKET_URL
-    private val roomId by lazy { intent.getIntExtra("ROOM_ID", -1) }
+
+    // ✅ FIX: ROOM_ID를 먼저 String으로 읽고, 안 되면 Int로 읽기
+    private val roomId: Int by lazy {
+        val fromString = intent.getStringExtra("ROOM_ID")?.toIntOrNull()
+        fromString ?: intent.getIntExtra("ROOM_ID", -1)
+    }
 
     private val senderId: Int by lazy { AuthTokenManager.getUserId() ?: 1 }
+
     private val productId: Int? by lazy {
         val numeric = intent.getIntExtra("PRODUCT_ID", -1)
         if (numeric > 0) numeric else intent.getStringExtra("PRODUCT_ID")?.toIntOrNull()

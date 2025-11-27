@@ -1,4 +1,5 @@
 package com.longtoast.bilbil
+
 import androidx.core.view.isVisible
 import android.content.Intent
 import android.os.Bundle
@@ -31,6 +32,8 @@ import retrofit2.Response
 import android.widget.Toast
 import com.longtoast.bilbil.ProductAdapter
 import com.longtoast.bilbil.ProductDetailActivity
+// 💡 ImageUrlUtils import 추가
+import com.longtoast.bilbil.ImageUrlUtils
 
 class HomeFragment : Fragment() {
 
@@ -60,6 +63,9 @@ class HomeFragment : Fragment() {
         setupPopularRecycler()
         setupProductRecycler()
         loadProducts()
+
+        // 💡 메뉴 버튼 클릭 리스너를 여기에 추가하거나 HomeHostActivity로 전달하는 로직이 필요할 수 있습니다.
+        // binding.menuButton.setOnClickListener { /* Drawer 열기 로직 */ }
     }
 
     /** 🔵 사용자 주소 및 프로필 이미지 로드 */
@@ -78,17 +84,20 @@ class HomeFragment : Fragment() {
 
                         binding.locationText.text = member.address ?: "내 위치"
 
+                        // 💡 프로필 이미지 로드 로직 수정: location_icon 대신 profileImage 사용
                         val imageUrl = member.profileImageUrl
                         if (!imageUrl.isNullOrEmpty()) {
-                            val fullUrl =
-                                if (imageUrl.startsWith("http")) imageUrl
-                                else ServerConfig.HTTP_BASE_URL + imageUrl.replaceFirst("/", "")
+                            // 💡 ImageUrlUtils 사용으로 변경
+                            val fullUrl = ImageUrlUtils.resolve(imageUrl)
 
                             Glide.with(requireContext())
                                 .load(fullUrl)
                                 .circleCrop()
-                                .into(binding.locationIcon)
+                                .into(binding.profileImage) // 💡 profileImage ID로 로드
                         }
+                        // 💡 location_icon에는 위치 아이콘이 고정되어 있으므로,
+                        // 프로필 이미지 로직은 profileImage에만 적용하고 locationIcon 로직은 제거합니다.
+
                     } catch (e: Exception) {
                         Log.e("MY_INFO", "MemberDTO 파싱 오류", e)
                     }
@@ -344,4 +353,3 @@ class HomeFragment : Fragment() {
         _binding = null
     }
 }
-

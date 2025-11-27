@@ -8,7 +8,6 @@
     android:background="@color/trust_surface"
     tools:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
 
-    <!-- 상단 영역 (위치 + 검색창) -->
     <LinearLayout
         android:id="@+id/topBar"
         android:layout_width="0dp"
@@ -34,15 +33,14 @@
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent">
-
-                <ImageView
-                    android:id="@+id/location_icon"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@mipmap/ic_launcher"
-                    android:tint="@android:color/white"
-                    android:contentDescription="현재 위치 아이콘" />
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"> <ImageView
+                android:id="@+id/location_icon"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@mipmap/ic_launcher"
+                android:tint="@android:color/white"
+                android:contentDescription="현재 위치 아이콘" />
 
                 <TextView
                     android:id="@+id/location_text"
@@ -55,6 +53,19 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
+            <ImageView
+                android:id="@+id/profileImage"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="16dp"
+                android:background="@drawable/bg_circle_white"
+                android:contentDescription="프로필 이미지"
+                android:scaleType="centerCrop"
+                android:src="@drawable/no_profile"
+                app:layout_constraintEnd_toStartOf="@id/menu_button"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
             <ImageButton
                 android:id="@+id/menu_button"
                 android:layout_width="36dp"
@@ -65,10 +76,9 @@
                 android:tint="@android:color/white"
                 android:src="@drawable/hamburger"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-        </androidx.constraintlayout.widget.ConstraintLayout>
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" /> </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <!-- 검색창 -->
         <androidx.appcompat.widget.SearchView
             android:id="@+id/search_bar"
             android:layout_width="match_parent"
@@ -81,7 +91,6 @@
 
     </LinearLayout>
 
-    <!-- 🔹 스크롤되는 나머지 내용 (근처 인기 + 최근검색어 + 카테고리) -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollView"
         android:layout_width="0dp"
@@ -98,7 +107,6 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- 근처 인기 물건 카드 -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -149,7 +157,6 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- 최근 검색어 카드 -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -188,7 +195,6 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- 카테고리 카드 -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -225,8 +231,6 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- 🔥 검색창 바로 밑에 '덮어씌워지는' 인기 검색어 리스트 -->
-    <!-- scrollView보다 XML에서 나중에 선언 → 화면에서는 위에 덮어씀 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/popularRecyclerView"
         android:layout_width="0dp"
