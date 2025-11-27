@@ -7,7 +7,6 @@
     android:layout_height="match_parent"
     android:background="@android:color/white">
 
-    <!-- 상단 툴바 -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/toolbar_container"
         android:layout_width="match_parent"
@@ -54,7 +53,6 @@
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- 본문 -->
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -68,7 +66,6 @@
             android:orientation="vertical"
             android:paddingBottom="20dp">
 
-            <!-- 이미지 슬라이더 -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -137,33 +134,7 @@
                     android:text="(보증금 없음)"
                     android:textSize="13sp"
                     android:textColor="#666666"
-                    android:layout_marginBottom="12dp"/>
-
-                <!-- ✅ 지도 미니뷰 추가 -->
-                <LinearLayout
-                    android:id="@+id/layout_location_map"
-                    android:layout_width="match_parent"
-                    android:layout_height="140dp"
-                    android:orientation="vertical"
-                    android:background="@drawable/bg_btn_stroke_gray"
-                    android:padding="8dp"
-                    android:layout_marginBottom="24dp">
-
-                    <TextView
-                        android:id="@+id/text_trade_location"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="거래 위치"
-                        android:textSize="13sp"
-                        android:textColor="#666666"
-                        android:layout_marginBottom="4dp" />
-
-                    <net.daum.mf.map.api.MapView
-                        android:id="@+id/map_mini"
-                        android:layout_width="match_parent"
-                        android:layout_height="0dp"
-                        android:layout_weight="1" />
-                </LinearLayout>
+                    android:layout_marginBottom="24dp"/>
 
                 <View
                     android:layout_width="match_parent"
@@ -171,7 +142,6 @@
                     android:background="#EEEEEE"
                     android:layout_marginBottom="24dp"/>
 
-                <!-- 판매자 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -212,6 +182,7 @@
                     </LinearLayout>
                 </LinearLayout>
 
+                <!-- 🔥 여기부터 상세 설명 -->
                 <TextView
                     android:id="@+id/text_description"
                     android:layout_width="match_parent"
@@ -220,13 +191,35 @@
                     android:textSize="16sp"
                     android:lineSpacingExtra="6dp"
                     android:textColor="#333333"
-                    android:layout_marginBottom="32dp"/>
+                    android:layout_marginBottom="24dp"/>
+
+                <!-- 대황 네이버 맵뷰 -->
+                <com.naver.maps.map.MapView
+                    android:id="@+id/detailMapView"
+                    android:layout_width="match_parent"
+                    android:layout_height="200dp"
+                    android:layout_marginTop="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="대여 가능 날짜"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#111111"
+                    android:layout_marginBottom="12dp"/>
+
+                <CalendarView
+                    android:id="@+id/calendar_availability"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_btn_stroke_gray"
+                    android:padding="4dp"/>
 
             </LinearLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- 하단 버튼 -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/bottom_layout_container"
         android:layout_width="match_parent"

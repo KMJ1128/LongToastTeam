@@ -18,6 +18,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"/>
 
+    <!-- 🔍 주소 검색 영역 -->
     <LinearLayout
         android:id="@+id/layoutSearch"
         android:layout_width="0dp"
@@ -56,7 +57,8 @@
         app:layout_constraintTop_toBottomOf="@id/layoutSearch"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <com.kakao.vectormap.MapView
+    <!-- 🔥 네이버 지도 MapView (카카오 지도 제거됨) -->
+    <com.naver.maps.map.MapView
         android:id="@+id/mapView"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -67,16 +69,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <ImageView
-        android:id="@+id/imgPin"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:src="@drawable/ic_map_pin"
-        android:contentDescription="center pin"
-        app:layout_constraintStart_toStartOf="@id/mapView"
-        app:layout_constraintEnd_toEndOf="@id/mapView"
-        app:layout_constraintTop_toTopOf="@id/mapView"
-        app:layout_constraintBottom_toBottomOf="@id/mapView" />
 
     <TextView
         android:id="@+id/txtSelectedAddress"

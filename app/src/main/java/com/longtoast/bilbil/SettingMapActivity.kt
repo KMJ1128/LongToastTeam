@@ -1,4 +1,3 @@
-// com.longtoast.bilbil.SettingMapActivity.kt (전체)
 package com.longtoast.bilbil
 
 import android.Manifest
@@ -17,8 +16,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
-import com.kakao.vectormap.*
-import com.kakao.vectormap.camera.CameraUpdateFactory
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.dto.LocationRequest
 import kotlinx.coroutines.Dispatchers
@@ -29,10 +26,21 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-class SettingMapActivity : AppCompatActivity() {
+// 네이버 지도 import
+import com.naver.maps.map.MapView
+import com.naver.maps.map.NaverMap
+import com.naver.maps.map.OnMapReadyCallback
+import com.naver.maps.map.CameraUpdate
+import com.naver.maps.map.CameraPosition
+import com.naver.maps.geometry.LatLng
+import com.naver.maps.map.overlay.Marker
+
+
+class SettingMapActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mapView: MapView
-    private var kakaoMap: KakaoMap? = null
+    private var naverMap: NaverMap? = null
+    private var marker: Marker? = null
 
     private lateinit var editSearch: EditText
     private lateinit var btnSearch: Button
@@ -48,6 +56,7 @@ class SettingMapActivity : AppCompatActivity() {
     private var currentLng = 126.8675615713012
     private var currentAddress: String = ""
 
+    // 🔥 검색은 카카오 REST API 그대로 사용
     private val KAKAO_REST_API_KEY = "9f3f18b8416277279d74a206762f21b1"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,9 +66,13 @@ class SettingMapActivity : AppCompatActivity() {
         initViews()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         initRecycler()
-        setupMap()
+
+        mapView.onCreate(savedInstanceState)
+        mapView.getMapAsync(this)
+
         setupListeners()
 
+        // 위치 권한 요청
         requestPermissionLauncher.launch(
             arrayOf(
                 Manifest.permission.ACCESS_FINE_LOCATION,
@@ -87,6 +100,7 @@ class SettingMapActivity : AppCompatActivity() {
             currentAddress = item.address
 
             moveCameraTo(currentLat, currentLng)
+            setMarker(currentLat, currentLng)
 
             txtSelectedAddress.text = currentAddress
             editSearch.setText(currentAddress)
@@ -97,39 +111,41 @@ class SettingMapActivity : AppCompatActivity() {
         recyclerSearch.adapter = searchAdapter
     }
 
-    private fun setupMap() {
-        mapView.start(
-            object : MapLifeCycleCallback() {
-                override fun onMapDestroy() {}
-                override fun onMapError(error: Exception?) {
-                    Toast.makeText(this@SettingMapActivity, "지도 로드 오류", Toast.LENGTH_SHORT).show()
-                }
-            },
+    /** 네이버 지도 준비 완료 */
+    override fun onMapReady(map: NaverMap) {
+        this.naverMap = map
 
-            object : KakaoMapReadyCallback() {
-                override fun onMapReady(map: KakaoMap) {
-                    kakaoMap = map
-                    checkLocationPermission()
+        moveCameraTo(currentLat, currentLng)
+        setMarker(currentLat, currentLng)
 
-                    setupCameraMoveEndListener()
-                }
-            }
-        )
-    }
+        // 중심 이동 끝날 때 이벤트
+        map.addOnCameraChangeListener { _, _ -> }
+        map.addOnCameraIdleListener {
+            val target = map.cameraPosition.target
 
-    /** ★★★ 카메라 이동 종료 시점에 정확하게 중심 좌표 가져오기 ★★★ */
-    private fun setupCameraMoveEndListener() {
-        kakaoMap?.setOnCameraMoveEndListener { map, camPos, reason ->
+            currentLat = target.latitude
+            currentLng = target.longitude
 
-            val center = camPos.position
-
-            currentLat = center.latitude
-            currentLng = center.longitude
-
-            Log.d("MAP_CENTER", "Camera End → lat=$currentLat, lng=$currentLng")
-
+            setMarker(currentLat, currentLng)
             loadAddress(currentLat, currentLng)
         }
+
+        checkLocationPermission()
+    }
+
+    /** 카메라 이동 */
+    private fun moveCameraTo(lat: Double, lng: Double) {
+        val cameraUpdate = CameraUpdate.scrollTo(LatLng(lat, lng))
+        naverMap?.moveCamera(cameraUpdate)
+    }
+
+    /** 지도 마커 찍기 */
+    private fun setMarker(lat: Double, lng: Double) {
+        if (marker == null) {
+            marker = Marker()
+        }
+        marker!!.position = LatLng(lat, lng)
+        marker!!.map = naverMap
     }
 
     private fun setupListeners() {
@@ -156,90 +172,60 @@ class SettingMapActivity : AppCompatActivity() {
             val userId = intent.getIntExtra("USER_ID", -1)
             val serviceToken = intent.getStringExtra("SERVICE_TOKEN")
 
-            // isInitialSetup은 MainActivity에서 초기 설정으로 왔는지 확인하는 플래그 (여기에선 사용 안 함)
-            val isInitialSetup = intent.hasExtra("USER_NICKNAME")
-            val nickname = intent.getStringExtra("USER_NICKNAME")
-
-            if (userId == -1) {
-                Toast.makeText(this, "User ID 오류", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            if (serviceToken.isNullOrEmpty()) {
-                Toast.makeText(this, "인증 토큰 오류", Toast.LENGTH_SHORT).show()
+            if (userId == -1 || serviceToken.isNullOrEmpty()) {
+                Toast.makeText(this, "인증 오류", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
             lifecycleScope.launch {
-                val finalAddress = editSearch.text.toString().trim()
-                if (finalAddress.isEmpty()) {
-                    Toast.makeText(this@SettingMapActivity, "유효한 주소를 설정해주세요.", Toast.LENGTH_SHORT).show()
+                val address = editSearch.text.toString().trim()
+                if (address.isEmpty()) {
+                    Toast.makeText(this@SettingMapActivity, "주소를 선택해주세요.", Toast.LENGTH_SHORT).show()
                     return@launch
                 }
 
-                currentAddress = finalAddress
+                currentAddress = address
 
-                // 1. 서버에 위치 저장 (비동기)
                 val ok = sendLocationToServer(userId, currentLat, currentLng, currentAddress)
-                if (!ok) {
+
+                if (ok) {
+                    val resultIntent = Intent().apply {
+                        putExtra("FINAL_ADDRESS", currentAddress)
+                        putExtra("FINAL_LATITUDE", currentLat)
+                        putExtra("FINAL_LONGITUDE", currentLng)
+                    }
+                    setResult(RESULT_OK, resultIntent)
+                    finish()
+                } else {
                     Toast.makeText(this@SettingMapActivity, "서버 저장 실패", Toast.LENGTH_SHORT).show()
-                    return@launch
                 }
-
-                Toast.makeText(this@SettingMapActivity, "위치 저장 완료!", Toast.LENGTH_SHORT).show()
-
-                // 2. 🚨 [핵심 수정] 호출한 Activity/Fragment로 결과 반환
-                val resultIntent = Intent().apply {
-                    putExtra("FINAL_ADDRESS", currentAddress)
-                    putExtra("FINAL_LATITUDE", currentLat)
-                    putExtra("FINAL_LONGITUDE", currentLng)
-                }
-                setResult(RESULT_OK, resultIntent)
-
-                // 3. 🚨 [수정] 초기 설정(MainActivity)에서 온 경우에만 홈 화면으로 이동
-                if (isInitialSetup) {
-                    // MainActivity -> SettingMapActivity -> SettingProfileActivity를 거쳐왔다고 가정
-                    // 여기서는 SettingProfileActivity로 이동해야 함 (수정 전 코드와 동일하게 처리)
-                    // 현재 로직이 SettingMapActivity 다음에 바로 HomeHostActivity로 이동하므로, 이 로직을 유지합니다.
-
-                    // 💡 [정리] 이 로직은 초기 설정(MainActivity -> SettingMapActivity)에서만 실행되어야 합니다.
-                    // 현재는 SettingProfileActivity가 이전에 실행되도록 설정되어 있지 않으므로 HomeHostActivity로 바로 이동합니다.
-                    val intent = Intent(this@SettingMapActivity, HomeHostActivity::class.java)
-                    startActivity(intent)
-                }
-
-                finish() // Activity 종료
             }
         }
     }
 
-    // ... (checkLocationPermission, getCurrentLocation, moveCameraTo, loadAddress, reverseGeocode, searchAddress, searchKeyword, sendLocationToServer 유지) ...
+    /** ======================
+     *   권한 및 위치 처리
+    ======================= */
+
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { perms ->
-            val fine = perms[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
-            if (fine) getCurrentLocation()
+            if (perms[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
+                getCurrentLocation()
+            }
         }
 
     private fun checkLocationPermission() {
         if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
+                this, Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
             getCurrentLocation()
-        } else {
-            requestPermissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
         }
     }
 
     private fun getCurrentLocation() {
         if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
+                this, Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) return
 
@@ -252,23 +238,20 @@ class SettingMapActivity : AppCompatActivity() {
                 currentLng = it.longitude
 
                 moveCameraTo(currentLat, currentLng)
+                setMarker(currentLat, currentLng)
                 loadAddress(currentLat, currentLng)
             }
         }
     }
 
-    private fun moveCameraTo(lat: Double, lng: Double) {
-        kakaoMap?.moveCamera(
-            CameraUpdateFactory.newCenterPosition(
-                LatLng.from(lat, lng)
-            )
-        )
-    }
+
+    /** ======================
+     *    주소 검색 / 역검색
+    ======================= */
 
     private fun loadAddress(lat: Double, lng: Double) {
         lifecycleScope.launch {
             val addr = withContext(Dispatchers.IO) { reverseGeocode(lat, lng) }
-
             currentAddress = addr ?: "위도: $lat, 경도: $lng"
 
             txtSelectedAddress.text = currentAddress
@@ -307,8 +290,8 @@ class SettingMapActivity : AppCompatActivity() {
                 val list = withContext(Dispatchers.IO) { searchKeyword(q) }
 
                 if (list.isEmpty()) {
-                    Toast.makeText(this@SettingMapActivity, "검색 결과 없음", Toast.LENGTH_SHORT).show()
                     recyclerSearch.visibility = RecyclerView.GONE
+                    Toast.makeText(this@SettingMapActivity, "검색 결과 없음", Toast.LENGTH_SHORT).show()
                 } else {
                     recyclerSearch.visibility = RecyclerView.VISIBLE
                     searchAdapter.updateList(list)
@@ -357,6 +340,11 @@ class SettingMapActivity : AppCompatActivity() {
         }
     }
 
+
+    /** ======================
+     *   서버에 위치 저장
+    ======================= */
+
     private suspend fun sendLocationToServer(
         userId: Int,
         lat: Double,
@@ -368,16 +356,39 @@ class SettingMapActivity : AppCompatActivity() {
 
         return try {
             val response = RetrofitClient.getApiService().sendLocation(body)
-
-            Log.d("LOCATION_SAVE", "응답 코드 = ${response.code()}, 성공 여부 = ${response.isSuccessful}")
-            if (!response.isSuccessful) {
-                Log.e("LOCATION_SAVE", "에러 바디 = ${response.errorBody()?.string()}")
-            }
-
             response.isSuccessful
         } catch (e: Exception) {
-            Log.e("LOCATION_SAVE", "예외 발생", e)
             false
         }
+    }
+
+
+    /** ======================
+     *    네이버 맵 라이프사이클
+    ======================= */
+
+    override fun onStart() {
+        super.onStart()
+        mapView.onStart()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        mapView.onResume()
+    }
+
+    override fun onPause() {
+        mapView.onPause()
+        super.onPause()
+    }
+
+    override fun onStop() {
+        mapView.onStop()
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        mapView.onDestroy()
+        super.onDestroy()
     }
 }
