@@ -135,11 +135,18 @@ class ChatRoomActivity : AppCompatActivity() {
     private fun setupToolbar() {
         toolbar.title = intent.getStringExtra("SELLER_NICKNAME") ?: "채팅"
         toolbar.inflateMenu(R.menu.menu_chat_room)
+
         toolbar.setOnMenuItemClickListener { item ->
-            if (item.itemId == R.id.action_rent_request) {
-                openRentRequestForm()
-                true
-            } else false
+            when (item.itemId) {
+
+                // 🔥 단독 버튼 하나만 처리
+                R.id.action_rent_agree -> {
+                    openRentRequestForm()
+                    true
+                }
+
+                else -> false
+            }
         }
     }
 
