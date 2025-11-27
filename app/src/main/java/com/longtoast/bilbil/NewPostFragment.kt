@@ -220,21 +220,28 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
                 RetrofitClient.getApiService()
                     .updateProduct(product.id, requestObj)
                     .enqueue(object : Callback<MsgEntity> {
-                        override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                        override fun onResponse(
+                            call: Call<MsgEntity>,
+                            response: Response<MsgEntity>
+                        ) {
                             binding.completeButton.isEnabled = true
                             if (response.isSuccessful) {
                                 Toast.makeText(requireContext(), "수정되었습니다.", Toast.LENGTH_SHORT).show()
                                 parentFragmentManager.popBackStack()
-                            } else Toast.makeText(requireContext(), "수정 실패", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(requireContext(), "수정에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                            }
                         }
 
                         override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
                             binding.completeButton.isEnabled = true
-                            Toast.makeText(requireContext(), "서버 오류", Toast.LENGTH_LONG).show()
+                            Log.e("POST_API", "서버 오류", t)
+                            Toast.makeText(requireContext(), "서버 통신 오류", Toast.LENGTH_LONG).show()
                         }
                     })
             } ?: run {
 
+                // (2) JSON → RequestBody
                 val productRequestBody: RequestBody =
                     Gson().toJson(requestObj)
                         .toRequestBody("application/json; charset=utf-8".toMediaType())
@@ -242,18 +249,25 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
                 RetrofitClient.getApiService()
                     .createProduct(productRequestBody, imageParts)
                     .enqueue(object : Callback<MsgEntity> {
-                        override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                        override fun onResponse(
+                            call: Call<MsgEntity>,
+                            response: Response<MsgEntity>
+                        ) {
                             binding.completeButton.isEnabled = true
+
                             if (response.isSuccessful) {
                                 Toast.makeText(requireContext(), "등록 성공!", Toast.LENGTH_SHORT).show()
                                 parentFragmentManager.popBackStack()
                             } else {
+                                val err = response.errorBody()?.string()
+                                Log.e("POST_API", "실패: ${response.code()} | $err")
                                 Toast.makeText(requireContext(), "등록 실패", Toast.LENGTH_LONG).show()
                             }
                         }
 
                         override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
                             binding.completeButton.isEnabled = true
+                            Log.e("POST_API", "서버 오류", t)
                             Toast.makeText(requireContext(), "서버 통신 오류", Toast.LENGTH_LONG).show()
                         }
                     })
@@ -266,24 +280,21 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         binding.editTextDescription.setText(product.description ?: "")
         binding.editTextCategory.setText(product.category ?: "")
         binding.editTextDeposit.setText(product.deposit?.toString() ?: "")
-
         binding.textViewAddress.text = product.address ?: product.tradeLocation ?: "주소 미지정"
         selectedAddress = product.address ?: product.tradeLocation
-
+        selectedPriceUnit = "일"
         rentalPriceString = product.price.toString()
         selectedPriceUnit = PriceUnitMapper.toLabel(product.price_unit)
 
         productStatus = product.status ?: "AVAILABLE"
-        if (productStatus == "AVAILABLE") {
-            binding.toggleStatusGroup.check(R.id.button_rent_available)
-        } else {
-            binding.toggleStatusGroup.check(R.id.button_rent_unavailable)
-        }
+        if (productStatus == "AVAILABLE") binding.toggleStatusGroup.check(R.id.button_rent_available)
+        else binding.toggleStatusGroup.check(R.id.button_rent_unavailable)
 
         binding.completeButton.text = "상품 수정"
         updatePriceTextView()
     }
 
+    // (3) 이미지 URI → Multipart 변환 함수
     private fun convertImagesToMultipart(uris: List<Uri>): List<MultipartBody.Part> {
         val parts = mutableListOf<MultipartBody.Part>()
 

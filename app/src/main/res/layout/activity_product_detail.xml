@@ -216,6 +216,15 @@
                     android:background="@drawable/bg_btn_stroke_gray"
                     android:padding="4dp"/>
 
+                <TextView
+                    android:id="@+id/text_reserved_periods"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="#d32f2f"
+                    android:textSize="13sp"
+                    android:visibility="gone"/>
+
             </LinearLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
