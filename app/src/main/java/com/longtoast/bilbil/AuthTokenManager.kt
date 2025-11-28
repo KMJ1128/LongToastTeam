@@ -30,8 +30,8 @@ object AuthTokenManager {
         prefs.edit()
             .remove(KEY_SERVICE_TOKEN)
             .remove(KEY_USER_ID)
-            .remove(KEY_USER_NICKNAME)
-            .remove(KEY_USER_ADDRESS)
+            //.remove(KEY_USER_NICKNAME)
+            //.remove(KEY_USER_ADDRESS)
             .apply()
     }
 
