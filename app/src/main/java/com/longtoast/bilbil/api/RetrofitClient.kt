@@ -16,10 +16,9 @@ object RetrofitClient {
 
     // ServerConfig에서 주소를 가져와 중앙에서 관리한다.
 
-    private const val BASE_URL = "http://172.16.102.118:8080/"
+    private const val BASE_URL = ServerConfig.HTTP_BASE_URL
     //private const val BASE_URL = "http://192.168.45.105:8080/"
     //private const val BASE_URL = "http://172.16.101.164:8080/"
-
 
 
     // ------------------------------------------------------------------

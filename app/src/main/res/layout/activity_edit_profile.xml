@@ -56,7 +56,7 @@
         android:layout_marginBottom="-8dp"
         android:contentDescription="사진 변경" />
 
-    <!-- 닉네임 표시 (수정 불가) -->
+    <!-- 닉네임 입력 영역 -->
     <TextView
         android:id="@+id/text_nickname_label"
         android:layout_width="0dp"
@@ -69,19 +69,33 @@
         app:layout_constraintStart_toStartOf="parent"
         android:layout_marginTop="32dp" />
 
-    <TextView
-        android:id="@+id/text_nickname_value"
+    <EditText
+        android:id="@+id/edit_nickname"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:background="@android:drawable/dialog_holo_light_frame"
-        android:padding="16dp"
-        android:text="닉네임"
-        android:textColor="@color/trust_text_secondary"
+        android:hint="닉네임을 입력하세요"
         android:textSize="18sp"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:padding="16dp"
+        android:background="@android:drawable/edit_text"
+        android:inputType="text"
+        android:maxLength="20"
+        android:maxLines="1"
+        app:layout_constraintTop_toBottomOf="@id/text_nickname_label"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/text_nickname_label" />
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="8dp" />
+
+    <!-- 닉네임 안내 텍스트 -->
+    <TextView
+        android:id="@+id/text_nickname_hint"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="2-20자의 한글, 영문, 숫자를 사용할 수 있어요"
+        android:textSize="12sp"
+        android:textColor="#999999"
+        app:layout_constraintTop_toBottomOf="@id/edit_nickname"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginTop="4dp" />
 
     <!-- 활동 지역 표시 -->
     <TextView
@@ -92,7 +106,7 @@
         android:textSize="16sp"
         android:textStyle="bold"
         android:textColor="@color/trust_text_primary"
-        app:layout_constraintTop_toBottomOf="@id/text_nickname_value"
+        app:layout_constraintTop_toBottomOf="@id/text_nickname_hint"
         app:layout_constraintStart_toStartOf="parent"
         android:layout_marginTop="24dp" />
 

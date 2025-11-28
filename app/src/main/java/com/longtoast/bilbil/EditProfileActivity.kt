@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -40,7 +41,8 @@ class EditProfileActivity : AppCompatActivity() {
 
     private lateinit var imageProfile: ImageView
     private lateinit var fabChangePhoto: FloatingActionButton
-    private lateinit var textNicknameValue: TextView
+    //private lateinit var textNicknameValue: TextView
+    private lateinit var editNickname: EditText
     private lateinit var textLocationInfo: TextView
     private lateinit var buttonChangeLocation: Button
     private lateinit var buttonSave: Button
@@ -112,7 +114,7 @@ class EditProfileActivity : AppCompatActivity() {
     private fun initViews() {
         imageProfile = findViewById(R.id.image_profile)
         fabChangePhoto = findViewById(R.id.fab_change_photo)
-        textNicknameValue = findViewById(R.id.text_nickname_value)
+        editNickname = findViewById(R.id.edit_nickname)  // 🆕 변경
         textLocationInfo = findViewById(R.id.text_location_info)
         buttonChangeLocation = findViewById(R.id.button_change_location)
         buttonSave = findViewById(R.id.button_save)
@@ -139,6 +141,7 @@ class EditProfileActivity : AppCompatActivity() {
                         val type = object : TypeToken<MemberDTO>() {}.type
                         val member: MemberDTO = gson.fromJson(gson.toJson(raw), type)
 
+                        // UI 업데이트 부분만 수정
                         currentUserId = member.id
                         currentNickname = member.nickname ?: ""
                         currentUsername = member.username
@@ -149,7 +152,7 @@ class EditProfileActivity : AppCompatActivity() {
                         currentImageUrl = member.profileImageUrl
 
                         // UI 업데이트
-                        textNicknameValue.text = currentNickname
+                        editNickname.setText(currentNickname)  // 🆕 변경 (textNicknameValue → editNickname)
                         textLocationInfo.text = currentAddress
 
                         // 프로필 이미지 로드
@@ -299,17 +302,29 @@ class EditProfileActivity : AppCompatActivity() {
     }
 
     private fun saveProfile() {
-        if (!hasImageChanged && !hasLocationChanged) {
+        // 🆕 닉네임 유효성 검사 추가
+        val newNickname = editNickname.text.toString().trim()
+
+        if (newNickname.isEmpty() || newNickname.length < 2) {
+            Toast.makeText(this, "닉네임은 2자 이상이어야 합니다", Toast.LENGTH_SHORT).show()
+            editNickname.requestFocus()
+            return
+        }
+
+        // 🆕 닉네임 변경 여부 체크
+        val hasNicknameChanged = newNickname != currentNickname
+
+        if (!hasImageChanged && !hasLocationChanged && !hasNicknameChanged) {
             Toast.makeText(this, "변경된 내용이 없습니다", Toast.LENGTH_SHORT).show()
             return
         }
 
         buttonSave.isEnabled = false
 
-        // MemberDTO 생성
+        // 🆕 MemberDTO 생성 시 새로운 닉네임 사용
         val updateRequest = MemberDTO(
             id = currentUserId,
-            nickname = currentNickname,
+            nickname = newNickname,  // 🆕 변경
             username = currentUsername,
             address = currentAddress,
             locationLatitude = currentLatitude,
@@ -357,6 +372,7 @@ class EditProfileActivity : AppCompatActivity() {
             imagePart
         ).enqueue(object : Callback<MsgEntity> {
 
+            // API 응답 성공 후 SharedPreferences 업데이트 부분에 추가
             override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                 buttonSave.isEnabled = true
 
@@ -376,7 +392,8 @@ class EditProfileActivity : AppCompatActivity() {
                     Toast.LENGTH_SHORT
                 ).show()
 
-                // SharedPreferences 업데이트
+                // 🆕 SharedPreferences 업데이트 (닉네임 추가)
+                AuthTokenManager.saveNickname(newNickname)
                 AuthTokenManager.saveAddress(currentAddress)
 
                 // 결과 반환 및 종료
