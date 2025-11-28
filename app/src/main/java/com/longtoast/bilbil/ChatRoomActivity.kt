@@ -14,10 +14,7 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.longtoast.bilbil.api.RetrofitClient
-import com.longtoast.bilbil.dto.ChatMessage
-import com.longtoast.bilbil.dto.MsgEntity
-import com.longtoast.bilbil.dto.RentalActionPayload
-import com.longtoast.bilbil.dto.RentalApproveRequest
+import com.longtoast.bilbil.dto.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -85,6 +82,45 @@ class ChatRoomActivity : AppCompatActivity() {
             return
         }
 
+        preloadIntentData()
+        setupViews()
+        setupRecycler()
+
+        loadChatRoomRoleInfo()
+        fetchChatHistory()
+        connectWebSocket()
+        setupListeners()
+    }
+
+    private fun preloadIntentData() {
+        intent.getIntExtra("ITEM_ID", -1).takeIf { it > 0 }?.let { productId = it }
+        productTitle = intent.getStringExtra("PRODUCT_TITLE") ?: productTitle
+        productPrice = intent.getIntExtra("PRODUCT_PRICE", productPrice)
+        productDeposit = intent.getIntExtra("PRODUCT_DEPOSIT", productDeposit)
+        productPriceUnit = intent.getIntExtra("PRICE_UNIT", productPriceUnit)
+        productImageUrl = intent.getStringExtra("IMAGE_URL") ?: productImageUrl
+
+        val lenderFromIntent = intent.getIntExtra("LENDER_ID", -1)
+        val borrowerFromIntent = intent.getIntExtra("BORROWER_ID", -1)
+
+        if (lenderFromIntent > 0 || borrowerFromIntent > 0) {
+            if (lenderFromIntent > 0) {
+                isLender = senderId == lenderFromIntent
+            }
+            otherUserId = when {
+                isLender && borrowerFromIntent > 0 -> borrowerFromIntent
+                !isLender && lenderFromIntent > 0 -> lenderFromIntent
+                else -> otherUserId
+            }
+        }
+
+        intent.getIntExtra("PARTNER_ID", -1)
+            .takeIf { it > 0 && otherUserId <= 0 }
+            ?.let { otherUserId = it }
+    }
+
+
+    private fun setupViews() {
         toolbar = findViewById(R.id.toolbar_chat)
         setSupportActionBar(toolbar)
 
@@ -98,29 +134,24 @@ class ChatRoomActivity : AppCompatActivity() {
 
         titleText.text = intent.getStringExtra("SELLER_NICKNAME") ?: "채팅"
 
-        // ⭐ 클릭 로그 추가
         rentAgreeBtn.setOnClickListener {
             Log.d("RENT_BTN", "대여 합의하기 버튼 클릭됨!!!")
             Toast.makeText(this, "대여 합의하기 버튼 클릭됨", Toast.LENGTH_SHORT).show()
-
             openRentRequestForm()
         }
 
-        // ⭐ UI 위로 올리기
         rentAgreeBtn.bringToFront()
-        rentAgreeBtn.invalidate()
+    }
 
+
+    private fun setupRecycler() {
         chatAdapter = ChatAdapter(chatMessages, senderId.toString()) { payload ->
             confirmRental(payload)
         }
         recyclerChat.adapter = chatAdapter
         recyclerChat.layoutManager = LinearLayoutManager(this)
-
-        loadChatRoomRoleInfo()
-        fetchChatHistory()
-        connectWebSocket()
-        setupListeners()
     }
+
 
     private fun loadChatRoomRoleInfo() {
 
@@ -128,45 +159,20 @@ class ChatRoomActivity : AppCompatActivity() {
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
 
-                    val raw = response.body()?.data ?: return
-                    val map = raw as Map<*, *>
+                    val infoJson = Gson().toJson(response.body()?.data)
+                    val info = Gson().fromJson(infoJson, ChatRoomInfoResponse::class.java)
 
-                    // ===========================
-                    //  item 정보 파싱
-                    // ===========================
-                    val itemMap = map["item"] as? Map<*, *> ?: return
+                    val item = info.item
+                    productId = item.id
+                    productTitle = item.title
+                    productPrice = item.price
+                    productImageUrl = item.imageUrl
 
-                    productId = itemMap["id"]?.toString()?.toIntOrNull()
-                    productTitle = itemMap["title"] as? String
-                    productPrice = itemMap["price"]?.toString()?.toIntOrNull() ?: 0
-
-                    // deposit, priceUnit 서버에서 추가 시 반영되는 구조
-                    productDeposit = itemMap["deposit"]?.toString()?.toIntOrNull() ?: 0
-                    productPriceUnit = itemMap["priceUnit"]?.toString()?.toIntOrNull() ?: 1
-
-                    productImageUrl = itemMap["imageUrl"] as? String
+                    isLender = (senderId == info.lender.id)
+                    otherUserId = if (isLender) info.borrower.id else info.lender.id
 
                     Log.d("ROOM_INFO_ITEM", "itemId=$productId / title=$productTitle / price=$productPrice / img=$productImageUrl")
-
-                    // ===========================
-                    //  lender 정보 파싱
-                    // ===========================
-                    val lenderMap = map["lender"] as? Map<*, *> ?: return
-                    val lenderId = lenderMap["id"]?.toString()?.toIntOrNull() ?: return
-
-                    // ===========================
-                    //  borrower 정보 파싱
-                    // ===========================
-                    val borrowerMap = map["borrower"] as? Map<*, *> ?: return
-                    val borrowerId = borrowerMap["id"]?.toString()?.toIntOrNull() ?: return
-
-                    // ===========================
-                    //  역할 판별
-                    // ===========================
-                    isLender = (senderId == lenderId)
-                    otherUserId = if (isLender) borrowerId else lenderId
-
-                    Log.d("ROOM_INFO_ROLE", "isLender=$isLender senderId=$senderId lenderId=$lenderId borrowerId=$borrowerId")
+                    Log.d("ROOM_INFO_ROLE", "isLender=$isLender senderId=$senderId lender=${info.lender.id} borrower=${info.borrower.id}")
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
@@ -175,9 +181,29 @@ class ChatRoomActivity : AppCompatActivity() {
             })
     }
 
+
     private fun openRentRequestForm() {
 
-        val id = productId ?: return
+        val id = productId
+
+        if (id == null || id <= 0) {
+            Toast.makeText(this, "상품 정보를 불러오는 중입니다.", Toast.LENGTH_SHORT)
+                .show()
+            loadChatRoomRoleInfo()
+            return
+        }
+
+        if (otherUserId <= 0) {
+            Toast.makeText(this, "상대방 정보를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
+            loadChatRoomRoleInfo()
+            return
+        }
+
+        val img = productImageUrl ?: ""
+
+        val normalized = img.replace(Regex("^/+"), "")   // 앞쪽의 모든 "/" 제거
+
+        val fullImageUrl = "${ServerConfig.IMG_BASE_URL}/$normalized"
 
         val realLenderId = if (isLender) senderId else otherUserId
         val realBorrowerId = if (isLender) otherUserId else senderId
@@ -191,7 +217,7 @@ class ChatRoomActivity : AppCompatActivity() {
             putExtra("PRICE", productPrice)
             putExtra("PRICE_UNIT", productPriceUnit)
             putExtra("DEPOSIT", productDeposit)
-            putExtra("IMAGE_URL", productImageUrl)
+            putExtra("IMAGE_URL", fullImageUrl)
         }
 
         Log.d("OPEN_FORM",
@@ -200,6 +226,7 @@ class ChatRoomActivity : AppCompatActivity() {
 
         startActivity(intent)
     }
+
 
     private fun setupListeners() {
         buttonSend.setOnClickListener {
@@ -214,6 +241,7 @@ class ChatRoomActivity : AppCompatActivity() {
             pickImageLauncher.launch("image/*")
         }
     }
+
 
     private fun fetchChatHistory() {
         RetrofitClient.getApiService().getChatHistory(roomId)
@@ -237,6 +265,7 @@ class ChatRoomActivity : AppCompatActivity() {
                 }
             })
     }
+
 
     private fun connectWebSocket() {
 
@@ -264,6 +293,7 @@ class ChatRoomActivity : AppCompatActivity() {
             }
         })
     }
+
 
     private fun handleStompFrame(frame: String) {
 
@@ -314,6 +344,7 @@ class ChatRoomActivity : AppCompatActivity() {
         }
     }
 
+
     private fun sendMessage(content: String, imageUri: Uri? = null) {
 
         lifecycleScope.launch {
@@ -363,6 +394,7 @@ class ChatRoomActivity : AppCompatActivity() {
         }
     }
 
+
     private suspend fun uploadChatImage(uri: Uri): String? =
         withContext(Dispatchers.IO) {
             try {
@@ -391,6 +423,7 @@ class ChatRoomActivity : AppCompatActivity() {
                 return@withContext null
             }
         }
+
 
     private fun confirmRental(payload: RentalActionPayload) {
 
@@ -440,6 +473,7 @@ class ChatRoomActivity : AppCompatActivity() {
                 }
             })
     }
+
 
     override fun onDestroy() {
         super.onDestroy()
