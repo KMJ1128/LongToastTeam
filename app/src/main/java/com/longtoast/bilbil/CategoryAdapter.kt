@@ -26,9 +26,9 @@ class CategoryAdapter(
                 "가구" -> R.drawable.ic_furniture
                 "캠핑" -> R.drawable.ic_camping
                 "전자제품" -> R.drawable.ic_digital
-                "운동" -> R.drawable.ic_default_category
-                "의류" -> R.drawable.ic_default_category
-                else -> R.drawable.ic_default_category
+                "운동" -> R.drawable.ic_kkk
+                "의류" -> R.drawable.ic_dwd
+                else -> R.drawable.ic_trash
             }
 
             icon.setImageResource(iconRes)

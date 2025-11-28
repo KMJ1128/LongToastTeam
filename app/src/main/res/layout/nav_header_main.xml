@@ -12,11 +12,11 @@
         android:id="@+id/card_profile"
         android:layout_width="90dp"
         android:layout_height="90dp"
-        app:cardCornerRadius="45dp"
+        app:cardCornerRadius="25dp"
         app:cardElevation="4dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        android:layout_marginTop="8dp">
+        android:layout_marginTop="30dp">
 
         <ImageView
             android:id="@+id/nav_header_profile_image"
@@ -64,6 +64,7 @@
         android:id="@+id/nav_header_address"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginLeft="10dp"
         android:layout_marginTop="12dp"
         android:drawablePadding="8dp"
         android:text="활동지역"
