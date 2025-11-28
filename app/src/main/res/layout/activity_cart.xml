@@ -24,51 +24,7 @@
         android:paddingBottom="16dp"
         android:clipToPadding="false"
         app:layout_constraintTop_toBottomOf="@id/toolbar"
-        app:layout_constraintBottom_toTopOf="@id/bottom_layout"
+        app:layout_constraintBottom_toBottomOf="parent"
         tools:listitem="@layout/item_cart"/>
-
-    <LinearLayout
-        android:id="@+id/bottom_layout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@android:color/white"
-        android:orientation="vertical"
-        android:elevation="16dp"
-        app:layout_constraintBottom_toBottomOf="parent">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="16dp"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="총 주문 금액"
-                android:textStyle="bold"
-                android:textSize="16sp"/>
-
-            <TextView
-                android:id="@+id/text_total_amount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="0원"
-                android:textStyle="bold"
-                android:textSize="18sp"
-                android:textColor="#FF7F50"/>
-        </LinearLayout>
-
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btn_checkout"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:text="대여하기"
-            android:background="@color/trust_primary"
-            android:textColor="@android:color/white"
-            android:textSize="18sp"
-            android:textStyle="bold"/>
-    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
