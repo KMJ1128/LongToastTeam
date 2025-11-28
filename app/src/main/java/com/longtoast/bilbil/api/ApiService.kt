@@ -151,5 +151,12 @@ interface ApiService {
         @Path("itemId") itemId: Long
     ): Call<MsgEntity>
 
+    // 🟢 [수정] 내가 쓴 리뷰 조회
+    @GET("/reviews/my")
+    fun getMyWrittenReviews(): Call<MsgEntity>
+
+    // 🟢 [수정] 내가 받은 리뷰 조회
+    @GET("/reviews/received")
+    fun getMyReceivedReviews(): Call<MsgEntity>
 
 }

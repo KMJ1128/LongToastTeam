@@ -39,7 +39,7 @@ class HomeHostActivity : AppCompatActivity() {
         setupBottomNav()
         setupFABs()
         setupBackStackListener()
-        setupDrawerMenu()
+        setupDrawerMenu() // 여기서 함수 호출
 
         // 프로필 정보 로드
         loadNavigationHeader()
@@ -127,7 +127,7 @@ class HomeHostActivity : AppCompatActivity() {
         binding.drawerLayout.openDrawer(binding.navView)
     }
 
-    // DrawerMenu 아이템 클릭 처리
+    // ✅ DrawerMenu 아이템 클릭 처리 (여기에 모든 메뉴 로직 통합)
     private fun setupDrawerMenu() {
         binding.navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
@@ -136,14 +136,21 @@ class HomeHostActivity : AppCompatActivity() {
                     val intent = Intent(this, EditProfileActivity::class.java)
                     editProfileLauncher.launch(intent)
                 }
+
+                // ✅ [수정] 내가 쓴 리뷰
                 R.id.nav_my_reviews -> {
-                    Toast.makeText(this, "내가 쓴 리뷰", Toast.LENGTH_SHORT).show()
-                    // TODO: 내가 쓴 리뷰 화면으로 이동
+                    val intent = Intent(this, ReviewListActivity::class.java)
+                    intent.putExtra("REVIEW_TYPE", "WRITTEN")
+                    startActivity(intent)
                 }
+
+                // ✅ [수정] 내가 받은 리뷰
                 R.id.nav_received_reviews -> {
-                    Toast.makeText(this, "내가 받은 리뷰", Toast.LENGTH_SHORT).show()
-                    // TODO: 내가 받은 리뷰 화면으로 이동
+                    val intent = Intent(this, ReviewListActivity::class.java)
+                    intent.putExtra("REVIEW_TYPE", "RECEIVED")
+                    startActivity(intent)
                 }
+
                 R.id.nav_sign_out -> {
                     AlertDialog.Builder(this)
                         .setTitle("로그아웃")

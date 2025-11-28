@@ -1,19 +1,20 @@
 package com.longtoast.bilbil
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.longtoast.bilbil.dto.ProductDTO
-import android.widget.Button
 import com.bumptech.glide.Glide
 import com.google.android.material.button.MaterialButton
+import com.longtoast.bilbil.dto.ProductDTO
 
 class MyItemsAdapter(
     private val productList: List<ProductDTO>,
-    private val isOwner: Boolean,   // ★ 추가: 판매자/대여자 여부 구분
+    private val isOwner: Boolean,
     private val onItemClicked: (ProductDTO) -> Unit,
     private val onReviewClicked: ((ProductDTO) -> Unit)? = null,
     private val onEditClicked: ((ProductDTO) -> Unit)? = null,
@@ -27,65 +28,69 @@ class MyItemsAdapter(
         val depositTxt: TextView = view.findViewById(R.id.text_item_deposit)
         val status: TextView = view.findViewById(R.id.text_item_status)
         val thumbnail: ImageView = view.findViewById(R.id.image_item_thumbnail)
+
+        // 버튼들
         val reviewButton: Button = view.findViewById(R.id.btn_write_review)
         val editButton: MaterialButton = view.findViewById(R.id.btn_edit_item)
         val deleteButton: MaterialButton = view.findViewById(R.id.btn_delete_item)
         val actionContainer: View = view.findViewById(R.id.layout_item_actions)
 
         fun bind(product: ProductDTO) {
-
+            // 1. 기본 정보 바인딩
             title.text = product.title
+            location.text = product.address ?: "위치 미정"
 
-            // 가격
-            val priceDisplay = "₩ ${String.format("%,d", product.price)} / 일"
-            price.text = priceDisplay
+            val unitLabel = PriceUnitMapper.toLabel(product.price_unit)
+            price.text = "₩ ${String.format("%,d", product.price)} / $unitLabel"
 
-            // 보증금 표시
             if ((product.deposit ?: 0) > 0) {
                 depositTxt.visibility = View.VISIBLE
-                depositTxt.text = "₩ ${String.format("%,d", product.deposit)} / 보증금"
+                depositTxt.text = "보증금 ₩ ${String.format("%,d", product.deposit)}"
             } else {
                 depositTxt.visibility = View.GONE
             }
 
-            // 주소
-            location.text = product.address ?: "위치 미정"
-
-            // 이미지 처리
+            // 이미지 로드
             val rawUrl = product.imageUrls?.firstOrNull()
             val finalUrl = ImageUrlUtils.resolve(rawUrl)
-
             Glide.with(thumbnail.context)
                 .load(finalUrl)
                 .placeholder(R.drawable.ic_default_category)
                 .into(thumbnail)
 
-            // 상태 표시
-            val isAvailable = product.status == "AVAILABLE"
+            // 2. 상태 표시 (사라지는 문제 해결을 위해 항상 VISIBLE 설정)
             status.visibility = View.VISIBLE
+            val isAvailable = product.status == "AVAILABLE"
             status.text = if (isAvailable) "대여 가능" else "대여중"
             status.setBackgroundResource(
-                if (isAvailable) R.drawable.badge_available
-                else R.drawable.badge_rented
+                if (isAvailable) R.drawable.badge_available else R.drawable.badge_rented
             )
 
+            // 아이템 클릭
             itemView.setOnClickListener { onItemClicked(product) }
 
-            // 리뷰 버튼 (거래한 상품만)
-            if (product.transactionId != null) {
-                reviewButton.visibility = View.VISIBLE
-                reviewButton.setOnClickListener { onReviewClicked?.invoke(product) }
-            } else {
-                reviewButton.visibility = View.GONE
-            }
-
-            // 🔥 핵심: Owner(판매자)만 수정/삭제 가능
+            // 3. 버튼 표시 로직
             if (isOwner) {
+                // 내가 등록한 물품 (판매자)
                 actionContainer.visibility = View.VISIBLE
+                reviewButton.visibility = View.GONE
+
                 editButton.setOnClickListener { onEditClicked?.invoke(product) }
                 deleteButton.setOnClickListener { onDeleteClicked?.invoke(product) }
             } else {
-                actionContainer.visibility = View.GONE   // ★ 렌트한 탭에서는 숨김!
+                // 내가 빌린 물품 (구매자)
+                actionContainer.visibility = View.GONE
+
+                // 로그로 transactionId 확인 (디버깅용)
+                Log.d("MyItemsAdapter", "Item: ${product.title}, TransactionId: ${product.transactionId}")
+
+                if (product.transactionId != null && product.transactionId != 0L) {
+                    reviewButton.visibility = View.VISIBLE
+                    reviewButton.setOnClickListener { onReviewClicked?.invoke(product) }
+                } else {
+                    // 거래 ID가 없으면 버튼 숨김 (아직 거래 확정 전일 수도 있음)
+                    reviewButton.visibility = View.GONE
+                }
             }
         }
     }

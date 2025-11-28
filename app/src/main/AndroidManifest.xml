@@ -38,6 +38,10 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ReviewListActivity"
+            android:exported="false" />
+
         <!-- ✅ EditProfileActivity는 일반 Activity로 변경 -->
         <activity
             android:name=".EditProfileActivity"
