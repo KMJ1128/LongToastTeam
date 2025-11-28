@@ -1,5 +1,6 @@
 package com.longtoast.bilbil
 
+import android.animation.Animator
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -25,9 +26,8 @@ import retrofit2.Callback
 import retrofit2.Response
 import java.text.DecimalFormat
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
-// 네이버 지도
+// 네이버 지도 관련 import
 import com.naver.maps.map.MapView
 import com.naver.maps.map.NaverMap
 import com.naver.maps.map.OnMapReadyCallback
@@ -46,7 +46,7 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
     private var naverMap: NaverMap? = null
     private val marker = Marker()
 
-    // 🔥 대여된 날짜 저장 리스트
+    // 대여된 날짜 저장 리스트
     private val blackoutDates = mutableListOf<CalendarDay>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,6 +66,8 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         mapView.getMapAsync(this)
 
         setupListeners()
+
+        // 🚨 오류가 났던 부분: 아래 함수 정의가 클래스 내부에 잘 있는지 확인하세요.
         loadProductDetail(itemId)
         loadRentalSchedules(itemId.toLong())
     }
@@ -75,12 +77,15 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         currentProduct?.let { addMarkerAndMove(it) }
     }
 
+    // -------------------------------------------------------------
+    // 리스너 설정
+    // -------------------------------------------------------------
     private fun setupListeners() {
         binding.btnBack.setOnClickListener { finish() }
 
         binding.btnStartChat.setOnClickListener { startChatting() }
 
-        // 👇 [추가] 장바구니 버튼 클릭 리스너 추가
+        // 장바구니 버튼 리스너
         binding.btnCart.setOnClickListener {
             addToCart()
         }
@@ -101,7 +106,9 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // 👇 [추가] 장바구니 담기 로직 함수
+    // -------------------------------------------------------------
+    // 장바구니 & 애니메이션 로직
+    // -------------------------------------------------------------
     private fun addToCart() {
         val product = currentProduct
         if (product == null) {
@@ -109,17 +116,38 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             return
         }
 
-        // CartManager에 상품 추가
+        // 1. 매니저에 상품 추가
         CartManager.addItem(product)
 
-        // 사용자에게 알림
-        Toast.makeText(this, "장바구니에 상품이 담겼습니다.", Toast.LENGTH_SHORT).show()
-
-        // (선택 사항) 장바구니로 바로 이동하고 싶다면 아래 주석 해제
-        // val intent = Intent(this, CartActivity::class.java)
-        // startActivity(intent)
+        // 2. Lottie 애니메이션 재생
+        playAddToCartAnimation()
     }
 
+    private fun playAddToCartAnimation() {
+        binding.lottieAddCart.apply {
+            visibility = View.VISIBLE
+            playAnimation()
+
+            addAnimatorListener(object : Animator.AnimatorListener {
+                override fun onAnimationStart(animation: Animator) {}
+
+                override fun onAnimationEnd(animation: Animator) {
+                    visibility = View.GONE
+                    Toast.makeText(this@ProductDetailActivity, "장바구니에 담겼습니다.", Toast.LENGTH_SHORT).show()
+                }
+
+                override fun onAnimationCancel(animation: Animator) {
+                    visibility = View.GONE
+                }
+
+                override fun onAnimationRepeat(animation: Animator) {}
+            })
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 서버 통신 로직 (상품 상세 정보 불러오기)
+    // -------------------------------------------------------------
     private fun loadProductDetail(itemId: Int) {
         lifecycleScope.launch {
             try {
@@ -167,7 +195,9 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // 🍀 서버에서 대여 기록 가져오기
+    // -------------------------------------------------------------
+    // 대여 일정 확인 로직
+    // -------------------------------------------------------------
     private fun loadRentalSchedules(itemId: Long) {
         RetrofitClient.getApiService()
             .getRentalSchedules(itemId.toLong())
@@ -185,7 +215,6 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             })
     }
 
-    // 🔥 MaterialCalendarView에 날짜 칠하기
     private fun applyCalendarBlackout(schedules: List<Map<String, String>>) {
         blackoutDates.clear()
 
@@ -211,17 +240,18 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // ⛔ 검은색 블록 데코레이터
+    // -------------------------------------------------------------
+    // 내부 클래스 및 기타 함수
+    // -------------------------------------------------------------
     inner class BlackoutDecorator(private val dates: List<CalendarDay>) : DayViewDecorator {
         override fun shouldDecorate(day: CalendarDay): Boolean = dates.contains(day)
 
         override fun decorate(view: DayViewFacade) {
-            view.setBackgroundDrawable(resources.getDrawable(R.drawable.calendar_blackout_bg))
+            view.setBackgroundDrawable(resources.getDrawable(R.drawable.calendar_blackout_bg, null))
             view.addSpan(object : android.text.style.ForegroundColorSpan(0xFFFFFFFF.toInt()) {})
         }
     }
 
-    // 지도 마커
     private fun addMarkerAndMove(product: ProductDTO) {
         val map = naverMap ?: return
         val lat = product.latitude ?: 37.5665
@@ -273,30 +303,13 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             })
     }
 
-    override fun onStart() {
-        super.onStart()
-        mapView.onStart()
-    }
-    override fun onResume() {
-        super.onResume()
-        mapView.onResume()
-    }
-    override fun onPause() {
-        mapView.onPause()
-        super.onPause()
-    }
-    override fun onStop() {
-        mapView.onStop()
-        super.onStop()
-    }
-    override fun onDestroy() {
-        mapView.onDestroy()
-        super.onDestroy()
-    }
-    override fun onLowMemory() {
-        super.onLowMemory()
-        mapView.onLowMemory()
-    }
+    // 네이버 지도 생명주기
+    override fun onStart() { super.onStart(); mapView.onStart() }
+    override fun onResume() { super.onResume(); mapView.onResume() }
+    override fun onPause() { mapView.onPause(); super.onPause() }
+    override fun onStop() { mapView.onStop(); super.onStop() }
+    override fun onDestroy() { mapView.onDestroy(); super.onDestroy() }
+    override fun onLowMemory() { super.onLowMemory(); mapView.onLowMemory() }
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         mapView.onSaveInstanceState(outState)
