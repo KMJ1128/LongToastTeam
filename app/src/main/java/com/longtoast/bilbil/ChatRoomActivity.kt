@@ -56,7 +56,7 @@ class ChatRoomActivity : AppCompatActivity() {
 
     private val WEBSOCKET_URL = ServerConfig.WEBSOCKET_URL
 
-    // 🔵 Intent 기반
+    // Intent 기반
     private val roomId: Int by lazy {
         val fromString = intent.getStringExtra("ROOM_ID")?.toIntOrNull()
         fromString ?: intent.getIntExtra("ROOM_ID", -1)
@@ -65,21 +65,24 @@ class ChatRoomActivity : AppCompatActivity() {
     private val senderId: Int by lazy { AuthTokenManager.getUserId() ?: 1 }
 
     private val productId: Int? by lazy {
-        val numeric = intent.getIntExtra("ITEM_ID", -1)
-        if (numeric > 0) numeric else intent.getStringExtra("ITEM_ID")?.toIntOrNull()
+        val numeric = intent.getIntExtra("PRODUCT_ID", -1)
+        if (numeric > 0) numeric else intent.getStringExtra("PRODUCT_ID")?.toIntOrNull()
     }
 
     private val productTitle: String? by lazy { intent.getStringExtra("PRODUCT_TITLE") }
     private val productPrice: Int by lazy { intent.getIntExtra("PRODUCT_PRICE", 0) }
     private val productDeposit: Int by lazy { intent.getIntExtra("PRODUCT_DEPOSIT", 0) }
+    private val productPriceUnit: Int by lazy { intent.getIntExtra("PRICE_UNIT", 1) }
+
+    private val productImageUrl: String? by lazy { intent.getStringExtra("IMAGE_URL") }
     private val sellerNickname: String? by lazy { intent.getStringExtra("SELLER_NICKNAME") }
 
     private val intentLenderId: Int by lazy { intent.getIntExtra("LENDER_ID", -1) }
     private val intentBorrowerId: Int by lazy { intent.getIntExtra("BORROWER_ID", -1) }
 
-    // 🔥 역할 플래그 + 상대방 ID
-    private var isLender: Boolean = false     // 나는 대여자인가?
-    private var otherUserId: Int = -1         // 상대방 ID
+    // 역할 플래그 + 상대방 ID
+    private var isLender: Boolean = false
+    private var otherUserId: Int = -1
 
     private var nextTempId = -1L
 
@@ -127,36 +130,22 @@ class ChatRoomActivity : AppCompatActivity() {
         recyclerChat.adapter = chatAdapter
         recyclerChat.layoutManager = LinearLayoutManager(this)
 
-        // 역할/상대 로딩
         loadChatRoomRoleInfo()
-
-        // 채팅 불러오기
         fetchChatHistory()
-
-        // 웹소켓 연결
         connectWebSocket()
-
-        // 버튼 리스너
         setupListeners()
     }
 
     // ======================================================================================
-    //  역할 로딩 (너 기준 Intent 우선 + 서버 검증)
+    //  역할 로딩
     // ======================================================================================
     private fun loadChatRoomRoleInfo() {
 
-        // 우선 Intent 값으로 일단 역할 확정 (네 구조 기준)
         if (intentLenderId > 0 && intentBorrowerId > 0) {
             isLender = (senderId == intentLenderId)
             otherUserId = if (isLender) intentBorrowerId else intentLenderId
         }
 
-        Log.d(
-            "ROLE_INIT",
-            "초기 역할 → isLender=$isLender, otherUserId=$otherUserId"
-        )
-
-        // 서버에서 최종 검증 (선택)
         RetrofitClient.getApiService().getChatRoomInfo(roomId)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
@@ -168,23 +157,17 @@ class ChatRoomActivity : AppCompatActivity() {
 
                     isLender = (senderId == lenderId)
                     otherUserId = if (isLender) borrowerId else lenderId
-
-                    Log.d(
-                        "ROLE_INFO(final)",
-                        "lenderId=$lenderId, borrowerId=$borrowerId, isLender=$isLender, otherUserId=$otherUserId"
-                    )
                 }
 
-                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                    Log.e("ROLE_INFO", "getChatRoomInfo 실패", t)
-                }
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {}
             })
     }
 
     // ======================================================================================
-    //  대여 요청 폼
+    //  대여 요청 폼 이동 — 여기 수정됨 ⭐⭐⭐
     // ======================================================================================
     private fun openRentRequestForm() {
+
         val id = productId
         if (id == null || id <= 0) {
             Toast.makeText(this, "상품 정보를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
@@ -198,12 +181,20 @@ class ChatRoomActivity : AppCompatActivity() {
             putExtra("ITEM_ID", id)
             putExtra("LENDER_ID", realLenderId)
             putExtra("BORROWER_ID", realBorrowerId)
+
+            // ⭐⭐⭐ 추가된 부분 — 제목/가격/단위/보증금/이미지 전달
             putExtra("TITLE", productTitle)
             putExtra("PRICE", productPrice)
+            putExtra("PRICE_UNIT", productPriceUnit)
             putExtra("DEPOSIT", productDeposit)
+            putExtra("IMAGE_URL", productImageUrl)
         }
 
-        Log.d("OPEN_FORM", "lender=$realLenderId, borrower=$realBorrowerId")
+        Log.d(
+            "OPEN_FORM",
+            "item=$id / lender=$realLenderId / borrower=$realBorrowerId / title=$productTitle / img=$productImageUrl"
+        )
+
         startActivity(intent)
     }
 
@@ -219,11 +210,13 @@ class ChatRoomActivity : AppCompatActivity() {
             }
         }
 
-        buttonAttachImage.setOnClickListener { pickImageLauncher.launch("image/*") }
+        buttonAttachImage.setOnClickListener {
+            pickImageLauncher.launch("image/*")
+        }
     }
 
     // ======================================================================================
-    //  채팅 기록 불러오기
+    //  채팅 기록
     // ======================================================================================
     private fun fetchChatHistory() {
         RetrofitClient.getApiService().getChatHistory(roomId)
@@ -251,7 +244,7 @@ class ChatRoomActivity : AppCompatActivity() {
     }
 
     // ======================================================================================
-    //  웹소켓
+    //  STOMP 웹소켓
     // ======================================================================================
     private fun connectWebSocket() {
         val token = AuthTokenManager.getToken()
@@ -359,14 +352,16 @@ class ChatRoomActivity : AppCompatActivity() {
 
             webSocket.send(messageFrame)
 
-            // 로컬 에코
+            // 로컬 에코 메시지
             val tempMsg = ChatMessage(
                 id = nextTempId--,
                 roomId = roomId,
                 senderId = senderId,
                 content = if (content.isNotEmpty()) content else null,
                 imageUrl = imageUrl,
-                sentAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
+                sentAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(
+                    Date()
+                )
             )
 
             chatMessages.add(tempMsg)
@@ -438,15 +433,27 @@ class ChatRoomActivity : AppCompatActivity() {
                                     "총 금액: ${payload.totalAmount}원"
                         )
 
-                        Toast.makeText(this@ChatRoomActivity, "대여 확정 완료", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@ChatRoomActivity,
+                            "대여 확정 완료",
+                            Toast.LENGTH_SHORT
+                        ).show()
 
                     } else {
-                        Toast.makeText(this@ChatRoomActivity, "대여 확정 실패", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@ChatRoomActivity,
+                            "대여 확정 실패",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                    Toast.makeText(this@ChatRoomActivity, "네트워크 오류", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@ChatRoomActivity,
+                        "네트워크 오류",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             })
     }

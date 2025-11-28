@@ -67,7 +67,6 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
 
         setupListeners()
 
-        // 🚨 오류가 났던 부분: 아래 함수 정의가 클래스 내부에 잘 있는지 확인하세요.
         loadProductDetail(itemId)
         loadRentalSchedules(itemId.toLong())
     }
@@ -92,6 +91,13 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
 
         binding.btnRent.setOnClickListener {
             val p = currentProduct ?: return@setOnClickListener
+
+            val myId = AuthTokenManager.getUserId()
+            if (myId == null) {
+                Toast.makeText(this, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
             val intent = Intent(this, RentRequestActivity::class.java).apply {
                 putExtra("TITLE", p.title)
                 putExtra("PRICE", p.price)
@@ -101,6 +107,9 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
                 putExtra("LENDER_ID", p.userId)
                 putExtra("SELLER_NICKNAME", p.sellerNickname)
                 putExtra("IMAGE_URL", p.imageUrls?.firstOrNull())
+
+                // ⭐⭐⭐ 필수: RentRequestActivity가 필요로 하는 구매자 ID 추가 ⭐⭐⭐
+                putExtra("BORROWER_ID", myId)
             }
             startActivity(intent)
         }
@@ -116,10 +125,7 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             return
         }
 
-        // 1. 매니저에 상품 추가
         CartManager.addItem(product)
-
-        // 2. Lottie 애니메이션 재생
         playAddToCartAnimation()
     }
 
@@ -200,7 +206,7 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
     // -------------------------------------------------------------
     private fun loadRentalSchedules(itemId: Long) {
         RetrofitClient.getApiService()
-            .getRentalSchedules(itemId.toLong())
+            .getRentalSchedules(itemId)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     val raw = response.body()?.data ?: return
@@ -240,14 +246,13 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // -------------------------------------------------------------
-    // 내부 클래스 및 기타 함수
-    // -------------------------------------------------------------
     inner class BlackoutDecorator(private val dates: List<CalendarDay>) : DayViewDecorator {
         override fun shouldDecorate(day: CalendarDay): Boolean = dates.contains(day)
 
         override fun decorate(view: DayViewFacade) {
-            view.setBackgroundDrawable(resources.getDrawable(R.drawable.calendar_blackout_bg, null))
+            view.setBackgroundDrawable(
+                resources.getDrawable(R.drawable.calendar_blackout_bg, null)
+            )
             view.addSpan(object : android.text.style.ForegroundColorSpan(0xFFFFFFFF.toInt()) {})
         }
     }
@@ -303,7 +308,9 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             })
     }
 
+    // -------------------------------------------------------------
     // 네이버 지도 생명주기
+    // -------------------------------------------------------------
     override fun onStart() { super.onStart(); mapView.onStart() }
     override fun onResume() { super.onResume(); mapView.onResume() }
     override fun onPause() { mapView.onPause(); super.onPause() }
