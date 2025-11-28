@@ -199,6 +199,7 @@ class EditProfileActivity : AppCompatActivity() {
                 putExtra("USER_ID", currentUserId)
                 putExtra("SERVICE_TOKEN", AuthTokenManager.getToken())
                 putExtra("USER_NICKNAME", currentNickname)
+                putExtra("IS_PROFILE_EDIT", true)  // 🆕 추가: 프로필 수정 모드 표시
             }
             regionSelectionLauncher.launch(intent)
         }
