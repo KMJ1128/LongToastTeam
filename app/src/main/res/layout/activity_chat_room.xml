@@ -11,12 +11,31 @@
         android:id="@+id/toolbar_chat"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"
-        android:elevation="4dp"
-        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
-        app:layout_constraintTop_toTopOf="parent"
-        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
-        tools:title="대화 상대 닉네임" />
+        android:background="@color/white"
+        app:titleTextColor="@color/black"
+        app:layout_scrollFlags="scroll|enterAlways">
+
+        <TextView
+            android:id="@+id/text_chat_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="상대방"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_gravity="center_vertical"/>
+
+        <Button
+            android:id="@+id/btn_rent_agree"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="대여 합의하기"
+            android:layout_gravity="end|center_vertical"
+            android:backgroundTint="@color/colorPrimary"
+            android:textColor="@color/white"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:layout_marginEnd="8dp"/>
+    </com.google.android.material.appbar.MaterialToolbar>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_view_chat"
@@ -52,7 +71,6 @@
             app:layout_constraintBottom_toBottomOf="@id/edit_text_message"
             app:layout_constraintTop_toTopOf="@id/edit_text_message"
             app:tint="?attr/colorPrimary"
-            android:layout_marginStart="0dp"
             android:padding="12dp" />
 
         <EditText
@@ -64,9 +82,11 @@
             android:maxLines="4"
             android:background="@drawable/rounded_edittext_line"
             android:padding="12dp"
-            app:layout_constraintStart_toEndOf="@id/button_attach_image"  app:layout_constraintEnd_toStartOf="@id/button_send"
+            app:layout_constraintStart_toEndOf="@id/button_attach_image"
+            app:layout_constraintEnd_toStartOf="@id/button_send"
             app:layout_constraintBottom_toBottomOf="parent"
-            android:layout_marginStart="8dp" android:layout_marginEnd="8dp" />
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp" />
 
         <ImageButton
             android:id="@+id/button_send"

@@ -1,6 +1,6 @@
 package com.longtoast.bilbil
 
-import android.content.Context
+import androidx.core.view.isVisible
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -8,43 +8,49 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.widget.SearchView
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.google.android.material.chip.Chip
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.longtoast.bilbil.adapter.CategoryAdapter
 import com.longtoast.bilbil.adapter.PopularSearchAdapter
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.databinding.FragmentHomeBinding
+import com.longtoast.bilbil.dto.MemberDTO
 import com.longtoast.bilbil.dto.MsgEntity
-import com.longtoast.bilbil.dto.SearchHistoryDTO
 import com.longtoast.bilbil.dto.PopularSearchDTO
 import com.longtoast.bilbil.dto.ProductListDTO
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
+import com.longtoast.bilbil.dto.SearchHistoryDTO
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import androidx.drawerlayout.widget.DrawerLayout
+import android.widget.Toast
+import com.longtoast.bilbil.ProductAdapter
+import com.longtoast.bilbil.ProductDetailActivity
+// 💡 ImageUrlUtils import 추가
+import com.longtoast.bilbil.ImageUrlUtils
 
 class HomeFragment : Fragment() {
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
+
     private lateinit var popularAdapter: PopularSearchAdapter
-    private lateinit var nearbyItemsAdapter: ProductAdapter  // 🆕
+    private lateinit var productAdapter: ProductAdapter
+    private lateinit var productLayoutManager: RecyclerView.LayoutManager
 
     override fun onResume() {
         super.onResume()
-        Log.d("SEARCH_HISTORY", "HomeFragment.onResume → 최근 검색어 새로 로드")
+        loadMyLocation()
         loadSearchHistory()
-        loadNearbyItems()  // 🆕 내 지역 물품 로드
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -52,136 +58,65 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        Log.d("DEBUG_FLOW", "HomeFragment.onViewCreated() 실행됨")
-
-        setupMenuButton()
         setupSearchBar()
         setupCategoryRecycler()
         setupPopularRecycler()
-        setupNearbyItemsRecycler()  // 🆕
-        updateLocationText()  // 🆕
+        setupProductRecycler()
+        loadProducts()
+
+        // 💡 메뉴 버튼 클릭 리스너를 여기에 추가하거나 HomeHostActivity로 전달하는 로직이 필요할 수 있습니다.
+        // binding.menuButton.setOnClickListener { /* Drawer 열기 로직 */ }
     }
 
-    // 🆕 위치 텍스트 업데이트
-    private fun updateLocationText() {
-        val address = AuthTokenManager.getAddress()
-        if (address != null) {
-            // "서울특별시 강남구 역삼동" → "서울특별시 강남구"로 표시
-            val parts = address.split(" ")
-            val shortAddress = if (parts.size >= 2) {
-                "${parts[0]} ${parts[1]}"  // 앞 2개 (시/도 + 시/군/구)
-            } else {
-                address
-            }
-            binding.locationText.text = shortAddress
-        } else {
-            binding.locationText.text = "내 위치"
-        }
-    }
+    /** 🔵 사용자 주소 및 프로필 이미지 로드 */
+    private fun loadMyLocation() {
+        RetrofitClient.getApiService().getMyInfo()
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (!response.isSuccessful) return
 
-    // 🆕 내 지역 물품 RecyclerView 설정
-    private fun setupNearbyItemsRecycler() {
-        nearbyItemsAdapter = ProductAdapter(emptyList()) { itemId ->
-            val intent = Intent(requireContext(), ProductDetailActivity::class.java).apply {
-                putExtra("ITEM_ID", itemId)
-            }
-            startActivity(intent)
-        }
+                    val raw = response.body()?.data ?: return
 
-        binding.nearbyItemsRecyclerView.apply {
-            layoutManager = LinearLayoutManager(requireContext())
-            adapter = nearbyItemsAdapter
-        }
-    }
+                    try {
+                        val gson = Gson()
+                        val type = object : TypeToken<MemberDTO>() {}.type
+                        val member: MemberDTO = gson.fromJson(gson.toJson(raw), type)
 
-    // 🆕 내 지역 물품 로드
-    private fun loadNearbyItems() {
-        val myAddress = AuthTokenManager.getAddress()
+                        binding.locationText.text = member.address ?: "내 위치"
 
-        if (myAddress == null) {
-            Log.d("NEARBY_ITEMS", "주소 정보 없음")
-            binding.nearbyEmptyText.visibility = View.VISIBLE
-            binding.nearbyEmptyText.text = "위치 정보를 설정해주세요"
-            return
-        }
+                        // 💡 프로필 이미지 로드 로직 수정: location_icon 대신 profileImage 사용
+                        val imageUrl = member.profileImageUrl
+                        if (!imageUrl.isNullOrEmpty()) {
+                            // 💡 ImageUrlUtils 사용으로 변경
+                            val fullUrl = ImageUrlUtils.resolve(imageUrl)
 
-        Log.d("NEARBY_ITEMS", "내 지역 물품 로드 시작: $myAddress")
+                            Glide.with(requireContext())
+                                .load(fullUrl)
+                                .circleCrop()
+                                .into(binding.profileImage) // 💡 profileImage ID로 로드
+                        }
+                        // 💡 location_icon에는 위치 아이콘이 고정되어 있으므로,
+                        // 프로필 이미지 로직은 profileImage에만 적용하고 locationIcon 로직은 제거합니다.
 
-        binding.nearbyProgressBar.visibility = View.VISIBLE
-        binding.nearbyEmptyText.visibility = View.GONE
-
-        // API 호출: 내 주소와 같은 지역의 물품만 가져오기
-        RetrofitClient.getApiService().getProductLists(
-            title = null,
-            category = null,
-            sort = null
-        ).enqueue(object : Callback<MsgEntity> {
-            override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                binding.nearbyProgressBar.visibility = View.GONE
-
-                if (!response.isSuccessful) {
-                    Log.e("NEARBY_ITEMS", "API 실패: ${response.code()}")
-                    showEmptyState()
-                    return
-                }
-
-                val rawData = response.body()?.data
-                if (rawData == null) {
-                    Log.e("NEARBY_ITEMS", "rawData=null")
-                    showEmptyState()
-                    return
-                }
-
-                try {
-                    val gson = Gson()
-                    val listType = object : TypeToken<List<ProductListDTO>>() {}.type
-                    val allProducts: List<ProductListDTO> = gson.fromJson(gson.toJson(rawData), listType)
-
-                    // 🔍 내 주소와 같은 지역의 물품만 필터링
-                    val nearbyProducts = allProducts.filter { product ->
-                        product.address?.contains(myAddress) == true ||
-                                myAddress.contains(product.address ?: "")
+                    } catch (e: Exception) {
+                        Log.e("MY_INFO", "MemberDTO 파싱 오류", e)
                     }
-
-                    Log.d("NEARBY_ITEMS", "전체: ${allProducts.size}, 내 지역: ${nearbyProducts.size}")
-
-                    if (nearbyProducts.isEmpty()) {
-                        showEmptyState()
-                    } else {
-                        nearbyItemsAdapter.updateList(nearbyProducts)
-                        binding.nearbyEmptyText.visibility = View.GONE
-                    }
-
-                } catch (e: Exception) {
-                    Log.e("NEARBY_ITEMS", "JSON 파싱 오류", e)
-                    showEmptyState()
                 }
-            }
 
-            override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                Log.e("NEARBY_ITEMS", "네트워크 실패", t)
-                binding.nearbyProgressBar.visibility = View.GONE
-                showEmptyState()
-            }
-        })
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Log.e("MY_INFO", "내 위치/프로필 불러오기 실패", t)
+                }
+            })
     }
 
-    // 🆕 빈 상태 표시
-    private fun showEmptyState() {
-        binding.nearbyEmptyText.visibility = View.VISIBLE
-        binding.nearbyEmptyText.text = "우리 동네에 등록된 물품이 없습니다"
-    }
-
-    // 검색 바 설정
+    /** 🔍 검색 바 설정 */
     private fun setupSearchBar() {
         binding.searchBar.apply {
             setIconifiedByDefault(true)
             queryHint = "근처 물건을 검색해 보세요"
 
             setOnClickListener {
-                if (isIconified) {
-                    setIconified(false)
-                }
+                if (isIconified) setIconified(false)
                 requestFocus()
                 togglePopularList(true)
                 loadPopularSearches()
@@ -195,9 +130,7 @@ class HomeFragment : Fragment() {
             setOnQueryTextFocusChangeListener { _, hasFocus ->
                 if (!hasFocus) {
                     togglePopularList(false)
-                    if (!isIconified) {
-                        setIconified(true)
-                    }
+                    if (!isIconified) setIconified(true)
                 }
             }
 
@@ -205,58 +138,50 @@ class HomeFragment : Fragment() {
                 override fun onQueryTextSubmit(query: String?): Boolean {
                     val keyword = query?.trim().orEmpty()
                     if (keyword.isNotEmpty()) {
-                        moveToSearchResult(keyword, isCategory = false)
+                        moveToSearchResult(keyword, false)
                         clearFocus()
                         togglePopularList(false)
-                        if (!isIconified) {
-                            setIconified(true)
-                        }
+                        if (!isIconified) setIconified(true)
                     }
                     return true
                 }
 
-                override fun onQueryTextChange(newText: String?): Boolean {
-                    return false
-                }
+                override fun onQueryTextChange(newText: String?): Boolean = false
             })
         }
 
         binding.scrollView.setOnTouchListener { _, _ ->
-            if (binding.searchBar.hasFocus()) {
-                binding.searchBar.clearFocus()
-            }
+            if (binding.searchBar.hasFocus()) binding.searchBar.clearFocus()
             false
         }
     }
 
+    /** 🔵 검색 결과 화면으로 이동 */
     private fun moveToSearchResult(keyword: String, isCategory: Boolean) {
         val intent = Intent(requireContext(), SearchResultActivity::class.java).apply {
             putExtra("SEARCH_QUERY", keyword)
             putExtra("SEARCH_IS_CATEGORY", isCategory)
         }
-        Log.d("DEBUG_FLOW", "SearchResultActivity 이동 → query=$keyword | isCategory=$isCategory")
         startActivity(intent)
     }
 
+    /** 🔵 카테고리 RecyclerView */
     private fun setupCategoryRecycler() {
         val categoryList = listOf("자전거", "가구", "캠핑", "전자제품", "운동", "의류")
-
-        Log.d("DEBUG_FLOW", "카테고리 리스트 로드 완료: $categoryList")
 
         binding.categoryRecyclerView.layoutManager =
             GridLayoutManager(requireContext(), 3)
 
         binding.categoryRecyclerView.adapter =
             CategoryAdapter(categoryList) { categoryName ->
-                Log.d("DEBUG_FLOW", "카테고리 클릭됨 → $categoryName")
-                moveToSearchResult(categoryName, isCategory = true)
+                moveToSearchResult(categoryName, true)
             }
     }
 
+    /** 🔵 인기 검색어 RecyclerView */
     private fun setupPopularRecycler() {
         popularAdapter = PopularSearchAdapter(emptyList()) { keyword ->
-            Log.d("POPULAR_SEARCH", "인기 검색어 클릭 → $keyword")
-            moveToSearchResult(keyword, isCategory = false)
+            moveToSearchResult(keyword, false)
             binding.searchBar.setQuery(keyword, false)
             binding.searchBar.clearFocus()
             togglePopularList(false)
@@ -269,25 +194,85 @@ class HomeFragment : Fragment() {
         }
     }
 
+    /** 🔵 전체 상품 RecyclerView */
+    private fun setupProductRecycler() {
+        productLayoutManager = LinearLayoutManager(requireContext())
+
+        productAdapter = ProductAdapter(emptyList()) { itemId ->
+            val intent = Intent(requireContext(), ProductDetailActivity::class.java).apply {
+                putExtra("ITEM_ID", itemId)
+            }
+            startActivity(intent)
+        }
+
+        binding.recyclerProducts.apply {
+            layoutManager = productLayoutManager
+            adapter = productAdapter
+            isNestedScrollingEnabled = false
+        }
+    }
+
     private fun togglePopularList(show: Boolean) {
         binding.popularRecyclerView.visibility = if (show) View.VISIBLE else View.GONE
     }
 
-    private fun loadPopularSearches() {
-        Log.d("POPULAR_SEARCH", "인기 검색어 불러오기 시작")
+    /** 🔵 전체 상품 불러오기 */
+    private fun loadProducts() {
+        binding.productsProgress.isVisible = true
+        binding.textProductsEmpty.isVisible = false
 
+        RetrofitClient.getApiService().getProductLists()
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    binding.productsProgress.isVisible = false
+
+                    if (!response.isSuccessful) {
+                        binding.textProductsEmpty.isVisible = true
+                        Toast.makeText(requireContext(), "상품을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                        return
+                    }
+
+                    val rawData = response.body()?.data ?: run {
+                        binding.textProductsEmpty.isVisible = true
+                        return
+                    }
+
+                    try {
+                        val gson = Gson()
+                        val listType = object : TypeToken<List<ProductListDTO>>() {}.type
+                        val productList: List<ProductListDTO> =
+                            gson.fromJson(gson.toJson(rawData), listType)
+
+                        if (productList.isEmpty()) {
+                            binding.textProductsEmpty.isVisible = true
+                        } else {
+                            binding.textProductsEmpty.isVisible = false
+                            productAdapter.updateList(productList)
+                        }
+                    } catch (e: Exception) {
+                        binding.textProductsEmpty.isVisible = true
+                        Log.e("HOME_PRODUCTS", "상품 목록 파싱 오류", e)
+                    }
+                }
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    binding.productsProgress.isVisible = false
+                    binding.textProductsEmpty.isVisible = true
+                }
+            })
+    }
+
+    /** 🔵 전역 인기 검색어 */
+    private fun loadPopularSearches() {
         RetrofitClient.getApiService().getPopularSearches()
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (!response.isSuccessful) {
-                        Log.e("POPULAR_SEARCH", "API 실패: code=${response.code()}")
                         togglePopularList(false)
                         return
                     }
 
-                    val rawData = response.body()?.data
-                    if (rawData == null) {
-                        Log.e("POPULAR_SEARCH", "rawData=null")
+                    val rawData = response.body()?.data ?: run {
                         togglePopularList(false)
                         return
                     }
@@ -295,42 +280,34 @@ class HomeFragment : Fragment() {
                     try {
                         val gson = Gson()
                         val listType = object : TypeToken<List<PopularSearchDTO>>() {}.type
-                        val json = gson.toJson(rawData)
-                        val popularList: List<PopularSearchDTO> = gson.fromJson(json, listType)
+                        val popularList: List<PopularSearchDTO> =
+                            gson.fromJson(gson.toJson(rawData), listType)
 
                         if (popularList.isEmpty()) {
                             togglePopularList(false)
-                            return
+                        } else {
+                            popularAdapter.updateList(popularList)
+                            togglePopularList(true)
                         }
-
-                        popularAdapter.updateList(popularList)
-                        togglePopularList(true)
                     } catch (e: Exception) {
-                        Log.e("POPULAR_SEARCH", "JSON 파싱 오류", e)
                         togglePopularList(false)
                     }
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                    Log.e("POPULAR_SEARCH", "네트워크 실패", t)
                     togglePopularList(false)
                 }
             })
     }
 
+    /** 🔵 최근 검색어 불러오기 */
     private fun loadSearchHistory() {
-        Log.d("SEARCH_HISTORY", "최근 검색어 불러오기 시작")
-
         RetrofitClient.getApiService().getMySearchHistory()
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                    if (!response.isSuccessful) {
-                        Log.e("SEARCH_HISTORY", "API 실패")
-                        return
-                    }
+                    if (!response.isSuccessful) return
 
-                    val rawData = response.body()?.data
-                    if (rawData == null) {
+                    val rawData = response.body()?.data ?: run {
                         renderHistoryChips(emptyList())
                         return
                     }
@@ -343,7 +320,7 @@ class HomeFragment : Fragment() {
 
                         renderHistoryChips(historyList)
                     } catch (e: Exception) {
-                        Log.e("SEARCH_HISTORY", "JSON 파싱 오류", e)
+                        Log.e("SEARCH_HISTORY", "파싱 오류", e)
                     }
                 }
 
@@ -357,28 +334,17 @@ class HomeFragment : Fragment() {
         val chipGroup = binding.chipGroupPopular
         chipGroup.removeAllViews()
 
-        if (historyList.isEmpty()) {
-            return
-        }
+        if (historyList.isEmpty()) return
 
         for (item in historyList) {
             val chip = Chip(requireContext()).apply {
                 text = item.keyword
                 isCheckable = false
-                isClickable = true
                 setOnClickListener {
-                    Log.d("SEARCH_HISTORY", "최근 검색어 클릭 → ${item.keyword}")
-                    moveToSearchResult(item.keyword, isCategory = false)
+                    moveToSearchResult(item.keyword, false)
                 }
             }
             chipGroup.addView(chip)
-        }
-    }
-
-    private fun setupMenuButton() {
-        binding.menuButton.setOnClickListener {
-            val drawerLayout = activity?.findViewById<DrawerLayout>(R.id.drawer_layout)
-            drawerLayout?.openDrawer(androidx.core.view.GravityCompat.END)
         }
     }
 

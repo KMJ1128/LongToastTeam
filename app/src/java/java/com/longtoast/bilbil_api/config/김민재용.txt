@@ -1,5 +1,0 @@
-터미널에
-netstat -ano | findstr :8080
-ngrok http 8080
-치기.(김민재만 가능)
-여기에 뜬 Forwarding 주소로 안드로이드 바꾸기(매 재실행시 해야함)

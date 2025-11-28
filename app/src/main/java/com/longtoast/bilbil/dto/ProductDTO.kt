@@ -23,6 +23,8 @@ data class ProductDTO(
     val deposit: Int?,
     val tradeLocation: String?, // 백엔드에 있는 거래 위치
     val address: String?,       // 백엔드에 있는 주소
+    val latitude: Double?,
+    val longitude: Double?,
 
     // 🚨 [핵심] 이미지 리스트 (Base64 문자열 리스트)
     val imageUrls: List<String>?,
@@ -34,5 +36,8 @@ data class ProductDTO(
     val createdAt: String?,
 
     @SerializedName("transactionId")
-    val transactionId: Long? = null
+    val transactionId: Long? = null,
+
+    @SerializedName("reservedPeriods")
+    val reservedPeriods: List<String>? = emptyList()
 )

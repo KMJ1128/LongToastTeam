@@ -8,9 +8,10 @@ data class ProductCreateRequest(
     val price_unit: Int,
     val description: String,
     val category: String,
-    val status: String,      // "AVAILABLE" 또는 "UNAVAILABLE"
-    val deposit: Int?,       // 보증금 (필수 아님: Nullable Int)
-    // 🚨 [핵심 수정] 단일 URL 대신 Base64 문자열 리스트를 전송
+    val status: String,
+    val deposit: Int?,
     val imageUrls: List<String>,
-    val address: String
+    val address: String,
+    val latitude: Double,      // 추가됨
+    val longitude: Double      // 추가됨
 )

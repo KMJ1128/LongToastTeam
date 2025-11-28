@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 🔥 새로 추가: 대여 합의하기 (단독 버튼) -->
+    <item
+        android:id="@+id/action_rent_agree"
+        android:title="대여 합의하기"
+        android:icon="@drawable/bg_btn_red"
+        android:showAsAction="always" />
+
+</menu>

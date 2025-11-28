@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- PIN Base (Red) -->
+    <path
+        android:fillColor="#E53935"
+        android:pathData="M12,2C8.1,2 5,5.1 5,9c0,5.2 7,13 7,13s7,-7.8 7,-13c0,-3.9 -3.1,-7 -7,-7z" />
+
+    <!-- Inner Circle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,6.5A2.5,2.5 0 1,1 9.5,9 2.5,2.5 0 0,1 12,6.5z" />
+
+</vector>
