@@ -13,6 +13,7 @@ import com.google.android.material.button.MaterialButton
 
 class MyItemsAdapter(
     private val productList: List<ProductDTO>,
+    private val isOwner: Boolean,   // ★ 추가: 판매자/대여자 여부 구분
     private val onItemClicked: (ProductDTO) -> Unit,
     private val onReviewClicked: ((ProductDTO) -> Unit)? = null,
     private val onEditClicked: ((ProductDTO) -> Unit)? = null,
@@ -39,7 +40,7 @@ class MyItemsAdapter(
             val priceDisplay = "₩ ${String.format("%,d", product.price)} / 일"
             price.text = priceDisplay
 
-            // 보증금
+            // 보증금 표시
             if ((product.deposit ?: 0) > 0) {
                 depositTxt.visibility = View.VISIBLE
                 depositTxt.text = "₩ ${String.format("%,d", product.deposit)} / 보증금"
@@ -50,7 +51,7 @@ class MyItemsAdapter(
             // 주소
             location.text = product.address ?: "위치 미정"
 
-            // 🚨 이미지 URL 처리 (Base64 → URL 방식으로 변경)
+            // 이미지 처리
             val rawUrl = product.imageUrls?.firstOrNull()
             val finalUrl = ImageUrlUtils.resolve(rawUrl)
 
@@ -70,18 +71,22 @@ class MyItemsAdapter(
 
             itemView.setOnClickListener { onItemClicked(product) }
 
-            // 리뷰 버튼
+            // 리뷰 버튼 (거래한 상품만)
             if (product.transactionId != null) {
                 reviewButton.visibility = View.VISIBLE
                 reviewButton.setOnClickListener { onReviewClicked?.invoke(product) }
             } else {
                 reviewButton.visibility = View.GONE
-                reviewButton.setOnClickListener(null)
             }
 
-            actionContainer.visibility = View.VISIBLE
-            editButton.setOnClickListener { onEditClicked?.invoke(product) }
-            deleteButton.setOnClickListener { onDeleteClicked?.invoke(product) }
+            // 🔥 핵심: Owner(판매자)만 수정/삭제 가능
+            if (isOwner) {
+                actionContainer.visibility = View.VISIBLE
+                editButton.setOnClickListener { onEditClicked?.invoke(product) }
+                deleteButton.setOnClickListener { onDeleteClicked?.invoke(product) }
+            } else {
+                actionContainer.visibility = View.GONE   // ★ 렌트한 탭에서는 숨김!
+            }
         }
     }
 
