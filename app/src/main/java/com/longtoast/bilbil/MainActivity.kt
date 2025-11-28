@@ -11,7 +11,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.airbnb.lottie.LottieAnimationView
 import com.google.gson.Gson
 import com.kakao.sdk.auth.model.OAuthToken
 import com.kakao.sdk.common.util.Utility
@@ -50,9 +49,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        Log.d("APP_ID_CHECK", "BuildConfig.APPLICATION_ID = ${BuildConfig.APPLICATION_ID}")
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
+        requestNotificationPermission()
         val keyHash = Utility.getKeyHash(this)
         Log.i("KeyHash", "keyHash = $keyHash")
 
@@ -110,6 +110,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun requestNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            val permission = android.Manifest.permission.POST_NOTIFICATIONS
+
+            if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(permission), 1001)
+            }
+        }
+    }
+
+
     private fun startNaverLogin() {
         NaverIdLoginSDK.authenticate(this, object : OAuthLoginCallback {
             override fun onSuccess() {
@@ -147,21 +158,20 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleServerAuthResponse(response: Response<MsgEntity>) {
         if (response.isSuccessful && response.body() != null) {
+
             val rawData = response.body()!!.data
             val gson = Gson()
-            val memberTokenResponse: MemberTokenResponse? = try {
-                gson.fromJson(gson.toJsonTree(rawData), MemberTokenResponse::class.java)
-            } catch (e: Exception) {
-                null
-            }
+            val memberTokenResponse: MemberTokenResponse? =
+                try {
+                    gson.fromJson(gson.toJsonTree(rawData), MemberTokenResponse::class.java)
+                } catch (e: Exception) {
+                    null
+                }
 
             if (memberTokenResponse == null) {
                 Toast.makeText(this, "파싱 오류", Toast.LENGTH_LONG).show()
                 return
             }
-
-            Log.d("SERVER_AUTH", "✅ serviceToken = ${memberTokenResponse.serviceToken}")
-            Log.d("SERVER_AUTH", "✅ full MemberTokenResponse = $memberTokenResponse")
 
             val token = memberTokenResponse.serviceToken
             val userId = memberTokenResponse.userId.toInt()
@@ -174,9 +184,7 @@ class MainActivity : AppCompatActivity() {
 
             if (isAddressMissing) {
                 if (token != null) {
-                    AuthTokenManager.saveToken(token)
-                    AuthTokenManager.saveUserId(userId)
-                    Log.d("AUTH", "JWT 저장 완료: 신규 유저 프로필/지역 설정 단계")
+                    onLoginSuccess(token, userId)
                 }
 
                 val intent = Intent(this@MainActivity, SettingProfileActivity::class.java).apply {
@@ -184,15 +192,13 @@ class MainActivity : AppCompatActivity() {
                     putExtra("SERVICE_TOKEN", token)
                     putExtra("SETUP_MODE", true)
                     putExtra("USER_NICKNAME", nickname)
-                    // USER_NAME은 더 이상 넘기지 않음 (username 필드 없음)
                 }
                 startActivity(intent)
                 return
             }
 
             if (token != null) {
-                AuthTokenManager.saveToken(token)
-                AuthTokenManager.saveUserId(userId)
+                onLoginSuccess(token, userId)
             }
 
             startActivity(Intent(this, HomeHostActivity::class.java))
@@ -201,6 +207,15 @@ class MainActivity : AppCompatActivity() {
         } else {
             Toast.makeText(this, "서버 응답 실패", Toast.LENGTH_LONG).show()
         }
+    }
+
+    // 🔥 로그인 성공 시 반드시 호출되는 FCM 토큰 업로드 포함 함수
+    private fun onLoginSuccess(jwt: String, userId: Int) {
+        AuthTokenManager.saveToken(jwt)
+        AuthTokenManager.saveUserId(userId)
+
+        // 🔥 핵심: 로그인 직후 FCM 토큰을 서버에 업로드
+        FcmTokenManager.uploadCurrentToken()
     }
 
     private fun sendTokenToServer(kakaoAccessToken: String) {
