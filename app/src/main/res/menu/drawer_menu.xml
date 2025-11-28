@@ -5,8 +5,8 @@
 
     <group android:checkableBehavior="single">
         <item
-            android:id="@+id/nav_my_page"
-            android:title="마이 페이지" />
+            android:id="@+id/nav_edit_profile"
+            android:title="프로필 수정" />
 
         <item
             android:id="@+id/nav_my_reviews"
@@ -15,6 +15,14 @@
         <item
             android:id="@+id/nav_received_reviews"
             android:title="내가 받은 리뷰" />
+
+        <item
+            android:id="@+id/nav_sign_out"
+            android:title="로그아웃" />
+
+        <item
+            android:id="@+id/nav_nagari"
+            android:title="회원탈퇴" />
 
     </group>
 </menu>

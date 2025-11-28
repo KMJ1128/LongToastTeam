@@ -334,12 +334,16 @@ class SettingProfileActivity : AppCompatActivity() {
 
                 if (!response.isSuccessful) {
                     Log.e("PROFILE_API", "프로필 업데이트 실패: ${response.code()}, ${response.errorBody()?.string()}")
+
                     Toast.makeText(this@SettingProfileActivity, "프로필 저장 실패: ${response.code()}", Toast.LENGTH_LONG).show()
                     return
                 }
 
                 Toast.makeText(this@SettingProfileActivity, "프로필 설정 및 저장 완료!", Toast.LENGTH_SHORT).show()
                 Log.d("PROFILE_API", "프로필 업데이트 성공!")
+
+                AuthTokenManager.saveNickname(pendingNickname)
+                AuthTokenManager.saveAddress(address)
 
                 startActivity(Intent(this@SettingProfileActivity, HomeHostActivity::class.java))
                 finishAffinity()

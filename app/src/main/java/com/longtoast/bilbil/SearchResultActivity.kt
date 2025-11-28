@@ -42,7 +42,7 @@ class SearchResultActivity : AppCompatActivity() {
             finish()
         }
 
-        // ✅ 여기서 adapter 먼저 생성해 줘야 함!
+        // ✅ 어댑터 생성 (아이템 클릭 시 상세 페이지 이동)
         adapter = ProductAdapter(emptyList()) { itemId ->
             Log.d("DEBUG_FLOW", "아이템 클릭됨 → itemId=$itemId")
             val intent = Intent(this, ProductDetailActivity::class.java).apply {
@@ -55,10 +55,18 @@ class SearchResultActivity : AppCompatActivity() {
         binding.recyclerView.adapter = adapter
 
         // 전달된 검색 값 확인
-        val query = intent.getStringExtra("SEARCH_QUERY")
-        val isCategory = intent.getBooleanExtra("SEARCH_IS_CATEGORY", false)
+        var query = intent.getStringExtra("SEARCH_QUERY")
+        var isCategory = false // 기본은 제목(title) 검색 모드
 
-        Log.d("DEBUG_FLOW", "전달 받은 검색 정보 → query=$query | isCategory=$isCategory")
+        Log.d("DEBUG_FLOW", "전달 받은 원본 검색 정보 → query=$query")
+
+        // 🔥 "#:{category}" 형태면 카테고리 검색 모드로 전환
+        // 예: "#:FASHION", "#:전자제품"
+        if (!query.isNullOrBlank() && query.startsWith("#:")) {
+            isCategory = true
+            query = query.removePrefix("#:").trim()
+            Log.d("DEBUG_FLOW", "파싱 후 → query=$query | isCategory=$isCategory (카테고리 검색 모드)")
+        }
 
         if (query == null) {
             Log.e("DEBUG_FLOW", "❌ query=null → SearchResultActivity 오류 발생 가능!")
@@ -80,6 +88,9 @@ class SearchResultActivity : AppCompatActivity() {
 
         binding.progressBar.visibility = View.VISIBLE
 
+        // 🔥 요구사항:
+        // - 기본 검색: title로만 검색
+        // - "#:{category}" 검색: category로만 검색
         val titleParam = if (!isCategory) query else null
         val categoryParam = if (isCategory) query else null
 
