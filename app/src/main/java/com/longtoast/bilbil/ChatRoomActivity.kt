@@ -4,11 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ImageButton
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -25,13 +21,8 @@ import com.longtoast.bilbil.dto.RentalApproveRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -50,37 +41,26 @@ class ChatRoomActivity : AppCompatActivity() {
     private lateinit var toolbar: MaterialToolbar
 
     private var selectedImageUri: Uri? = null
-
     private val chatMessages = mutableListOf<ChatMessage>()
     private val tempMessageMap = mutableMapOf<Long, ChatMessage>()
 
     private val WEBSOCKET_URL = ServerConfig.WEBSOCKET_URL
 
-    // Intent 기반
     private val roomId: Int by lazy {
-        val fromString = intent.getStringExtra("ROOM_ID")?.toIntOrNull()
-        fromString ?: intent.getIntExtra("ROOM_ID", -1)
+        intent.getStringExtra("ROOM_ID")?.toIntOrNull()
+            ?: intent.getIntExtra("ROOM_ID", -1)
     }
 
     private val senderId: Int by lazy { AuthTokenManager.getUserId() ?: 1 }
 
-    private val productId: Int? by lazy {
-        val numeric = intent.getIntExtra("PRODUCT_ID", -1)
-        if (numeric > 0) numeric else intent.getStringExtra("PRODUCT_ID")?.toIntOrNull()
-    }
+    // 서버에서 받아오는 값들
+    private var productId: Int? = null
+    private var productTitle: String? = null
+    private var productPrice: Int = 0
+    private var productDeposit: Int = 0
+    private var productPriceUnit: Int = 1
+    private var productImageUrl: String? = null
 
-    private val productTitle: String? by lazy { intent.getStringExtra("PRODUCT_TITLE") }
-    private val productPrice: Int by lazy { intent.getIntExtra("PRODUCT_PRICE", 0) }
-    private val productDeposit: Int by lazy { intent.getIntExtra("PRODUCT_DEPOSIT", 0) }
-    private val productPriceUnit: Int by lazy { intent.getIntExtra("PRICE_UNIT", 1) }
-
-    private val productImageUrl: String? by lazy { intent.getStringExtra("IMAGE_URL") }
-    private val sellerNickname: String? by lazy { intent.getStringExtra("SELLER_NICKNAME") }
-
-    private val intentLenderId: Int by lazy { intent.getIntExtra("LENDER_ID", -1) }
-    private val intentBorrowerId: Int by lazy { intent.getIntExtra("BORROWER_ID", -1) }
-
-    // 역할 플래그 + 상대방 ID
     private var isLender: Boolean = false
     private var otherUserId: Int = -1
 
@@ -95,9 +75,6 @@ class ChatRoomActivity : AppCompatActivity() {
             }
         }
 
-    // ======================================================================================
-    //  onCreate
-    // ======================================================================================
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat_room)
@@ -119,10 +96,19 @@ class ChatRoomActivity : AppCompatActivity() {
         val titleText = findViewById<TextView>(R.id.text_chat_title)
         val rentAgreeBtn = findViewById<Button>(R.id.btn_rent_agree)
 
-        // UI 세팅
-        titleText.text = sellerNickname ?: "채팅"
+        titleText.text = intent.getStringExtra("SELLER_NICKNAME") ?: "채팅"
 
-        rentAgreeBtn.setOnClickListener { openRentRequestForm() }
+        // ⭐ 클릭 로그 추가
+        rentAgreeBtn.setOnClickListener {
+            Log.d("RENT_BTN", "대여 합의하기 버튼 클릭됨!!!")
+            Toast.makeText(this, "대여 합의하기 버튼 클릭됨", Toast.LENGTH_SHORT).show()
+
+            openRentRequestForm()
+        }
+
+        // ⭐ UI 위로 올리기
+        rentAgreeBtn.bringToFront()
+        rentAgreeBtn.invalidate()
 
         chatAdapter = ChatAdapter(chatMessages, senderId.toString()) { payload ->
             confirmRental(payload)
@@ -136,43 +122,62 @@ class ChatRoomActivity : AppCompatActivity() {
         setupListeners()
     }
 
-    // ======================================================================================
-    //  역할 로딩
-    // ======================================================================================
     private fun loadChatRoomRoleInfo() {
-
-        if (intentLenderId > 0 && intentBorrowerId > 0) {
-            isLender = (senderId == intentLenderId)
-            otherUserId = if (isLender) intentBorrowerId else intentLenderId
-        }
 
         RetrofitClient.getApiService().getChatRoomInfo(roomId)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+
                     val raw = response.body()?.data ?: return
-                    val map = raw as Map<String, Any>
+                    val map = raw as Map<*, *>
 
-                    val lenderId = (map["lenderId"] as Number).toInt()
-                    val borrowerId = (map["borrowerId"] as Number).toInt()
+                    // ===========================
+                    //  item 정보 파싱
+                    // ===========================
+                    val itemMap = map["item"] as? Map<*, *> ?: return
 
+                    productId = itemMap["id"]?.toString()?.toIntOrNull()
+                    productTitle = itemMap["title"] as? String
+                    productPrice = itemMap["price"]?.toString()?.toIntOrNull() ?: 0
+
+                    // deposit, priceUnit 서버에서 추가 시 반영되는 구조
+                    productDeposit = itemMap["deposit"]?.toString()?.toIntOrNull() ?: 0
+                    productPriceUnit = itemMap["priceUnit"]?.toString()?.toIntOrNull() ?: 1
+
+                    productImageUrl = itemMap["imageUrl"] as? String
+
+                    Log.d("ROOM_INFO_ITEM", "itemId=$productId / title=$productTitle / price=$productPrice / img=$productImageUrl")
+
+                    // ===========================
+                    //  lender 정보 파싱
+                    // ===========================
+                    val lenderMap = map["lender"] as? Map<*, *> ?: return
+                    val lenderId = lenderMap["id"]?.toString()?.toIntOrNull() ?: return
+
+                    // ===========================
+                    //  borrower 정보 파싱
+                    // ===========================
+                    val borrowerMap = map["borrower"] as? Map<*, *> ?: return
+                    val borrowerId = borrowerMap["id"]?.toString()?.toIntOrNull() ?: return
+
+                    // ===========================
+                    //  역할 판별
+                    // ===========================
                     isLender = (senderId == lenderId)
                     otherUserId = if (isLender) borrowerId else lenderId
+
+                    Log.d("ROOM_INFO_ROLE", "isLender=$isLender senderId=$senderId lenderId=$lenderId borrowerId=$borrowerId")
                 }
 
-                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {}
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Log.e("ROOM_INFO", "error", t)
+                }
             })
     }
 
-    // ======================================================================================
-    //  대여 요청 폼 이동 — 여기 수정됨 ⭐⭐⭐
-    // ======================================================================================
     private fun openRentRequestForm() {
 
-        val id = productId
-        if (id == null || id <= 0) {
-            Toast.makeText(this, "상품 정보를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
-            return
-        }
+        val id = productId ?: return
 
         val realLenderId = if (isLender) senderId else otherUserId
         val realBorrowerId = if (isLender) otherUserId else senderId
@@ -182,7 +187,6 @@ class ChatRoomActivity : AppCompatActivity() {
             putExtra("LENDER_ID", realLenderId)
             putExtra("BORROWER_ID", realBorrowerId)
 
-            // ⭐⭐⭐ 추가된 부분 — 제목/가격/단위/보증금/이미지 전달
             putExtra("TITLE", productTitle)
             putExtra("PRICE", productPrice)
             putExtra("PRICE_UNIT", productPriceUnit)
@@ -190,17 +194,13 @@ class ChatRoomActivity : AppCompatActivity() {
             putExtra("IMAGE_URL", productImageUrl)
         }
 
-        Log.d(
-            "OPEN_FORM",
-            "item=$id / lender=$realLenderId / borrower=$realBorrowerId / title=$productTitle / img=$productImageUrl"
+        Log.d("OPEN_FORM",
+            "item=$id lender=$realLenderId borrower=$realBorrowerId img=$productImageUrl"
         )
 
         startActivity(intent)
     }
 
-    // ======================================================================================
-    //  listeners
-    // ======================================================================================
     private fun setupListeners() {
         buttonSend.setOnClickListener {
             val text = editMessage.text.toString().trim()
@@ -215,9 +215,6 @@ class ChatRoomActivity : AppCompatActivity() {
         }
     }
 
-    // ======================================================================================
-    //  채팅 기록
-    // ======================================================================================
     private fun fetchChatHistory() {
         RetrofitClient.getApiService().getChatHistory(roomId)
             .enqueue(object : Callback<MsgEntity> {
@@ -225,13 +222,11 @@ class ChatRoomActivity : AppCompatActivity() {
 
                     val raw = response.body()?.data ?: return
                     val gson = Gson()
-
                     val listType = object : TypeToken<List<ChatMessage>>() {}.type
                     val list: List<ChatMessage> = gson.fromJson(gson.toJson(raw), listType)
 
                     chatMessages.addAll(list)
                     chatAdapter.notifyDataSetChanged()
-
                     if (chatMessages.isNotEmpty()) {
                         recyclerChat.scrollToPosition(chatMessages.size - 1)
                     }
@@ -243,10 +238,8 @@ class ChatRoomActivity : AppCompatActivity() {
             })
     }
 
-    // ======================================================================================
-    //  STOMP 웹소켓
-    // ======================================================================================
     private fun connectWebSocket() {
+
         val token = AuthTokenManager.getToken()
 
         val client = OkHttpClient.Builder()
@@ -255,17 +248,15 @@ class ChatRoomActivity : AppCompatActivity() {
 
         val request = Request.Builder()
             .url(WEBSOCKET_URL)
-            .apply {
-                if (token != null) addHeader("Authorization", "Bearer $token")
-            }
+            .apply { if (token != null) addHeader("Authorization", "Bearer $token") }
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
 
             override fun onOpen(ws: WebSocket, response: okhttp3.Response) {
-                val connectFrame =
+                val frame =
                     "CONNECT\naccept-version:1.2\nheart-beat:10000,10000\nAuthorization:Bearer $token\n\n\u0000"
-                ws.send(connectFrame)
+                ws.send(frame)
             }
 
             override fun onMessage(ws: WebSocket, text: String) {
@@ -275,6 +266,7 @@ class ChatRoomActivity : AppCompatActivity() {
     }
 
     private fun handleStompFrame(frame: String) {
+
         when {
             frame.startsWith("CONNECTED") -> {
                 webSocket.send(
@@ -292,22 +284,22 @@ class ChatRoomActivity : AppCompatActivity() {
                     val received = Gson().fromJson(payload, ChatMessage::class.java)
 
                     if (received.senderId == senderId) {
+
                         val match = tempMessageMap.entries.firstOrNull {
                             it.value.content == received.content &&
                                     it.value.imageUrl == received.imageUrl
                         }
 
                         if (match != null) {
-                            val index = chatMessages.indexOf(match.value)
-                            if (index != -1) {
-                                chatMessages[index] = received
-                                chatAdapter.notifyItemChanged(index)
-                            }
+                            val idx = chatMessages.indexOf(match.value)
+                            if (idx != -1) chatMessages[idx] = received
+                            chatAdapter.notifyItemChanged(idx)
                             tempMessageMap.remove(match.key)
                         } else {
                             chatMessages.add(received)
                             chatAdapter.notifyItemInserted(chatMessages.size - 1)
                         }
+
                     } else {
                         chatMessages.add(received)
                         chatAdapter.notifyItemInserted(chatMessages.size - 1)
@@ -322,10 +314,8 @@ class ChatRoomActivity : AppCompatActivity() {
         }
     }
 
-    // ======================================================================================
-    //  메시지 전송
-    // ======================================================================================
     private fun sendMessage(content: String, imageUri: Uri? = null) {
+
         lifecycleScope.launch {
 
             var imageUrl: String? = null
@@ -347,21 +337,21 @@ class ChatRoomActivity : AppCompatActivity() {
                 append("}")
             }
 
-            val messageFrame =
+            val frame =
                 "SEND\ndestination:/app/signal/$roomId\ncontent-type:application/json\n\n$payloadJson\u0000"
 
-            webSocket.send(messageFrame)
+            webSocket.send(frame)
 
-            // 로컬 에코 메시지
             val tempMsg = ChatMessage(
                 id = nextTempId--,
                 roomId = roomId,
                 senderId = senderId,
                 content = if (content.isNotEmpty()) content else null,
                 imageUrl = imageUrl,
-                sentAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(
-                    Date()
-                )
+                sentAt = SimpleDateFormat(
+                    "yyyy-MM-dd'T'HH:mm:ss",
+                    Locale.getDefault()
+                ).format(Date())
             )
 
             chatMessages.add(tempMsg)
@@ -373,50 +363,42 @@ class ChatRoomActivity : AppCompatActivity() {
         }
     }
 
-    // ======================================================================================
-    //  이미지 업로드
-    // ======================================================================================
-    private suspend fun uploadChatImage(uri: Uri): String? = withContext(Dispatchers.IO) {
-        try {
-            val stream = contentResolver.openInputStream(uri) ?: return@withContext null
-            val bytes = stream.readBytes()
-            stream.close()
+    private suspend fun uploadChatImage(uri: Uri): String? =
+        withContext(Dispatchers.IO) {
+            try {
+                val stream = contentResolver.openInputStream(uri) ?: return@withContext null
+                val bytes = stream.readBytes()
+                stream.close()
 
-            val body = RequestBody.create("image/jpeg".toMediaTypeOrNull(), bytes)
-            val part = MultipartBody.Part.createFormData(
-                "image",
-                "chat_${System.currentTimeMillis()}.jpg",
-                body
-            )
+                val body = RequestBody.create("image/jpeg".toMediaTypeOrNull(), bytes)
+                val part = MultipartBody.Part.createFormData(
+                    "image",
+                    "chat_${System.currentTimeMillis()}.jpg",
+                    body
+                )
 
-            val resp = RetrofitClient.getApiService()
-                .uploadChatImage(roomId, part)
-                .execute()
+                val resp = RetrofitClient.getApiService()
+                    .uploadChatImage(roomId, part)
+                    .execute()
 
-            if (!resp.isSuccessful) return@withContext null
+                if (!resp.isSuccessful) return@withContext null
 
-            val data = resp.body()?.data as? Map<*, *> ?: return@withContext null
-            return@withContext data["imageUrl"] as? String
+                val data = resp.body()?.data as? Map<*, *> ?: return@withContext null
+                return@withContext data["imageUrl"] as? String
 
-        } catch (e: Exception) {
-            Log.e("UPLOAD_IMG", "ERROR", e)
-            return@withContext null
+            } catch (e: Exception) {
+                Log.e("UPLOAD_IMG", "ERROR", e)
+                return@withContext null
+            }
         }
-    }
 
-    // ======================================================================================
-    //  대여 확정 처리
-    // ======================================================================================
     private fun confirmRental(payload: RentalActionPayload) {
-
-        val realLenderId = if (isLender) senderId else otherUserId
-        val realBorrowerId = if (isLender) otherUserId else senderId
 
         val req = RentalApproveRequest(
             roomId = payload.roomId,
             itemId = payload.itemId,
-            lenderId = realLenderId,
-            borrowerId = realBorrowerId,
+            lenderId = if (isLender) senderId else otherUserId,
+            borrowerId = if (isLender) otherUserId else senderId,
             startDate = payload.startDate,
             endDate = payload.endDate,
             totalAmount = payload.totalAmount
@@ -425,6 +407,7 @@ class ChatRoomActivity : AppCompatActivity() {
         RetrofitClient.getApiService().approveRental(req)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+
                     if (response.isSuccessful) {
 
                         sendMessage(
