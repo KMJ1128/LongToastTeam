@@ -96,4 +96,5 @@ dependencies {
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.1.1"))
     implementation("com.google.firebase:firebase-messaging")
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
 }
