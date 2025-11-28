@@ -69,9 +69,13 @@ class ChatRoomActivity : AppCompatActivity() {
     private val productTitle: String? by lazy { intent.getStringExtra("PRODUCT_TITLE") }
     private val productPrice: Int by lazy { intent.getIntExtra("PRODUCT_PRICE", 0) }
     private val productDeposit: Int by lazy { intent.getIntExtra("PRODUCT_DEPOSIT", 0) }
-    private val lenderId: Int by lazy { intent.getIntExtra("LENDER_ID", -1) }
+    private val lenderIdFromIntent: Int by lazy { intent.getIntExtra("LENDER_ID", -1) }
 
     private var nextTempId = -1L
+
+    // 🔥 역할 플래그 & 상대방 ID
+    private var isLender: Boolean = false      // 나는 이 방에서 ‘대여자’인가?
+    private var otherUserId: Int = -1          // 상대방 ID (대여자/차입자 반대편)
 
     private val pickImageLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
@@ -101,7 +105,7 @@ class ChatRoomActivity : AppCompatActivity() {
         buttonSend = findViewById(R.id.button_send)
         buttonAttachImage = findViewById(R.id.button_attach_image)
 
-        // 🔹 Toolbar 내부 뷰들
+        // Toolbar 내부 뷰들
         val titleText = findViewById<TextView>(R.id.text_chat_title)
         val rentAgreeButton = findViewById<Button>(R.id.btn_rent_agree)
 
@@ -117,12 +121,45 @@ class ChatRoomActivity : AppCompatActivity() {
         recyclerChat.adapter = chatAdapter
         recyclerChat.layoutManager = LinearLayoutManager(this)
 
+        // 🔥 역할/상대방 정보 먼저 로딩
+        loadChatRoomInfo()
+
+        // 기존 채팅 내역 & 소켓 연결
         fetchChatHistory()
         connectWebSocket()
         setupListeners()
     }
 
-    /** 🔵 RentRequestActivity 로 이동 */
+    // 🔵 채팅방 정보 + 역할 구분
+    private fun loadChatRoomInfo() {
+        RetrofitClient.getApiService().getChatRoomInfo(roomId)
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (!response.isSuccessful || response.body()?.data == null) return
+
+                    val raw = response.body()!!.data
+                    val map = raw as Map<String, Any>
+
+                    val lenderId = (map["lenderId"] as Number).toInt()
+                    val borrowerId = (map["borrowerId"] as Number).toInt()
+                    val partnerId = (map["partnerId"] as Number).toInt()
+
+                    isLender = (senderId == lenderId)
+                    otherUserId = partnerId
+
+                    Log.d(
+                        "ROLE_INFO",
+                        "senderId=$senderId, lenderId=$lenderId, borrowerId=$borrowerId, isLender=$isLender, otherUserId=$otherUserId"
+                    )
+                }
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Log.e("ROLE_INFO", "getChatRoomInfo 실패", t)
+                }
+            })
+    }
+
+    /** 🔵 RentRequestActivity 로 이동 (역할 기반 borrower/lender 설정) */
     private fun openRentRequestForm() {
         val id = productId
         if (id == null || id <= 0) {
@@ -130,13 +167,17 @@ class ChatRoomActivity : AppCompatActivity() {
             return
         }
 
+        val realLenderId = if (isLender) senderId else otherUserId
+        val realBorrowerId = if (isLender) otherUserId else senderId
+
         val intent = Intent(this, RentRequestActivity::class.java).apply {
             putExtra("ITEM_ID", id)
-            putExtra("BORROWER_ID", senderId)  // ⭐ 현재 사용자 = 대여자
-            putExtra("LENDER_ID", lenderId)    // 기존 판매자 정보
+            putExtra("LENDER_ID", realLenderId)
+            putExtra("BORROWER_ID", realBorrowerId)
         }
-        Log.d("대여자ChatRoomActivity", "Lender ID: $lenderId")
-        Log.d("차입자ChatRoomActivity", "Borrower ID: $senderId")
+
+        Log.d("ChatRoomActivity", "openRentRequestForm() -> lender=$realLenderId, borrower=$realBorrowerId")
+
         startActivity(intent)
     }
 
@@ -276,7 +317,8 @@ class ChatRoomActivity : AppCompatActivity() {
 
             val escapedContent = content.replace("\\", "\\\\")   // 역슬래시 먼저
                 .replace("\"", "\\\"")   // 따옴표
-                .replace("\n", "\\n")    // 🔥 개행 escape 추가!!!
+                .replace("\n", "\\n")    // 개행 escape
+
             val payloadJson = buildString {
                 append("{\"senderId\":$senderId")
                 if (escapedContent.isNotEmpty()) append(",\"content\":\"$escapedContent\"")
@@ -343,11 +385,15 @@ class ChatRoomActivity : AppCompatActivity() {
     /** 🔥 대여 합의 ‘동의하기’ */
     private fun confirmRental(payload: RentalActionPayload) {
 
+        // 여기서도 역할 기준으로 lender/borrower 다시 확정
+        val realLenderId = if (isLender) senderId else otherUserId
+        val realBorrowerId = if (isLender) otherUserId else senderId
+
         val request = RentalApproveRequest(
             roomId = payload.roomId,
             itemId = payload.itemId,
-            lenderId = payload.lenderId,
-            borrowerId = payload.borrowerId,
+            lenderId = realLenderId,
+            borrowerId = realBorrowerId,
             startDate = payload.startDate,
             endDate = payload.endDate,
             totalAmount = payload.totalAmount
