@@ -64,8 +64,10 @@ class HomeFragment : Fragment() {
         setupProductRecycler()
         loadProducts()
 
-        // 💡 메뉴 버튼 클릭 리스너를 여기에 추가하거나 HomeHostActivity로 전달하는 로직이 필요할 수 있습니다.
-        // binding.menuButton.setOnClickListener { /* Drawer 열기 로직 */ }
+        // 🆕 메뉴 버튼 클릭 리스너 추가
+        binding.menuButton.setOnClickListener {
+            (activity as? HomeHostActivity)?.openDrawer()
+        }
     }
 
     /** 🔵 사용자 주소 및 프로필 이미지 로드 */

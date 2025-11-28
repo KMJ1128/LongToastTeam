@@ -6,11 +6,11 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission
         android:name="android.permission.POST_NOTIFICATIONS"
         tools:targetApi="33" />
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <uses-feature
         android:name="android.hardware.camera"
@@ -28,34 +28,45 @@
         android:theme="@style/Theme.BilBil"
         android:usesCleartextTraffic="true">
 
+        <!-- ✅ MainActivity가 LAUNCHER입니다 -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- ✅ EditProfileActivity는 일반 Activity로 변경 -->
+        <activity
+            android:name=".EditProfileActivity"
+            android:exported="false" />
+
         <activity
             android:name=".ChatRoomActivity"
             android:exported="false" />
-
         <activity
             android:name=".ProductDetailActivity"
             android:exported="false" />
         <activity
             android:name=".SettingProfileActivity"
             android:exported="false" />
-
         <activity
             android:name=".SearchResultActivity"
             android:exported="false" />
         <activity
             android:name=".HomeHostActivity"
             android:exported="false" />
-
-        <activity android:name=".RentRequestActivity"
+        <activity
+            android:name=".RentRequestActivity"
             android:exported="false" />
-        
-        <activity android:name=".CartActivity"
+        <activity
+            android:name=".CartActivity"
             android:exported="false" />
-
         <activity
             android:name=".ReviewActivity"
             android:exported="false" />
-
         <activity
             android:name=".SettingMapActivity"
             android:exported="false" />
@@ -72,7 +83,6 @@
         <meta-data
             android:name="com.naver.maps.map.NCP_KEY_ID"
             android:value="vqbzlnnn8o" />
-
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="default_channel" />
@@ -82,20 +92,13 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data
                     android:host="oauth"
                     android:scheme="kakao7a3a72c388ba6dfc6df8ca9715f284ff" />
-            </intent-filter>
-        </activity>
-
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
@@ -113,15 +116,15 @@
             android:name="com.navercorp.nid.oauth.activity.NidOAuthActivity"
             android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar">
-
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:scheme="navera7CXZxOYZfr0Oz_swkzL" android:host="oauth" />
-
+                    android:host="oauth"
+                    android:scheme="navera7CXZxOYZfr0Oz_swkzL" />
             </intent-filter>
         </activity>
 
@@ -129,7 +132,7 @@
             android:name=".MyFirebaseMessagingService"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
     </application>

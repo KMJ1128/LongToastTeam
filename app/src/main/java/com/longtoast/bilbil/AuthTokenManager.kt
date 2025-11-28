@@ -72,4 +72,14 @@ object AuthTokenManager {
     fun getAddress(): String? {
         return prefs.getString(KEY_USER_ADDRESS, null)
     }
+
+    fun clearAll() {
+        prefs.edit()
+            .remove(KEY_SERVICE_TOKEN)
+            .remove(KEY_USER_ID)
+            .remove(KEY_USER_NICKNAME)
+            .remove(KEY_USER_ADDRESS)
+            .apply()
+        Log.d("AuthTokenManager", "모든 인증 정보 삭제 완료")
+    }
 }
