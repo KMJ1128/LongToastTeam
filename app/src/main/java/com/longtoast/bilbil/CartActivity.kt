@@ -1,5 +1,6 @@
 package com.longtoast.bilbil
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -16,28 +17,35 @@ class CartActivity : AppCompatActivity() {
         binding = ActivityCartBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // 뒤로가기 버튼
         binding.toolbar.setNavigationOnClickListener { finish() }
 
         setupRecyclerView()
     }
 
     private fun setupRecyclerView() {
-        // CartManager에서 데이터를 가져와서 어댑터 생성
         val cartList = CartManager.getItems().toMutableList()
 
-        adapter = CartAdapter(cartList) {
-            // 아이템이 삭제되었을 때 실행될 로직
-            if (CartManager.getItems().isEmpty()) {
-                Toast.makeText(this, "장바구니가 비워졌습니다.", Toast.LENGTH_SHORT).show()
+        adapter = CartAdapter(
+            items = cartList,
+            // ✅ [추가] 아이템 클릭 시 상세 페이지로 이동
+            onItemClicked = { product ->
+                val intent = Intent(this, ProductDetailActivity::class.java).apply {
+                    putExtra("ITEM_ID", product.id)
+                }
+                startActivity(intent)
+            },
+            // 아이템 삭제 시 동작
+            onItemRemoved = {
+                if (CartManager.getItems().isEmpty()) {
+                    Toast.makeText(this, "장바구니가 비워졌습니다.", Toast.LENGTH_SHORT).show()
+                }
             }
-        }
+        )
 
         binding.recyclerCart.layoutManager = LinearLayoutManager(this)
         binding.recyclerCart.adapter = adapter
     }
 
-    // 화면에 다시 돌아왔을 때 갱신 (선택사항)
     override fun onResume() {
         super.onResume()
         if (::adapter.isInitialized) {
