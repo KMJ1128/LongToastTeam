@@ -5,24 +5,16 @@
 
     <group android:checkableBehavior="single">
         <item
-            android:id="@+id/nav_user_profile"
-
-            android:title="나의 계정" />
-
-        <item
-            android:id="@+id/nav_menu1"
-
-            android:title="메뉴" />
+            android:id="@+id/nav_my_page"
+            android:title="마이 페이지" />
 
         <item
-            android:id="@+id/nav_menu2"
-
-            android:title="로그아웃" />
+            android:id="@+id/nav_my_reviews"
+            android:title="내가 쓴 리뷰" />
 
         <item
-            android:id="@+id/nav_menu3"
-
-            android:title="회원탈퇴" />
+            android:id="@+id/nav_received_reviews"
+            android:title="내가 받은 리뷰" />
 
     </group>
 </menu>
