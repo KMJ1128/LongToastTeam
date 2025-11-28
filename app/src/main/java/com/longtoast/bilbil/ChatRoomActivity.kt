@@ -64,18 +64,14 @@ class ChatRoomActivity : AppCompatActivity() {
 
     private val senderId: Int by lazy { AuthTokenManager.getUserId() ?: 1 }
 
-    private val productId: Int? by lazy {
-        val numeric = intent.getIntExtra("PRODUCT_ID", -1)
-        if (numeric > 0) numeric else intent.getStringExtra("PRODUCT_ID")?.toIntOrNull()
-    }
-
-    private val productTitle: String? by lazy { intent.getStringExtra("PRODUCT_TITLE") }
-    private val productPrice: Int by lazy { intent.getIntExtra("PRODUCT_PRICE", 0) }
-    private val productDeposit: Int by lazy { intent.getIntExtra("PRODUCT_DEPOSIT", 0) }
-    private val productPriceUnit: Int by lazy { intent.getIntExtra("PRICE_UNIT", 1) }
-
-    private val productImageUrl: String? by lazy { intent.getStringExtra("IMAGE_URL") }
-    private val sellerNickname: String? by lazy { intent.getStringExtra("SELLER_NICKNAME") }
+    // ⭐ 서버에서 값을 덮어쓸 수 있도록 var 사용
+    private var productId: Int? = null
+    private var productTitle: String? = null
+    private var productPrice: Int = 0
+    private var productDeposit: Int = 0
+    private var productPriceUnit: Int = 1
+    private var productImageUrl: String? = null
+    private var sellerNickname: String? = null
 
     private val intentLenderId: Int by lazy { intent.getIntExtra("LENDER_ID", -1) }
     private val intentBorrowerId: Int by lazy { intent.getIntExtra("BORROWER_ID", -1) }
@@ -119,7 +115,8 @@ class ChatRoomActivity : AppCompatActivity() {
         val titleText = findViewById<TextView>(R.id.text_chat_title)
         val rentAgreeBtn = findViewById<Button>(R.id.btn_rent_agree)
 
-        // UI 세팅
+        // UI 세팅 (닉네임 먼저)
+        sellerNickname = intent.getStringExtra("SELLER_NICKNAME")
         titleText.text = sellerNickname ?: "채팅"
 
         rentAgreeBtn.setOnClickListener { openRentRequestForm() }
@@ -130,6 +127,7 @@ class ChatRoomActivity : AppCompatActivity() {
         recyclerChat.adapter = chatAdapter
         recyclerChat.layoutManager = LinearLayoutManager(this)
 
+        // 서버 기반 정보 로딩
         loadChatRoomRoleInfo()
         fetchChatHistory()
         connectWebSocket()
@@ -137,14 +135,9 @@ class ChatRoomActivity : AppCompatActivity() {
     }
 
     // ======================================================================================
-    //  역할 로딩
+    //  역할 + 상품 정보 로딩 (⭐ 이미지 포함)
     // ======================================================================================
     private fun loadChatRoomRoleInfo() {
-
-        if (intentLenderId > 0 && intentBorrowerId > 0) {
-            isLender = (senderId == intentLenderId)
-            otherUserId = if (isLender) intentBorrowerId else intentLenderId
-        }
 
         RetrofitClient.getApiService().getChatRoomInfo(roomId)
             .enqueue(object : Callback<MsgEntity> {
@@ -157,6 +150,18 @@ class ChatRoomActivity : AppCompatActivity() {
 
                     isLender = (senderId == lenderId)
                     otherUserId = if (isLender) borrowerId else lenderId
+
+                    // ⭐⭐⭐ 서버에서 상품 정보 받아오기
+                    productId = (map["itemId"] as Number).toInt()
+                    productTitle = map["itemTitle"] as? String
+                    productPrice = (map["itemPrice"] as Number).toInt()
+                    productDeposit = (map["itemDeposit"] as Number).toInt()
+                    productPriceUnit = (map["itemPriceUnit"] as Number).toInt()
+                    productImageUrl = map["itemImageUrl"] as? String
+
+                    Log.d("ROOM_INFO",
+                        "상품 이미지 url = $productImageUrl / title=$productTitle / price=$productPrice"
+                    )
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {}
@@ -164,7 +169,7 @@ class ChatRoomActivity : AppCompatActivity() {
     }
 
     // ======================================================================================
-    //  대여 요청 폼 이동 — 여기 수정됨 ⭐⭐⭐
+    //  대여 요청 폼 이동 (서버에서 받은 최신 데이터 전달)
     // ======================================================================================
     private fun openRentRequestForm() {
 
@@ -182,12 +187,11 @@ class ChatRoomActivity : AppCompatActivity() {
             putExtra("LENDER_ID", realLenderId)
             putExtra("BORROWER_ID", realBorrowerId)
 
-            // ⭐⭐⭐ 추가된 부분 — 제목/가격/단위/보증금/이미지 전달
             putExtra("TITLE", productTitle)
             putExtra("PRICE", productPrice)
             putExtra("PRICE_UNIT", productPriceUnit)
             putExtra("DEPOSIT", productDeposit)
-            putExtra("IMAGE_URL", productImageUrl)
+            putExtra("IMAGE_URL", productImageUrl)  // ⭐⭐⭐ 서버에서 받은 이미지 전달
         }
 
         Log.d(
@@ -352,7 +356,6 @@ class ChatRoomActivity : AppCompatActivity() {
 
             webSocket.send(messageFrame)
 
-            // 로컬 에코 메시지
             val tempMsg = ChatMessage(
                 id = nextTempId--,
                 roomId = roomId,
