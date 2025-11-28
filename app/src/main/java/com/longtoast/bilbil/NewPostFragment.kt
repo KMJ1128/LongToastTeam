@@ -64,8 +64,6 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
     private var selectedLatitude: Double? = null
     private var selectedLongitude: Double? = null
 
-
-
     private val galleryLauncher =
         registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
             if (uris != null) {
@@ -95,7 +93,6 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-
     ): View {
         _binding = ActivityNewPostFragmentBinding.inflate(inflater, container, false)
         return binding.root
@@ -167,6 +164,7 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         galleryLauncher.launch("image/*")
     }
 
+    // ✅ [수정] 작성/수정 완료 처리 함수 (중복 클릭 방지 적용)
     private fun submitPost() {
         val title = binding.editTextTitle.text.toString().trim()
         val description = binding.editTextDescription.text.toString().trim()
@@ -188,7 +186,8 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
             return
         }
 
-        binding.completeButton.isEnabled = false
+        // 🟢 1. 로딩 시작 (버튼 비활성화 & 프로그레스바 표시)
+        setLoadingState(true)
 
         lifecycleScope.launch {
 
@@ -210,8 +209,6 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
                 deposit = deposit,
                 imageUrls = emptyList(),
                 address = selectedAddress!!,
-
-                // ★ 서버로 위도/경도 전달
                 latitude = selectedLatitude ?: 0.0,
                 longitude = selectedLongitude ?: 0.0
             )
@@ -224,7 +221,9 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
                             call: Call<MsgEntity>,
                             response: Response<MsgEntity>
                         ) {
-                            binding.completeButton.isEnabled = true
+                            // 🟢 2. 응답 완료 (로딩 해제)
+                            setLoadingState(false)
+
                             if (response.isSuccessful) {
                                 Toast.makeText(requireContext(), "수정되었습니다.", Toast.LENGTH_SHORT).show()
                                 parentFragmentManager.popBackStack()
@@ -234,14 +233,14 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
                         }
 
                         override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                            binding.completeButton.isEnabled = true
+                            // 🟢 2. 통신 실패 (로딩 해제)
+                            setLoadingState(false)
                             Log.e("POST_API", "서버 오류", t)
                             Toast.makeText(requireContext(), "서버 통신 오류", Toast.LENGTH_LONG).show()
                         }
                     })
             } ?: run {
-
-                // (2) JSON → RequestBody
+                // 신규 등록
                 val productRequestBody: RequestBody =
                     Gson().toJson(requestObj)
                         .toRequestBody("application/json; charset=utf-8".toMediaType())
@@ -253,7 +252,8 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
                             call: Call<MsgEntity>,
                             response: Response<MsgEntity>
                         ) {
-                            binding.completeButton.isEnabled = true
+                            // 🟢 2. 응답 완료 (로딩 해제)
+                            setLoadingState(false)
 
                             if (response.isSuccessful) {
                                 Toast.makeText(requireContext(), "등록 성공!", Toast.LENGTH_SHORT).show()
@@ -266,12 +266,26 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
                         }
 
                         override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                            binding.completeButton.isEnabled = true
+                            // 🟢 2. 통신 실패 (로딩 해제)
+                            setLoadingState(false)
                             Log.e("POST_API", "서버 오류", t)
                             Toast.makeText(requireContext(), "서버 통신 오류", Toast.LENGTH_LONG).show()
                         }
                     })
             }
+        }
+    }
+
+    // ✅ [추가] 로딩 상태 제어 (중복 클릭 방지용)
+    private fun setLoadingState(isLoading: Boolean) {
+        if (isLoading) {
+            // 로딩 중: 프로그레스바 보이기, 버튼 끄기
+            binding.progressLoader.visibility = View.VISIBLE
+            binding.completeButton.isEnabled = false
+        } else {
+            // 로딩 끝: 프로그레스바 숨기기, 버튼 켜기
+            binding.progressLoader.visibility = View.GONE
+            binding.completeButton.isEnabled = true
         }
     }
 
@@ -294,7 +308,6 @@ class NewPostFragment : Fragment(), PriceUnitDialogFragment.PriceUnitListener {
         updatePriceTextView()
     }
 
-    // (3) 이미지 URI → Multipart 변환 함수
     private fun convertImagesToMultipart(uris: List<Uri>): List<MultipartBody.Part> {
         val parts = mutableListOf<MultipartBody.Part>()
 
