@@ -80,6 +80,11 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
 
         binding.btnStartChat.setOnClickListener { startChatting() }
 
+        // 👇 [추가] 장바구니 버튼 클릭 리스너 추가
+        binding.btnCart.setOnClickListener {
+            addToCart()
+        }
+
         binding.btnRent.setOnClickListener {
             val p = currentProduct ?: return@setOnClickListener
             val intent = Intent(this, RentRequestActivity::class.java).apply {
@@ -94,6 +99,25 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             }
             startActivity(intent)
         }
+    }
+
+    // 👇 [추가] 장바구니 담기 로직 함수
+    private fun addToCart() {
+        val product = currentProduct
+        if (product == null) {
+            Toast.makeText(this, "상품 정보를 아직 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // CartManager에 상품 추가
+        CartManager.addItem(product)
+
+        // 사용자에게 알림
+        Toast.makeText(this, "장바구니에 상품이 담겼습니다.", Toast.LENGTH_SHORT).show()
+
+        // (선택 사항) 장바구니로 바로 이동하고 싶다면 아래 주석 해제
+        // val intent = Intent(this, CartActivity::class.java)
+        // startActivity(intent)
     }
 
     private fun loadProductDetail(itemId: Int) {

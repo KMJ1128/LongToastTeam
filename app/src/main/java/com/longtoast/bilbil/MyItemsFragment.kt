@@ -8,7 +8,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.longtoast.bilbil.api.RetrofitClient
@@ -28,9 +27,6 @@ class MyItemsFragment : Fragment() {
     private enum class Tab { REGISTERED, RENTED }
     private var currentTab: Tab = Tab.REGISTERED
 
-    // -----------------------------------------------------
-    // 🔥 binding null-safe wrapper (모든 UI 변경은 이 안에서만!)
-    // -----------------------------------------------------
     private fun safe(action: (FragmentMyItemsBinding) -> Unit) {
         if (!isAdded || _binding == null) return
         action(binding)
@@ -53,11 +49,8 @@ class MyItemsFragment : Fragment() {
             b.toggleMyActivity.check(b.btnRegistered.id)
 
             b.swipeRefresh.setOnRefreshListener {
-                if (currentTab == Tab.REGISTERED) {
-                    loadRegisteredItems()
-                } else {
-                    loadRentedItems()
-                }
+                if (currentTab == Tab.REGISTERED) loadRegisteredItems()
+                else loadRentedItems()
             }
         }
 
@@ -65,9 +58,6 @@ class MyItemsFragment : Fragment() {
         loadRegisteredItems()
     }
 
-    // -----------------------------------------------------
-    // 🔥 로딩 애니메이션
-    // -----------------------------------------------------
     private fun showLoading() = safe { b ->
         b.loadingAnimation.visibility = View.VISIBLE
         b.loadingAnimation.repeatCount = -1
@@ -84,9 +74,6 @@ class MyItemsFragment : Fragment() {
         b.swipeRefresh.isRefreshing = false
     }
 
-    // -----------------------------------------------------
-    // 🔥 탭 전환
-    // -----------------------------------------------------
     private fun setupToggle() = safe { b ->
         b.toggleMyActivity.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
@@ -98,14 +85,14 @@ class MyItemsFragment : Fragment() {
                     currentTab = Tab.REGISTERED
                     b.textEmptyState.text = "등록한 상품이 없습니다."
                     if (registeredItems.isEmpty()) loadRegisteredItems()
-                    else showList(registeredItems)
+                    else showList(registeredItems, isOwner = true)
                 }
 
                 b.btnRented.id -> {
                     currentTab = Tab.RENTED
                     b.textEmptyState.text = "렌트한 상품이 없습니다."
                     if (rentedItems.isEmpty()) loadRentedItems()
-                    else showList(rentedItems)
+                    else showList(rentedItems, isOwner = false)
                 }
             }
         }
@@ -119,9 +106,6 @@ class MyItemsFragment : Fragment() {
         b.loadingAnimation.cancelAnimation()
     }
 
-    // -----------------------------------------------------
-    // 🔥 등록한 물품
-    // -----------------------------------------------------
     private fun loadRegisteredItems() {
         showLoading()
 
@@ -142,8 +126,10 @@ class MyItemsFragment : Fragment() {
                     val listType = object : TypeToken<List<ProductDTO>>() {}.type
                     registeredItems = Gson().fromJson(Gson().toJson(raw), listType)
 
-                    if (registeredItems.isEmpty()) showEmptyState("등록한 상품이 없습니다.")
-                    else if (currentTab == Tab.REGISTERED) showList(registeredItems)
+                    if (registeredItems.isEmpty())
+                        showEmptyState("등록한 상품이 없습니다.")
+                    else if (currentTab == Tab.REGISTERED)
+                        showList(registeredItems, isOwner = true)
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
@@ -153,9 +139,6 @@ class MyItemsFragment : Fragment() {
             })
     }
 
-    // -----------------------------------------------------
-    // 🔥 렌트한 물품
-    // -----------------------------------------------------
     private fun loadRentedItems() {
         showLoading()
 
@@ -176,8 +159,10 @@ class MyItemsFragment : Fragment() {
                     val listType = object : TypeToken<List<ProductDTO>>() {}.type
                     rentedItems = Gson().fromJson(Gson().toJson(raw), listType)
 
-                    if (rentedItems.isEmpty()) showEmptyState("렌트한 상품이 없습니다.")
-                    else if (currentTab == Tab.RENTED) showList(rentedItems)
+                    if (rentedItems.isEmpty())
+                        showEmptyState("렌트한 상품이 없습니다.")
+                    else if (currentTab == Tab.RENTED)
+                        showList(rentedItems, isOwner = false)
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
@@ -187,21 +172,18 @@ class MyItemsFragment : Fragment() {
             })
     }
 
-    // -----------------------------------------------------
-    // 🔥 리스트 표시
-    // -----------------------------------------------------
-    private fun showList(list: List<ProductDTO>) = safe { b ->
-        // 로딩/empty 상태는 숨기고
+    private fun showList(list: List<ProductDTO>, isOwner: Boolean) = safe { b ->
+
         b.loadingAnimation.cancelAnimation()
         b.loadingAnimation.visibility = View.GONE
         b.emptyAnimation.visibility = View.GONE
         b.textEmptyState.visibility = View.GONE
 
-        // ✅ 리스트는 보여주기
         b.recyclerViewMyItems.visibility = View.VISIBLE
 
         val adapter = MyItemsAdapter(
             productList = list,
+            isOwner = isOwner,     // ★ 핵심
             onItemClicked = { product ->
                 val intent = Intent(requireContext(), ProductDetailActivity::class.java).apply {
                     putExtra("ITEM_ID", product.id)
@@ -209,24 +191,28 @@ class MyItemsFragment : Fragment() {
                 startActivity(intent)
             },
             onReviewClicked = { product ->
-                if (currentTab != Tab.RENTED) {
-                    Toast.makeText(requireContext(), "렌트한 물품에서만 리뷰를 작성할 수 있습니다.", Toast.LENGTH_SHORT).show()
-                    return@MyItemsAdapter
-                }
+                if (!isOwner) {
+                    // 렌트한 물품에만 리뷰 O
+                    val transactionId = product.transactionId
+                    if (transactionId == null) {
+                        Toast.makeText(requireContext(), "거래 정보가 없어 리뷰를 작성할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                        return@MyItemsAdapter
+                    }
 
-                val transactionId = product.transactionId
-                if (transactionId == null) {
-                    Toast.makeText(requireContext(), "거래 정보가 없어 리뷰를 작성할 수 없습니다.", Toast.LENGTH_SHORT).show()
-                    return@MyItemsAdapter
+                    val intent = Intent(requireContext(), ReviewActivity::class.java).apply {
+                        putExtra("TRANSACTION_ID", transactionId.toInt())
+                    }
+                    startActivity(intent)
                 }
-
-                val intent = Intent(requireContext(), ReviewActivity::class.java).apply {
-                    putExtra("TRANSACTION_ID", transactionId.toInt())
-                }
-                startActivity(intent)
             },
-            onEditClicked = { product -> openEditScreen(product) },
-            onDeleteClicked = { product -> confirmDelete(product) }
+            onEditClicked = { product ->
+                // isOwner=true(등록한 물품)에서만 호출됨
+                openEditScreen(product)
+            },
+            onDeleteClicked = { product ->
+                // isOwner=true(등록한 물품)에서만 호출됨
+                confirmDelete(product)
+            }
         )
 
         b.recyclerViewMyItems.adapter = adapter
@@ -257,7 +243,8 @@ class MyItemsFragment : Fragment() {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (response.isSuccessful) {
                         Toast.makeText(requireContext(), "삭제되었습니다.", Toast.LENGTH_SHORT).show()
-                        if (currentTab == Tab.REGISTERED) loadRegisteredItems() else loadRentedItems()
+                        if (currentTab == Tab.REGISTERED) loadRegisteredItems()
+                        else loadRentedItems()
                     } else {
                         Toast.makeText(requireContext(), "삭제에 실패했습니다.", Toast.LENGTH_SHORT).show()
                     }
@@ -269,9 +256,6 @@ class MyItemsFragment : Fragment() {
             })
     }
 
-    // -----------------------------------------------------
-    // 🔥 Empty 상태
-    // -----------------------------------------------------
     private fun showEmptyState(message: String) = safe { b ->
         b.recyclerViewMyItems.visibility = View.GONE
         b.textEmptyState.text = message
@@ -284,6 +268,7 @@ class MyItemsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        //d
         _binding = null
     }
 }

@@ -1,6 +1,5 @@
 package com.longtoast.bilbil
 
-import androidx.core.view.isVisible
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -8,11 +7,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.widget.SearchView
+import androidx.core.view.GravityCompat
+import androidx.recyclerview.widget.RecyclerView
 import androidx.core.view.isVisible
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.google.android.material.chip.Chip
 import com.google.gson.Gson
@@ -32,8 +33,9 @@ import retrofit2.Response
 import android.widget.Toast
 import com.longtoast.bilbil.ProductAdapter
 import com.longtoast.bilbil.ProductDetailActivity
-// 💡 ImageUrlUtils import 추가
 import com.longtoast.bilbil.ImageUrlUtils
+// CartManager import 필요 (패키지명에 맞게 수정)
+import com.longtoast.bilbil.CartManager
 
 class HomeFragment : Fragment() {
 
@@ -48,6 +50,7 @@ class HomeFragment : Fragment() {
         super.onResume()
         loadMyLocation()
         loadSearchHistory()
+        updateCartBadge() // 🔥 [추가] 화면 돌아올 때마다 뱃지 갱신
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -58,84 +61,91 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // 1. 햄버거 메뉴 버튼 클릭 리스너
+        binding.btnMenu.setOnClickListener {
+            val drawerLayout = requireActivity().findViewById<DrawerLayout>(R.id.drawer_layout)
+            if (drawerLayout != null) {
+                drawerLayout.openDrawer(GravityCompat.END)
+            } else {
+                Log.e("HomeFragment", "DrawerLayout을 찾을 수 없습니다.")
+            }
+        }
+
+        // 2. 장바구니 버튼 클릭 리스너
+        binding.btnGoCart.setOnClickListener {
+            val intent = Intent(requireContext(), CartActivity::class.java)
+            startActivity(intent)
+        }
+
         setupSearchBar()
         setupCategoryRecycler()
         setupPopularRecycler()
         setupProductRecycler()
         loadProducts()
+        loadPopularSearches()
+    }
 
-        // 🆕 메뉴 버튼 클릭 리스너 추가
-        binding.menuButton.setOnClickListener {
-            (activity as? HomeHostActivity)?.openDrawer()
+    // 🔥 [추가] 장바구니 뱃지 업데이트 함수
+    private fun updateCartBadge() {
+        val count = CartManager.getItems().size
+        if (count > 0) {
+            binding.cartBadge.text = if (count > 99) "99+" else count.toString()
+            binding.cartBadge.isVisible = true
+        } else {
+            binding.cartBadge.isVisible = false
         }
     }
 
-    /** 🔵 사용자 주소 및 프로필 이미지 로드 */
+    // ... (기존 loadMyLocation, setupSearchBar 등 나머지 함수들 그대로 유지) ...
+    // 기존 코드들 (loadMyLocation, setupSearchBar, moveToSearchResult, setupCategoryRecycler, setupPopularRecycler, setupProductRecycler, togglePopularList, loadProducts, loadPopularSearches, loadSearchHistory, renderHistoryChips) 복사해서 넣으세요.
+
+    // 편의를 위해 loadMyLocation 등 나머지 함수들도 포함합니다.
     private fun loadMyLocation() {
         RetrofitClient.getApiService().getMyInfo()
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (!response.isSuccessful) return
-
                     val raw = response.body()?.data ?: return
-
                     try {
                         val gson = Gson()
                         val type = object : TypeToken<MemberDTO>() {}.type
                         val member: MemberDTO = gson.fromJson(gson.toJson(raw), type)
 
                         binding.locationText.text = member.address ?: "내 위치"
-
-                        // 💡 프로필 이미지 로드 로직 수정: location_icon 대신 profileImage 사용
-                        val imageUrl = member.profileImageUrl
-                        if (!imageUrl.isNullOrEmpty()) {
-                            // 💡 ImageUrlUtils 사용으로 변경
-                            val fullUrl = ImageUrlUtils.resolve(imageUrl)
-
-                            Glide.with(requireContext())
-                                .load(fullUrl)
-                                .circleCrop()
-                                .into(binding.profileImage) // 💡 profileImage ID로 로드
+                        val fullUrl = ImageUrlUtils.resolve(member.profileImageUrl)
+                        if (!fullUrl.isNullOrEmpty()) {
+                            Glide.with(requireContext()).load(fullUrl).circleCrop().into(binding.profileImage)
                         }
-                        // 💡 location_icon에는 위치 아이콘이 고정되어 있으므로,
-                        // 프로필 이미지 로직은 profileImage에만 적용하고 locationIcon 로직은 제거합니다.
-
                     } catch (e: Exception) {
                         Log.e("MY_INFO", "MemberDTO 파싱 오류", e)
                     }
                 }
-
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
                     Log.e("MY_INFO", "내 위치/프로필 불러오기 실패", t)
                 }
             })
     }
 
-    /** 🔍 검색 바 설정 */
     private fun setupSearchBar() {
         binding.searchBar.apply {
             setIconifiedByDefault(true)
             queryHint = "근처 물건을 검색해 보세요"
-
             setOnClickListener {
                 if (isIconified) setIconified(false)
                 requestFocus()
                 togglePopularList(true)
                 loadPopularSearches()
             }
-
             setOnCloseListener {
                 togglePopularList(false)
                 false
             }
-
             setOnQueryTextFocusChangeListener { _, hasFocus ->
                 if (!hasFocus) {
                     togglePopularList(false)
                     if (!isIconified) setIconified(true)
                 }
             }
-
             setOnQueryTextListener(object : SearchView.OnQueryTextListener {
                 override fun onQueryTextSubmit(query: String?): Boolean {
                     val keyword = query?.trim().orEmpty()
@@ -147,18 +157,15 @@ class HomeFragment : Fragment() {
                     }
                     return true
                 }
-
                 override fun onQueryTextChange(newText: String?): Boolean = false
             })
         }
-
         binding.scrollView.setOnTouchListener { _, _ ->
             if (binding.searchBar.hasFocus()) binding.searchBar.clearFocus()
             false
         }
     }
 
-    /** 🔵 검색 결과 화면으로 이동 */
     private fun moveToSearchResult(keyword: String, isCategory: Boolean) {
         val intent = Intent(requireContext(), SearchResultActivity::class.java).apply {
             putExtra("SEARCH_QUERY", keyword)
@@ -167,20 +174,14 @@ class HomeFragment : Fragment() {
         startActivity(intent)
     }
 
-    /** 🔵 카테고리 RecyclerView */
     private fun setupCategoryRecycler() {
         val categoryList = listOf("자전거", "가구", "캠핑", "전자제품", "운동", "의류")
-
-        binding.categoryRecyclerView.layoutManager =
-            GridLayoutManager(requireContext(), 3)
-
-        binding.categoryRecyclerView.adapter =
-            CategoryAdapter(categoryList) { categoryName ->
-                moveToSearchResult(categoryName, true)
-            }
+        binding.categoryRecyclerView.layoutManager = GridLayoutManager(requireContext(), 3)
+        binding.categoryRecyclerView.adapter = CategoryAdapter(categoryList) { categoryName ->
+            moveToSearchResult(categoryName, true)
+        }
     }
 
-    /** 🔵 인기 검색어 RecyclerView */
     private fun setupPopularRecycler() {
         popularAdapter = PopularSearchAdapter(emptyList()) { keyword ->
             moveToSearchResult(keyword, false)
@@ -188,7 +189,6 @@ class HomeFragment : Fragment() {
             binding.searchBar.clearFocus()
             togglePopularList(false)
         }
-
         binding.popularRecyclerView.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = popularAdapter
@@ -196,17 +196,14 @@ class HomeFragment : Fragment() {
         }
     }
 
-    /** 🔵 전체 상품 RecyclerView */
     private fun setupProductRecycler() {
         productLayoutManager = LinearLayoutManager(requireContext())
-
         productAdapter = ProductAdapter(emptyList()) { itemId ->
             val intent = Intent(requireContext(), ProductDetailActivity::class.java).apply {
                 putExtra("ITEM_ID", itemId)
             }
             startActivity(intent)
         }
-
         binding.recyclerProducts.apply {
             layoutManager = productLayoutManager
             adapter = productAdapter
@@ -218,33 +215,26 @@ class HomeFragment : Fragment() {
         binding.popularRecyclerView.visibility = if (show) View.VISIBLE else View.GONE
     }
 
-    /** 🔵 전체 상품 불러오기 */
     private fun loadProducts() {
         binding.productsProgress.isVisible = true
         binding.textProductsEmpty.isVisible = false
-
         RetrofitClient.getApiService().getProductLists()
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     binding.productsProgress.isVisible = false
-
                     if (!response.isSuccessful) {
                         binding.textProductsEmpty.isVisible = true
                         Toast.makeText(requireContext(), "상품을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
                         return
                     }
-
                     val rawData = response.body()?.data ?: run {
                         binding.textProductsEmpty.isVisible = true
                         return
                     }
-
                     try {
                         val gson = Gson()
                         val listType = object : TypeToken<List<ProductListDTO>>() {}.type
-                        val productList: List<ProductListDTO> =
-                            gson.fromJson(gson.toJson(rawData), listType)
-
+                        val productList: List<ProductListDTO> = gson.fromJson(gson.toJson(rawData), listType)
                         if (productList.isEmpty()) {
                             binding.textProductsEmpty.isVisible = true
                         } else {
@@ -256,7 +246,6 @@ class HomeFragment : Fragment() {
                         Log.e("HOME_PRODUCTS", "상품 목록 파싱 오류", e)
                     }
                 }
-
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
                     binding.productsProgress.isVisible = false
                     binding.textProductsEmpty.isVisible = true
@@ -264,7 +253,6 @@ class HomeFragment : Fragment() {
             })
     }
 
-    /** 🔵 전역 인기 검색어 */
     private fun loadPopularSearches() {
         RetrofitClient.getApiService().getPopularSearches()
             .enqueue(object : Callback<MsgEntity> {
@@ -273,18 +261,14 @@ class HomeFragment : Fragment() {
                         togglePopularList(false)
                         return
                     }
-
                     val rawData = response.body()?.data ?: run {
                         togglePopularList(false)
                         return
                     }
-
                     try {
                         val gson = Gson()
                         val listType = object : TypeToken<List<PopularSearchDTO>>() {}.type
-                        val popularList: List<PopularSearchDTO> =
-                            gson.fromJson(gson.toJson(rawData), listType)
-
+                        val popularList: List<PopularSearchDTO> = gson.fromJson(gson.toJson(rawData), listType)
                         if (popularList.isEmpty()) {
                             togglePopularList(false)
                         } else {
@@ -295,20 +279,19 @@ class HomeFragment : Fragment() {
                         togglePopularList(false)
                     }
                 }
-
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
                     togglePopularList(false)
                 }
             })
     }
 
-    /** 🔵 최근 검색어 불러오기 */
     private fun loadSearchHistory() {
         RetrofitClient.getApiService().getMySearchHistory()
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (!response.isSuccessful) return
 
+                    // 🚨 [수정] 변수명을 raw -> rawData로 변경
                     val rawData = response.body()?.data ?: run {
                         renderHistoryChips(emptyList())
                         return
@@ -317,6 +300,7 @@ class HomeFragment : Fragment() {
                     try {
                         val gson = Gson()
                         val listType = object : TypeToken<List<SearchHistoryDTO>>() {}.type
+                        // 이제 rawData가 존재하므로 에러가 나지 않습니다.
                         val historyList: List<SearchHistoryDTO> =
                             gson.fromJson(gson.toJson(rawData), listType)
 
@@ -335,16 +319,12 @@ class HomeFragment : Fragment() {
     private fun renderHistoryChips(historyList: List<SearchHistoryDTO>) {
         val chipGroup = binding.chipGroupPopular
         chipGroup.removeAllViews()
-
         if (historyList.isEmpty()) return
-
         for (item in historyList) {
             val chip = Chip(requireContext()).apply {
                 text = item.keyword
                 isCheckable = false
-                setOnClickListener {
-                    moveToSearchResult(item.keyword, false)
-                }
+                setOnClickListener { moveToSearchResult(item.keyword, false) }
             }
             chipGroup.addView(chip)
         }

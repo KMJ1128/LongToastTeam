@@ -102,52 +102,52 @@
                     android:id="@+id/text_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="4dp"
                     android:text="상품 제목"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
                     android:textColor="#111111"
-                    android:layout_marginBottom="4dp"/>
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/text_category_time"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
                     android:text="카테고리 · 1분 전"
-                    android:textSize="13sp"
                     android:textColor="#888888"
-                    android:layout_marginBottom="16dp"/>
+                    android:textSize="13sp" />
 
                 <TextView
                     android:id="@+id/text_price"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="2dp"
                     android:text="2,500원"
-                    android:textSize="24sp"
-                    android:textStyle="bold"
                     android:textColor="#111111"
-                    android:layout_marginBottom="2dp"/>
+                    android:textSize="24sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/text_deposit"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="24dp"
                     android:text="(보증금 없음)"
-                    android:textSize="13sp"
                     android:textColor="#666666"
-                    android:layout_marginBottom="24dp"/>
+                    android:textSize="13sp" />
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="#EEEEEE"
-                    android:layout_marginBottom="24dp"/>
+                    android:layout_marginBottom="24dp"
+                    android:background="#EEEEEE" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="24dp"
                     android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:layout_marginBottom="24dp">
+                    android:orientation="horizontal">
 
                     <de.hdodenhof.circleimageview.CircleImageView
                         android:id="@+id/image_seller_profile"
@@ -155,45 +155,43 @@
                         android:layout_height="48dp"
                         android:src="@drawable/ic_person"
                         app:civ_border_color="#EEEEEE"
-                        app:civ_border_width="1dp"/>
+                        app:civ_border_width="1dp" />
 
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:layout_marginStart="12dp">
+                        android:layout_marginStart="12dp"
+                        android:orientation="vertical">
 
                         <TextView
                             android:id="@+id/text_seller_nickname"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="판매자 닉네임"
+                            android:textColor="#333333"
                             android:textSize="16sp"
-                            android:textStyle="bold"
-                            android:textColor="#333333"/>
+                            android:textStyle="bold" />
 
                         <TextView
                             android:id="@+id/text_seller_address"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="서울 구로구"
-                            android:textSize="13sp"
-                            android:textColor="#888888"/>
+                            android:textColor="#888888"
+                            android:textSize="13sp" />
                     </LinearLayout>
                 </LinearLayout>
 
-                <!-- 🔥 여기부터 상세 설명 -->
                 <TextView
                     android:id="@+id/text_description"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="내용"
-                    android:textSize="16sp"
+                    android:layout_marginBottom="24dp"
                     android:lineSpacingExtra="6dp"
+                    android:text="내용"
                     android:textColor="#333333"
-                    android:layout_marginBottom="24dp"/>
+                    android:textSize="16sp" />
 
-                <!-- 대황 네이버 맵뷰 -->
                 <com.naver.maps.map.MapView
                     android:id="@+id/detailMapView"
                     android:layout_width="match_parent"
@@ -203,21 +201,20 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
                     android:text="대여 가능 날짜"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
                     android:textColor="#111111"
-                    android:layout_marginBottom="12dp"/>
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
 
                 <com.prolificinteractive.materialcalendarview.MaterialCalendarView
                     android:id="@+id/calendar_availability"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:mcv_showOtherDates="all"
-                    app:mcv_selectionMode="range"
-                    android:padding="8dp"
                     android:layout_marginBottom="20dp"
-                    />
+                    android:padding="8dp"
+                    app:mcv_selectionMode="range"
+                    app:mcv_showOtherDates="all" />
 
                 <TextView
                     android:id="@+id/text_reserved_periods"
@@ -226,7 +223,7 @@
                     android:layout_marginTop="8dp"
                     android:textColor="#d32f2f"
                     android:textSize="13sp"
-                    android:visibility="gone"/>
+                    android:visibility="gone" />
 
             </LinearLayout>
         </LinearLayout>
@@ -282,5 +279,19 @@
 
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/lottie_add_cart"
+        android:layout_width="250dp"
+        android:layout_height="250dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:lottie_rawRes="@raw/add_to_cart_success"
+        app:lottie_autoPlay="false"
+        app:lottie_loop="false"
+        android:visibility="gone"
+        android:elevation="30dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
