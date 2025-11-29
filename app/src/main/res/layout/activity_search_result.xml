@@ -55,9 +55,9 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="4dp"
-                        android:text="내 위치"
+                        android:text="내 위치 표시"
                         android:textColor="@color/white"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
@@ -130,8 +130,8 @@
                 android:layout_height="48dp"
                 android:background="@drawable/bg_rounded_white"
                 app:iconifiedByDefault="false"
-                app:queryHint="다른 물건 검색하기"
-                app:searchIcon="@drawable/ic_search" />
+                app:queryHint="다른 물건 검색하기"/>
+<!--                app:searchIcon="@drawable/ic_search" -->
         </LinearLayout>
 
         <!-- 🔹 검색어 + 정렬 버튼 행 (두 번째 레이아웃 info_bar + 첫 번째 레이아웃 sort 버튼들 결합) -->
