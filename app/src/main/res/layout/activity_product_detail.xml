@@ -172,11 +172,12 @@
                             android:textStyle="bold"
                             android:textColor="#333333"/>
 
+                        <!-- 🔥 여기엔 이제 신용점수 표시 -->
                         <TextView
                             android:id="@+id/text_seller_address"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="서울 구로구"
+                            android:text="신용점수 720점"
                             android:textSize="13sp"
                             android:textColor="#888888"/>
                     </LinearLayout>
@@ -197,6 +198,17 @@
                     android:layout_width="match_parent"
                     android:layout_height="200dp"
                     android:layout_marginTop="8dp" />
+
+                <!-- 🔥 새로 추가된 거래 주소 TextView -->
+                <TextView
+                    android:id="@+id/text_trade_address"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="20dp"
+                    android:text="서울 구로구 고척동"
+                    android:textSize="14sp"
+                    android:textColor="#555555"/>
 
                 <TextView
                     android:layout_width="wrap_content"

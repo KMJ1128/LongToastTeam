@@ -6,21 +6,20 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.longtoast.bilbil.R
-import com.longtoast.bilbil.dto.PopularSearchDTO
 
 class PopularSearchAdapter(
-    private var items: List<PopularSearchDTO>,
+    private var items: List<String>,
     private val onKeywordClick: (String) -> Unit
 ) : RecyclerView.Adapter<PopularSearchAdapter.PopularViewHolder>() {
 
     inner class PopularViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val textKeyword: TextView = itemView.findViewById(R.id.text_keyword)
 
-        fun bind(item: PopularSearchDTO) {
-            textKeyword.text = item.keyword
+        fun bind(keyword: String) {
+            textKeyword.text = keyword
 
             itemView.setOnClickListener {
-                onKeywordClick(item.keyword)
+                onKeywordClick(keyword)
             }
         }
     }
@@ -37,7 +36,7 @@ class PopularSearchAdapter(
 
     override fun getItemCount(): Int = items.size
 
-    fun updateList(newItems: List<PopularSearchDTO>) {
+    fun updateList(newItems: List<String>) {
         items = newItems
         notifyDataSetChanged()
     }

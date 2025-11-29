@@ -1,6 +1,6 @@
+// com.longtoast.bilbil.ProductDetailActivity.kt
 package com.longtoast.bilbil
 
-import android.animation.Animator
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
+import com.bumptech.glide.Glide
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.longtoast.bilbil.adapter.DetailImageAdapter
@@ -17,7 +18,7 @@ import com.longtoast.bilbil.databinding.ActivityProductDetailBinding
 import com.longtoast.bilbil.dto.ChatRoomCreateRequest
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ProductDTO
-import com.prolificinteractive.materialcalendarview.*
+import com.prolificinteractive.materialcalendarview.CalendarDay
 import com.prolificinteractive.materialcalendarview.DayViewDecorator
 import com.prolificinteractive.materialcalendarview.DayViewFacade
 import kotlinx.coroutines.launch
@@ -27,7 +28,6 @@ import retrofit2.Response
 import java.text.DecimalFormat
 import java.time.LocalDate
 
-// 네이버 지도 관련 import
 import com.naver.maps.map.MapView
 import com.naver.maps.map.NaverMap
 import com.naver.maps.map.OnMapReadyCallback
@@ -46,7 +46,6 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
     private var naverMap: NaverMap? = null
     private val marker = Marker()
 
-    // 대여된 날짜 저장 리스트
     private val blackoutDates = mutableListOf<CalendarDay>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,15 +75,11 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         currentProduct?.let { addMarkerAndMove(it) }
     }
 
-    // -------------------------------------------------------------
-    // 리스너 설정
-    // -------------------------------------------------------------
     private fun setupListeners() {
         binding.btnBack.setOnClickListener { finish() }
 
         binding.btnStartChat.setOnClickListener { startChatting() }
 
-        // 장바구니 버튼 리스너
         binding.btnCart.setOnClickListener {
             addToCart()
         }
@@ -107,17 +102,12 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
                 putExtra("LENDER_ID", p.userId)
                 putExtra("SELLER_NICKNAME", p.sellerNickname)
                 putExtra("IMAGE_URL", p.imageUrls?.firstOrNull())
-
-                // ⭐⭐⭐ 필수: RentRequestActivity가 필요로 하는 구매자 ID 추가 ⭐⭐⭐
                 putExtra("BORROWER_ID", myId)
             }
             startActivity(intent)
         }
     }
 
-    // -------------------------------------------------------------
-    // 장바구니 & 애니메이션 로직
-    // -------------------------------------------------------------
     private fun addToCart() {
         val product = currentProduct
         if (product == null) {
@@ -134,26 +124,23 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             visibility = View.VISIBLE
             playAnimation()
 
-            addAnimatorListener(object : Animator.AnimatorListener {
-                override fun onAnimationStart(animation: Animator) {}
+            addAnimatorListener(object : android.animation.Animator.AnimatorListener {
+                override fun onAnimationStart(animation: android.animation.Animator) {}
 
-                override fun onAnimationEnd(animation: Animator) {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
                     visibility = View.GONE
                     Toast.makeText(this@ProductDetailActivity, "장바구니에 담겼습니다.", Toast.LENGTH_SHORT).show()
                 }
 
-                override fun onAnimationCancel(animation: Animator) {
+                override fun onAnimationCancel(animation: android.animation.Animator) {
                     visibility = View.GONE
                 }
 
-                override fun onAnimationRepeat(animation: Animator) {}
+                override fun onAnimationRepeat(animation: android.animation.Animator) {}
             })
         }
     }
 
-    // -------------------------------------------------------------
-    // 서버 통신 로직 (상품 상세 정보 불러오기)
-    // -------------------------------------------------------------
     private fun loadProductDetail(itemId: Int) {
         lifecycleScope.launch {
             try {
@@ -162,18 +149,26 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
                     val raw = response.body()!!.data
                     val product = Gson().fromJson(Gson().toJson(raw), ProductDTO::class.java)
                     currentProduct = product
+                    Log.d("ProductDetail", "sellerProfileImageUrl from API = ${product.sellerProfileImageUrl}")
                     updateUI(product)
                     naverMap?.let { addMarkerAndMove(product) }
+                } else {
+                    Toast.makeText(this@ProductDetailActivity, "상품 정보를 가져오지 못했습니다.", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Log.e("ProductDetail", "Load Error", e)
+                Toast.makeText(this@ProductDetailActivity, "상품 정보를 불러오는 중 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     private fun updateUI(product: ProductDTO) {
         binding.textTitle.text = product.title
-        binding.textCategoryTime.text = "${product.category ?: "기타"} · 1분 전"
+
+        val timeAgo = TimeAgoUtils.formatKorean(product.createdAt)
+        val categoryLabel = product.category ?: "기타"
+        binding.textCategoryTime.text = "$categoryLabel · $timeAgo"
+
         binding.textDescription.text = product.description ?: ""
 
         val priceStr = numberFormat.format(product.price)
@@ -185,7 +180,27 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             if (deposit > 0) "보증금 ${numberFormat.format(deposit)}원" else "(보증금 없음)"
 
         binding.textSellerNickname.text = product.sellerNickname ?: "알 수 없음"
-        binding.textSellerAddress.text = product.address ?: product.tradeLocation ?: "위치 미설정"
+
+        val creditScore = product.sellerCreditScore ?: 0
+        binding.textSellerAddress.text = "신용점수 ${creditScore}점"
+
+        val fullTradeAddress = product.tradeLocation ?: product.address ?: "거래 위치 정보 없음"
+        binding.textTradeAddress.text = fullTradeAddress
+
+        // 🔥 프로필 이미지: resolve() 쓰지 말고 그대로
+        val profileUrl = product.sellerProfileImageUrl
+        Log.d("ProductDetail", "Glide load profileUrl = $profileUrl")
+
+        if (!profileUrl.isNullOrBlank()) {
+            Glide.with(this)
+                .load(profileUrl)
+                .placeholder(R.drawable.no_profile)
+                .error(R.drawable.no_profile)
+                .circleCrop()
+                .into(binding.imageSellerProfile)
+        } else {
+            binding.imageSellerProfile.setImageResource(R.drawable.no_profile)
+        }
 
         val images = product.imageUrls?.mapNotNull { ImageUrlUtils.resolve(it) } ?: emptyList()
         if (images.isNotEmpty()) {
@@ -201,9 +216,6 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // -------------------------------------------------------------
-    // 대여 일정 확인 로직
-    // -------------------------------------------------------------
     private fun loadRentalSchedules(itemId: Long) {
         RetrofitClient.getApiService()
             .getRentalSchedules(itemId)
@@ -217,7 +229,9 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
                     applyCalendarBlackout(schedules)
                 }
 
-                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {}
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Log.e("ProductDetail", "loadRentalSchedules failed", t)
+                }
             })
     }
 
@@ -304,19 +318,43 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
                     }
                 }
 
-                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {}
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Log.e("ProductDetail", "createChatRoom failed", t)
+                    Toast.makeText(this@ProductDetailActivity, "채팅방 생성에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                }
             })
     }
 
-    // -------------------------------------------------------------
-    // 네이버 지도 생명주기
-    // -------------------------------------------------------------
-    override fun onStart() { super.onStart(); mapView.onStart() }
-    override fun onResume() { super.onResume(); mapView.onResume() }
-    override fun onPause() { mapView.onPause(); super.onPause() }
-    override fun onStop() { mapView.onStop(); super.onStop() }
-    override fun onDestroy() { mapView.onDestroy(); super.onDestroy() }
-    override fun onLowMemory() { super.onLowMemory(); mapView.onLowMemory() }
+    override fun onStart() {
+        super.onStart()
+        mapView.onStart()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        mapView.onResume()
+    }
+
+    override fun onPause() {
+        mapView.onPause()
+        super.onPause()
+    }
+
+    override fun onStop() {
+        mapView.onStop()
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        mapView.onDestroy()
+        super.onDestroy()
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        mapView.onLowMemory()
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         mapView.onSaveInstanceState(outState)
