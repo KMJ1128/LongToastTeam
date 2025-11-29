@@ -13,7 +13,7 @@ data class MemberDTO(
 
     // 💡 [핵심 추가] 백엔드 DTO와의 통일성을 위해 username 필드 추가
     val username: String?,
-
+    val phoneNumber: String?,
     // 2. 주소 및 위치 정보 (업데이트 항목)
     val address: String?,
     val locationLatitude: Double?,

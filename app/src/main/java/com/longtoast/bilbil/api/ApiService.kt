@@ -14,6 +14,7 @@ import com.longtoast.bilbil.dto.ProductCreateRequest
 import com.longtoast.bilbil.dto.RentalApproveRequest
 import com.longtoast.bilbil.dto.RentalDecisionRequest
 import com.longtoast.bilbil.dto.RentalRequest
+import com.longtoast.bilbil.dto.VerifyRequest
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
@@ -163,5 +164,19 @@ interface ApiService {
     // 🟢 [수정] 내가 받은 리뷰 조회
     @GET("/reviews/received")
     fun getMyReceivedReviews(): Call<MsgEntity>
+
+
+    // 1. 서버에 인증 요청 (서버가 코드를 생성하고 SMS URL을 반환)
+    @POST("/member/verification/request")
+    fun requestVerification(
+        @Body request: VerifyRequest // VerifyRequest DTO 사용 (전화번호 필드 포함)
+    ): Call<MsgEntity>
+
+    // 2. 사용자가 문자를 보낸 후, 서버에 메일함 확인 및 인증 완료 요청
+    @POST("/member/verification/confirm")
+    fun confirmVerification(
+        @Body request: VerifyRequest // VerifyRequest DTO 사용 (전화번호 필드 포함)
+    ): Call<MsgEntity>
+
 
 }

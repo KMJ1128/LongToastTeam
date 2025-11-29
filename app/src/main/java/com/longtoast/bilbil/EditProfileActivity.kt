@@ -56,6 +56,8 @@ class EditProfileActivity : AppCompatActivity() {
     private var currentLatitude: Double = 0.0
     private var currentLongitude: Double = 0.0
     private var currentUserId: Int = 0
+
+    private var currentPhoneNumber: String? = null
     private var currentUsername: String? = null
     private var currentCreditScore: Int = 720
 
@@ -146,6 +148,7 @@ class EditProfileActivity : AppCompatActivity() {
                         currentNickname = member.nickname ?: ""
                         currentUsername = member.username
                         currentAddress = member.address ?: "위치 미설정"
+                        currentPhoneNumber=member.phoneNumber ?: ""
                         currentLatitude = member.locationLatitude ?: 0.0
                         currentLongitude = member.locationLongitude ?: 0.0
                         currentCreditScore = member.creditScore ?: 720
@@ -328,6 +331,7 @@ class EditProfileActivity : AppCompatActivity() {
             nickname = newNickname,  // 🆕 변경
             username = currentUsername,
             address = currentAddress,
+            phoneNumber = currentPhoneNumber,
             locationLatitude = currentLatitude,
             locationLongitude = currentLongitude,
             creditScore = currentCreditScore,
