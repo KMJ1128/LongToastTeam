@@ -94,7 +94,7 @@ class SettingProfileActivity : AppCompatActivity() {
             AuthTokenManager.saveUserId(userId)
         }
         initViews()
-        displayData()
+//        displayData()
         setupListeners()
     }
 
@@ -122,16 +122,16 @@ class SettingProfileActivity : AppCompatActivity() {
         buttonComplete = findViewById(R.id.button_complete)
     }
 
-    private fun displayData() {
-        editNickname.setText(userNickname)
-
-        // 🟢 [수정] 인증된 번호가 있으면 UI 메시지를 업데이트합니다.
-        if (verifiedPhoneNumber != null) {
-            textLocationInfo.text = "인증 완료 (전화번호: ${verifiedPhoneNumber!!.takeLast(4)}). 지역 설정 단계로 넘어갑니다."
-        } else {
-            textLocationInfo.text = "지역 선택 단계에서 설정됩니다."
-        }
-    }
+//    private fun displayData() {
+//        editNickname.setText(userNickname)
+//
+//        // 🟢 [수정] 인증된 번호가 있으면 UI 메시지를 업데이트합니다.
+//        if (verifiedPhoneNumber != null) {
+//            textLocationInfo.text = "인증 완료. 지역 설정 단계로 넘어갑니다."
+//        } else {
+//            textLocationInfo.text = "지역 선택 단계에서 설정됩니다."
+//        }
+//    }
 
     private fun setupListeners() {
         fabChangePhoto.setOnClickListener {
