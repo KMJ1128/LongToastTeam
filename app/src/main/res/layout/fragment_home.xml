@@ -27,6 +27,7 @@
                 android:id="@+id/location_container"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:orientation="horizontal"
                 android:gravity="center_vertical"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
@@ -44,11 +45,11 @@
                     android:id="@+id/location_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="내 위치"
-                    android:textColor="@color/white"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:layout_marginStart="6dp"/>
+                    android:layout_marginStart="4dp"
+                    android:text="내 위치 설정"
+                    android:textColor="@android:color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
             <LinearLayout
@@ -114,6 +115,8 @@
             android:background="@drawable/bg_rounded_white"
             app:iconifiedByDefault="false"
             app:queryHint="근처 물건을 검색해 보세요"/>
+
+        <!-- ⛔ 여기엔 이제 아무 버튼도 안 둠 (지역 필터는 검색 결과 화면으로 이동) -->
 
     </LinearLayout>
 

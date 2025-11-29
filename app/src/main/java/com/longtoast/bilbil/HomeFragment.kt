@@ -1,5 +1,6 @@
 package com.longtoast.bilbil
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -7,6 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.widget.SearchView
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
@@ -42,10 +44,36 @@ class HomeFragment : Fragment() {
     private lateinit var productAdapter: ProductAdapter
     private lateinit var productLayoutManager: RecyclerView.LayoutManager
 
+    // 🔹 서버에서 가져온 전체 상품 목록 (정렬 후 그대로 저장)
+    private var originalProducts: List<ProductListDTO> = emptyList()
+
+    // 🔹 사용자가 RegionSelectionActivity에서 선택한 "동까지 주소"
+    private var selectedFilterAddress: String? = null
+
+    // 🔹 동 선택 화면(RegionSelectionActivity) 런처
+    private val regionFilterLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
+            val data = result.data ?: return@registerForActivityResult
+
+            // RegionSelectionActivity에서 넘겨준 최종 주소 (도 시/구 동)
+            val address =
+                data.getStringExtra(RegionSelectionActivity.EXTRA_ADDRESS) ?: return@registerForActivityResult
+
+            // 선택한 주소를 필터 기준으로 저장
+            selectedFilterAddress = address
+
+            // 상단 "내 위치" 텍스트를 선택한 주소로 변경
+            binding.locationText.text = address
+
+            // 현재 가지고 있는 originalProducts 기준으로 필터 적용
+            applyCurrentFilter()
+        }
+
     override fun onResume() {
         super.onResume()
-        loadMyLocation()
-        loadPopularSearches()     // 상단 Chip "인기 검색어"
+        loadMyLocation()       // 내 프로필 + 기본 주소
+        loadPopularSearches()  // 상단 Chip "인기 검색어"
         updateCartBadge()
     }
 
@@ -80,6 +108,14 @@ class HomeFragment : Fragment() {
         // 3. 당겨서 새로고침
         binding.swipeRefreshLayout.setOnRefreshListener {
             loadProducts(isRefresh = true)
+        }
+
+        // 🔹 상단 위치 영역 클릭 시 → 동 선택 화면으로 이동
+        binding.locationContainer.setOnClickListener {
+            val intent = Intent(requireContext(), RegionSelectionActivity::class.java).apply {
+                putExtra(RegionSelectionActivity.EXTRA_MODE, RegionSelectionActivity.MODE_FILTER)
+            }
+            regionFilterLauncher.launch(intent)
         }
 
         setupSearchBar()
@@ -121,7 +157,11 @@ class HomeFragment : Fragment() {
                         val type = object : TypeToken<MemberDTO>() {}.type
                         val member: MemberDTO = gson.fromJson(gson.toJson(raw), type)
 
-                        binding.locationText.text = member.address ?: "내 위치"
+                        // 👉 아직 필터로 주소를 선택하지 않았다면, 서버에서 받은 주소를 표시
+                        if (selectedFilterAddress.isNullOrEmpty()) {
+                            binding.locationText.text = member.address ?: "내 위치"
+                        }
+
                         val fullUrl = ImageUrlUtils.resolve(member.profileImageUrl)
                         if (!fullUrl.isNullOrEmpty()) {
                             Glide.with(requireContext())
@@ -130,7 +170,7 @@ class HomeFragment : Fragment() {
                                 .into(binding.profileImage)
                         }
 
-                        // 주소 정보 저장 (근처 물건 필터링에 사용)
+                        // 주소 정보 저장 (근처 물건 필터링의 기본값으로 사용)
                         if (!member.address.isNullOrEmpty()) {
                             AuthTokenManager.saveAddress(member.address)
                         }
@@ -157,7 +197,6 @@ class HomeFragment : Fragment() {
             setOnClickListener {
                 if (isIconified) setIconified(false)
                 requestFocus()
-                // 검색창 클릭 시: 아래 리스트에 "최근 검색어" 표시
                 togglePopularList(true)
                 loadSearchHistory()
             }
@@ -212,7 +251,6 @@ class HomeFragment : Fragment() {
         val categoryList = listOf("자전거", "가구", "캠핑", "전자제품", "운동", "의류")
         binding.categoryRecyclerView.layoutManager = GridLayoutManager(requireContext(), 3)
         binding.categoryRecyclerView.adapter = CategoryAdapter(categoryList) { categoryName ->
-            // 카테고리 클릭 → 카테고리 검색 모드로 SearchResultActivity 이동
             moveToSearchResult(categoryName, true)
         }
     }
@@ -258,7 +296,9 @@ class HomeFragment : Fragment() {
     }
 
     // ----------------------------------------------------
-    // 근처 인기 물건 로드 (Lottie + 새로고침 + 최신순 + 지역 필터)
+    // 근처 인기 물건 로드 (Lottie + 새로고침 + 최신순)
+    //   → 여기서는 "전체 목록만 가져오고"
+    //   → 필터링은 applyCurrentFilter()에서 처리
     // ----------------------------------------------------
     private fun loadProducts(isRefresh: Boolean) {
         // 새로고침 제스처가 아닐 때만 Lottie 로더 표시
@@ -269,9 +309,6 @@ class HomeFragment : Fragment() {
         }
 
         binding.textProductsEmpty.isVisible = false
-
-        val myFullAddress = AuthTokenManager.getAddress() ?: ""
-        val myRegionKeyword = myFullAddress.split(" ").getOrNull(1) ?: ""
 
         RetrofitClient.getApiService().getProductLists()
             .enqueue(object : Callback<MsgEntity> {
@@ -298,30 +335,11 @@ class HomeFragment : Fragment() {
                         // 1) 최신순 정렬 (id 기준 내림차순)
                         val sortedProducts = allProducts.sortedByDescending { it.id }
 
-                        // 2) 내 주소의 "구" 기준으로 필터링
-                        val filteredList = if (myRegionKeyword.isNotEmpty()) {
-                            sortedProducts.filter { product ->
-                                product.address?.contains(myRegionKeyword) == true
-                            }
-                        } else {
-                            sortedProducts
-                        }
+                        // 🔹 서버에서 받은 전체 목록을 저장해 두고
+                        originalProducts = sortedProducts
 
-                        // 3) 결과 표시
-                        if (filteredList.isEmpty()) {
-                            if (myRegionKeyword.isNotEmpty()) {
-                                binding.textProductsEmpty.text =
-                                    "'$myRegionKeyword' 근처에\n등록된 최신 물품이 없습니다."
-                            } else {
-                                binding.textProductsEmpty.text = "등록된 물품이 없습니다."
-                            }
-                            binding.textProductsEmpty.isVisible = true
-                            productAdapter.updateList(emptyList())
-                        } else {
-                            binding.textProductsEmpty.isVisible = false
-                            binding.recyclerProducts.isVisible = true
-                            productAdapter.updateList(filteredList)
-                        }
+                        // 🔹 현재 선택된 필터(동 or 내 주소) 기준으로 필터링
+                        applyCurrentFilter()
 
                     } catch (e: Exception) {
                         binding.textProductsEmpty.isVisible = true
@@ -332,8 +350,70 @@ class HomeFragment : Fragment() {
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
                     stopLoading()
                     binding.textProductsEmpty.isVisible = true
+                    binding.recyclerProducts.isVisible = false
+                    productAdapter.updateList(emptyList())
                 }
             })
+    }
+
+    // ----------------------------------------------------
+    // 🔥 핵심: 현재 상태(선택된 동 / 내 주소)에 맞춰 필터링해서 화면에 반영
+    // ----------------------------------------------------
+    private fun applyCurrentFilter() {
+        if (!isAdded) return
+
+        val all = originalProducts
+
+        if (all.isEmpty()) {
+            binding.recyclerProducts.isVisible = false
+            binding.textProductsEmpty.isVisible = true
+            binding.textProductsEmpty.text = "등록된 물품이 없습니다."
+            productAdapter.updateList(emptyList())
+            return
+        }
+
+        val filtered: List<ProductListDTO>
+        val keywordForMessage: String?
+
+        if (!selectedFilterAddress.isNullOrEmpty()) {
+            // 🔹 사용자가 동까지 선택한 경우 → 그 주소 기준으로 필터
+            val target = selectedFilterAddress!!
+            filtered = all.filter { product ->
+                val addr = product.address ?: return@filter false
+                addr.startsWith(target) || addr.contains(target)
+            }
+            keywordForMessage = target
+        } else {
+            // 🔹 아직 동 필터를 선택하지 않은 경우 → 기존처럼 "내 주소의 구" 기준으로 필터
+            val myFullAddress = AuthTokenManager.getAddress() ?: ""
+            val myRegionKeyword = myFullAddress.split(" ").getOrNull(1) ?: ""  // 예: "구로구"
+
+            if (myRegionKeyword.isNotEmpty()) {
+                filtered = all.filter { product ->
+                    product.address?.contains(myRegionKeyword) == true
+                }
+                keywordForMessage = myRegionKeyword
+            } else {
+                // 주소 정보가 전혀 없으면 전체 목록
+                filtered = all
+                keywordForMessage = null
+            }
+        }
+
+        if (filtered.isEmpty()) {
+            binding.recyclerProducts.isVisible = false
+            binding.textProductsEmpty.isVisible = true
+            binding.textProductsEmpty.text =
+                if (!keywordForMessage.isNullOrEmpty())
+                    "'$keywordForMessage' 근처에\n등록된 최신 물품이 없습니다."
+                else
+                    "등록된 물품이 없습니다."
+            productAdapter.updateList(emptyList())
+        } else {
+            binding.textProductsEmpty.isVisible = false
+            binding.recyclerProducts.isVisible = true
+            productAdapter.updateList(filtered)
+        }
     }
 
     // Lottie & SwipeRefresh 로딩 종료 공통 처리
