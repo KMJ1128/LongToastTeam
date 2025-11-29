@@ -47,6 +47,8 @@
         android:id="@+id/fab_change_photo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        app:backgroundTint="#56C8A5"
+        app:tint="#D5FFEE"
         android:src="@android:drawable/ic_menu_camera"
         app:fabSize="normal"
         app:layout_constraintEnd_toEndOf="@id/card_profile_image"
@@ -138,6 +140,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="16dp"
+        app:backgroundTint="@color/colorPrimary"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -182,7 +182,7 @@ class MainActivity : AppCompatActivity() {
 
             // 🟢 [핵심] 전화번호 누락 여부 확인
             //
-             val isPhoneNumberMissing = memberTokenResponse.phoneNumber.isNullOrEmpty()
+            val isPhoneNumberMissing = memberTokenResponse.phoneNumber.isNullOrEmpty()
 
             val isAddressMissing =
                 memberTokenResponse.address.isNullOrEmpty() ||

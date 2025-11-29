@@ -44,24 +44,17 @@
     <!-- 카메라 버튼 -->
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
-
         android:id="@+id/fab_change_photo"
-
         android:layout_width="wrap_content"
-
         android:layout_height="wrap_content"
-
         android:src="@android:drawable/ic_menu_camera"
-
         app:fabSize="normal"
-
         app:layout_constraintEnd_toEndOf="@id/card_profile_image"
-
         app:layout_constraintBottom_toBottomOf="@id/card_profile_image"
-
         android:layout_marginEnd="-8dp"
-
         android:layout_marginBottom="-8dp"
+        app:backgroundTint="#56C8A5"
+        app:tint="#D5FFEE"
 
         android:contentDescription="사진 변경" />
 
