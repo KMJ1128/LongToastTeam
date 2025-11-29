@@ -1,5 +1,6 @@
 package com.longtoast.bilbil
 
+import android.content.Intent
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -27,6 +28,10 @@ class ChatAdapter(
 
     private val currentUserIdInt: Int? = currentUserId.toIntOrNull()
 
+    // 🔥 상대방 정보 (1:1 채팅 기준으로 사용)
+    private var partnerNickname: String? = null
+    private var partnerProfileImageUrl: String? = null
+
     private val serverFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
     private val displayFormat = SimpleDateFormat("a h:mm", Locale.getDefault())
     private val dateKeyFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -34,10 +39,19 @@ class ChatAdapter(
     private val gson = Gson()
 
     private val actionPrefix = "[RENT_CONFIRM]"
+    private val numberFormat = java.text.DecimalFormat("#,###")
 
     private fun resolveImageUrl(relativeOrFull: String?): String? {
         if (relativeOrFull.isNullOrEmpty()) return null
         return ImageUrlUtils.resolve(relativeOrFull)
+    }
+
+    // 🔥 외부에서 상대방 정보 셋팅하는 메서드
+    fun setPartnerInfo(nickname: String?, profileImageUrl: String?) {
+        Log.d("ChatAdapter", "setPartnerInfo: $nickname, $profileImageUrl")
+        partnerNickname = nickname
+        partnerProfileImageUrl = profileImageUrl
+        notifyDataSetChanged()
     }
 
     // -----------------------------
@@ -61,7 +75,15 @@ class ChatAdapter(
             if (!fullUrl.isNullOrEmpty()) {
                 imageAttachment?.visibility = View.VISIBLE
                 Glide.with(imageAttachment!!.context).load(fullUrl).into(imageAttachment)
-            } else imageAttachment?.visibility = View.GONE
+
+                // 🔥 이미지 클릭 시 풀스크린으로 보기
+                imageAttachment.setOnClickListener {
+                    openImageFullscreen(it, fullUrl)
+                }
+            } else {
+                imageAttachment?.visibility = View.GONE
+                imageAttachment?.setOnClickListener(null)
+            }
 
             timestampText.text = formatTime(message.sentAt)
             bindDateHeader(dateHeader, position, message)
@@ -78,22 +100,50 @@ class ChatAdapter(
         private val nicknameText: TextView = view.findViewById(R.id.text_nickname_received)
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_received)
         private val dateHeader: TextView = view.findViewById(R.id.text_date_header_received)
+        private val profileImage: ImageView = view.findViewById(R.id.image_profile_received)
 
         fun bind(message: ChatMessage, position: Int) {
 
+            // 🔥 상대방 이름 표시
+            nicknameText.text = partnerNickname ?: "상대방"
+
+            // 🔥 상대방 프로필 이미지 표시
+            val profileUrl = resolveImageUrl(partnerProfileImageUrl)
+            if (!profileUrl.isNullOrEmpty()) {
+                profileImage.visibility = View.VISIBLE
+                Glide.with(profileImage.context)
+                    .load(profileUrl)
+                    .placeholder(R.drawable.no_profile)
+                    .error(R.drawable.no_profile)
+                    .circleCrop()
+                    .into(profileImage)
+            } else {
+                profileImage.visibility = View.VISIBLE
+                profileImage.setImageResource(R.drawable.no_profile)
+            }
+
+            // 메시지 내용
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
                 messageText.visibility = View.VISIBLE
             } else messageText.visibility = View.GONE
 
+            // 첨부 이미지
             val fullUrl = resolveImageUrl(message.imageUrl)
             if (!fullUrl.isNullOrEmpty()) {
                 imageAttachment?.visibility = View.VISIBLE
                 Glide.with(imageAttachment!!.context).load(fullUrl).into(imageAttachment)
-            } else imageAttachment?.visibility = View.GONE
+
+                // 🔥 이미지 클릭 시 풀스크린으로 보기
+                imageAttachment.setOnClickListener {
+                    openImageFullscreen(it, fullUrl)
+                }
+            } else {
+                imageAttachment?.visibility = View.GONE
+                imageAttachment?.setOnClickListener(null)
+            }
 
             timestampText.text = formatTime(message.sentAt)
-            nicknameText.text = "상대방(${message.senderId})"
             bindDateHeader(dateHeader, position, message)
         }
     }
@@ -109,7 +159,6 @@ class ChatAdapter(
 
         fun bind(message: ChatMessage, position: Int) {
 
-            // 🔥 핵심 — trimStart() 적용
             val payload = parseActionPayload(message.content)
             val isSender = message.senderId == currentUserIdInt
 
@@ -123,7 +172,6 @@ class ChatAdapter(
                 "만약 다음과 같은 대여에 동의하신다면\n" +
                         "서로 간 대여 확정을 위해서 다음의 버튼을 누르십시오\n\n$rentInfo"
 
-            // 보낸 사람 → 버튼 비활성화
             confirmButton.text = if (isSender) "요청 전송됨" else "대여 확정하기"
             confirmButton.isEnabled = !isSender && payload != null
 
@@ -156,9 +204,29 @@ class ChatAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, type: Int): RecyclerView.ViewHolder {
         val inf = LayoutInflater.from(parent.context)
         return when (type) {
-            VIEW_TYPE_SENT -> SentMessageViewHolder(inf.inflate(R.layout.item_chat_message_sent, parent, false))
-            VIEW_TYPE_RENT_ACTION -> RentalActionViewHolder(inf.inflate(R.layout.item_chat_rental_action, parent, false))
-            else -> ReceivedMessageViewHolder(inf.inflate(R.layout.item_chat_message_received, parent, false))
+            VIEW_TYPE_SENT -> SentMessageViewHolder(
+                inf.inflate(
+                    R.layout.item_chat_message_sent,
+                    parent,
+                    false
+                )
+            )
+
+            VIEW_TYPE_RENT_ACTION -> RentalActionViewHolder(
+                inf.inflate(
+                    R.layout.item_chat_rental_action,
+                    parent,
+                    false
+                )
+            )
+
+            else -> ReceivedMessageViewHolder(
+                inf.inflate(
+                    R.layout.item_chat_message_received,
+                    parent,
+                    false
+                )
+            )
         }
     }
 
@@ -192,7 +260,11 @@ class ChatAdapter(
 
         if (key != null && key != prev) {
             view.visibility = View.VISIBLE
-            val date = try { serverFormat.parse(msg.sentAt) } catch (e: Exception) { null }
+            val date = try {
+                serverFormat.parse(msg.sentAt)
+            } catch (e: Exception) {
+                null
+            }
             view.text = date?.let { dateHeaderFormat.format(it) } ?: key
         } else view.visibility = View.GONE
     }
@@ -200,10 +272,11 @@ class ChatAdapter(
     private fun getDateKey(msg: ChatMessage): String? {
         return try {
             serverFormat.parse(msg.sentAt)?.let { dateKeyFormat.format(it) }
-        } catch (_: Exception) { null }
+        } catch (_: Exception) {
+            null
+        }
     }
 
-    // 🔥 핵심: trimStart() 적용한 안전한 payload 파싱
     private fun parseActionPayload(content: String?): RentalActionPayload? {
         if (content.isNullOrEmpty()) return null
 
@@ -218,5 +291,12 @@ class ChatAdapter(
         }
     }
 
-    private val numberFormat = java.text.DecimalFormat("#,###")
+    // 🔥 공통: 풀스크린 이미지 액티비티 열기
+    private fun openImageFullscreen(view: View, imageUrl: String) {
+        val context = view.context
+        val intent = Intent(context, ImagePreviewActivity::class.java).apply {
+            putExtra("IMAGE_URL", imageUrl)
+        }
+        context.startActivity(intent)
+    }
 }

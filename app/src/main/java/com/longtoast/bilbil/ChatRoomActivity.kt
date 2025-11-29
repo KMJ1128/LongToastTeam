@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -60,6 +61,10 @@ class ChatRoomActivity : AppCompatActivity() {
 
     private var isLender: Boolean = false
     private var otherUserId: Int = -1
+
+    // 상대방 정보
+    private var partnerNickname: String? = null
+    private var partnerProfileImageUrl: String? = null
 
     private var nextTempId = -1L
 
@@ -117,22 +122,30 @@ class ChatRoomActivity : AppCompatActivity() {
         intent.getIntExtra("PARTNER_ID", -1)
             .takeIf { it > 0 && otherUserId <= 0 }
             ?.let { otherUserId = it }
-    }
 
+        // 인텐트로 넘어온 초기 상대방 이름 (상품 상세에서 채팅 진입 시)
+        partnerNickname = intent.getStringExtra("SELLER_NICKNAME")
+    }
 
     private fun setupViews() {
         toolbar = findViewById(R.id.toolbar_chat)
         setSupportActionBar(toolbar)
+        // 기본 액션바 타이틀 숨김
+        supportActionBar?.setDisplayShowTitleEnabled(false)
 
         recyclerChat = findViewById(R.id.recycler_view_chat)
         editMessage = findViewById(R.id.edit_text_message)
         buttonSend = findViewById(R.id.button_send)
         buttonAttachImage = findViewById(R.id.button_attach_image)
 
-        val titleText = findViewById<TextView>(R.id.text_chat_title)
+        val partnerNameText = findViewById<TextView>(R.id.text_chat_partner_name)
+        val partnerImage = findViewById<ImageView>(R.id.image_chat_partner)
         val rentAgreeBtn = findViewById<Button>(R.id.btn_rent_agree)
 
-        titleText.text = intent.getStringExtra("SELLER_NICKNAME") ?: "채팅"
+        // 초기에는 인텐트에서 받은 닉네임 사용, 없으면 "채팅"
+        partnerNameText.text = partnerNickname ?: "채팅"
+        // 헤더 프로필 기본값
+        partnerImage.setImageResource(R.drawable.no_profile)
 
         rentAgreeBtn.setOnClickListener {
             Log.d("RENT_BTN", "대여 합의하기 버튼 클릭됨!!!")
@@ -143,15 +156,16 @@ class ChatRoomActivity : AppCompatActivity() {
         rentAgreeBtn.bringToFront()
     }
 
-
     private fun setupRecycler() {
         chatAdapter = ChatAdapter(chatMessages, senderId.toString()) { payload ->
             confirmRental(payload)
         }
         recyclerChat.adapter = chatAdapter
         recyclerChat.layoutManager = LinearLayoutManager(this)
-    }
 
+        // 🔥 인텐트로 이미 알고 있는 상대방 정보가 있다면 어댑터에 먼저 반영
+        chatAdapter.setPartnerInfo(partnerNickname, partnerProfileImageUrl)
+    }
 
     private fun loadChatRoomRoleInfo() {
 
@@ -171,8 +185,35 @@ class ChatRoomActivity : AppCompatActivity() {
                     isLender = (senderId == info.lender.id)
                     otherUserId = if (isLender) info.borrower.id else info.lender.id
 
+                    // 🔥 상대방 정보 결정
+                    partnerNickname = if (isLender) info.borrower.nickname else info.lender.nickname
+                    partnerProfileImageUrl =
+                        if (isLender) info.borrower.profileImageUrl else info.lender.profileImageUrl
+
                     Log.d("ROOM_INFO_ITEM", "itemId=$productId / title=$productTitle / price=$productPrice / img=$productImageUrl")
                     Log.d("ROOM_INFO_ROLE", "isLender=$isLender senderId=$senderId lender=${info.lender.id} borrower=${info.borrower.id}")
+                    Log.d("ROOM_INFO_PARTNER", "partner=$partnerNickname, profile=$partnerProfileImageUrl")
+
+                    // 🔥 헤더 텍스트 & 이미지 갱신
+                    val partnerNameText = findViewById<TextView>(R.id.text_chat_partner_name)
+                    val profileImage = findViewById<ImageView>(R.id.image_chat_partner)
+
+                    partnerNameText.text = partnerNickname ?: "채팅"
+
+                    val fullProfile = ImageUrlUtils.resolve(partnerProfileImageUrl)
+                    if (!fullProfile.isNullOrEmpty()) {
+                        Glide.with(this@ChatRoomActivity)
+                            .load(fullProfile)
+                            .placeholder(R.drawable.no_profile)
+                            .error(R.drawable.no_profile)
+                            .circleCrop()
+                            .into(profileImage)
+                    } else {
+                        profileImage.setImageResource(R.drawable.no_profile)
+                    }
+
+                    // 🔥 채팅 말풍선 쪽에도 같은 정보 반영
+                    chatAdapter.setPartnerInfo(partnerNickname, partnerProfileImageUrl)
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
@@ -180,7 +221,6 @@ class ChatRoomActivity : AppCompatActivity() {
                 }
             })
     }
-
 
     private fun openRentRequestForm() {
 
@@ -221,13 +261,13 @@ class ChatRoomActivity : AppCompatActivity() {
             putExtra("IMAGE_URL", fullImageUrl)
         }
 
-        Log.d("OPEN_FORM",
+        Log.d(
+            "OPEN_FORM",
             "item=$id lender=$realLenderId borrower=$realBorrowerId img=$productImageUrl"
         )
 
         startActivity(intent)
     }
-
 
     private fun setupListeners() {
         buttonSend.setOnClickListener {
@@ -242,7 +282,6 @@ class ChatRoomActivity : AppCompatActivity() {
             pickImageLauncher.launch("image/*")
         }
     }
-
 
     private fun fetchChatHistory() {
         RetrofitClient.getApiService().getChatHistory(roomId)
@@ -266,7 +305,6 @@ class ChatRoomActivity : AppCompatActivity() {
                 }
             })
     }
-
 
     private fun connectWebSocket() {
 
@@ -294,7 +332,6 @@ class ChatRoomActivity : AppCompatActivity() {
             }
         })
     }
-
 
     private fun handleStompFrame(frame: String) {
 
@@ -345,7 +382,6 @@ class ChatRoomActivity : AppCompatActivity() {
         }
     }
 
-
     private fun sendMessage(content: String, imageUri: Uri? = null) {
 
         lifecycleScope.launch {
@@ -395,7 +431,6 @@ class ChatRoomActivity : AppCompatActivity() {
         }
     }
 
-
     private suspend fun uploadChatImage(uri: Uri): String? =
         withContext(Dispatchers.IO) {
             try {
@@ -424,7 +459,6 @@ class ChatRoomActivity : AppCompatActivity() {
                 return@withContext null
             }
         }
-
 
     private fun confirmRental(payload: RentalActionPayload) {
 
@@ -474,7 +508,6 @@ class ChatRoomActivity : AppCompatActivity() {
                 }
             })
     }
-
 
     override fun onDestroy() {
         super.onDestroy()
