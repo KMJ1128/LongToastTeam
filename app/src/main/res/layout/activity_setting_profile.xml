@@ -87,19 +87,8 @@
     <!-- 닉네임 안내 텍스트 -->
 
     <!-- 위치 정보 표시 -->
-    <TextView
-        android:id="@+id/text_nickname_hint"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="224dp"
-        android:layout_marginTop="204dp"
-        android:text="2-20자의 한글, 영문, 숫자를 사용할 수 있어요"
-        android:textColor="#999999"
-        android:textSize="12sp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/edit_nickname" />
 
-<!--    <TextView-->
+    <!--    <TextView-->
 <!--        android:id="@+id/text_location_label"-->
 <!--        android:layout_width="0dp"-->
 <!--        android:layout_height="wrap_content"-->
@@ -126,6 +115,19 @@
 <!--        android:layout_marginTop="8dp" />-->
 
     <!-- 완료 버튼 -->
+
+    <TextView
+        android:id="@+id/text_nickname_hint"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="8dp"
+        android:text="2-20자의 한글, 영문, 숫자를 사용할 수 있어요"
+        android:textColor="#999999"
+        android:textSize="12sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/edit_nickname" />
+
     <Button
         android:id="@+id/button_complete"
         android:layout_width="0dp"
