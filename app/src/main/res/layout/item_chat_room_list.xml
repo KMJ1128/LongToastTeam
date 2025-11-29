@@ -37,13 +37,14 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
+            android:paddingLeft="6dp"
             android:text="닉네임"
             android:textColor="@color/trust_text_primary"
             android:textSize="17sp"
             android:textStyle="bold"
             app:layout_constraintEnd_toStartOf="@id/text_time"
             app:layout_constraintStart_toEndOf="@id/image_profile"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="@+id/image_profile" />
 
         <TextView
             android:id="@+id/text_last_message"
@@ -51,9 +52,11 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
+            android:paddingLeft="6dp"
             android:text="마지막 메시지 내용"
             android:textColor="@color/trust_text_secondary"
             android:textSize="14sp"
+            app:layout_constraintBottom_toBottomOf="@+id/image_profile"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="@id/text_nickname"
             app:layout_constraintTop_toBottomOf="@id/text_nickname" />
