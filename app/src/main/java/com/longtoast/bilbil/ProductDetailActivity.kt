@@ -1,4 +1,3 @@
-// com.longtoast.bilbil.ProductDetailActivity.kt
 package com.longtoast.bilbil
 
 import android.content.Intent
@@ -187,13 +186,14 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         val fullTradeAddress = product.tradeLocation ?: product.address ?: "거래 위치 정보 없음"
         binding.textTradeAddress.text = fullTradeAddress
 
-        // 🔥 프로필 이미지: resolve() 쓰지 말고 그대로
+        // 🔥 프로필 이미지: backend 가 절대 URL 을 주는 게 아니라면 resolve 를 써야 함
         val profileUrl = product.sellerProfileImageUrl
         Log.d("ProductDetail", "Glide load profileUrl = $profileUrl")
 
         if (!profileUrl.isNullOrBlank()) {
+            val resolvedProfile = ImageUrlUtils.resolve(profileUrl) ?: profileUrl
             Glide.with(this)
-                .load(profileUrl)
+                .load(resolvedProfile)
                 .placeholder(R.drawable.no_profile)
                 .error(R.drawable.no_profile)
                 .circleCrop()
@@ -202,7 +202,8 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             binding.imageSellerProfile.setImageResource(R.drawable.no_profile)
         }
 
-        val images = product.imageUrls?.mapNotNull { ImageUrlUtils.resolve(it) } ?: emptyList()
+        // ✅ 상세 이미지: 원본 리스트 그대로 어댑터에 넘김 (resolve 는 어댑터에서 처리)
+        val images = product.imageUrls ?: emptyList()
         if (images.isNotEmpty()) {
             binding.viewPagerImages.adapter = DetailImageAdapter(images)
             binding.textImageIndicator.text = "1 / ${images.size}"
