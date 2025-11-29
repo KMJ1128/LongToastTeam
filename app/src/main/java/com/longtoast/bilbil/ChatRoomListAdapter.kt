@@ -1,5 +1,3 @@
-// com.longtoast.bilbil.ChatRoomListAdapter.kt
-
 package com.longtoast.bilbil
 
 import android.util.Log
@@ -22,19 +20,16 @@ class ChatRoomListAdapter(
         val lastMessage: TextView = view.findViewById(R.id.text_last_message)
         val thumbnail: ImageView = view.findViewById(R.id.image_profile)
         val timeText: TextView = view.findViewById(R.id.text_time)
+        val unreadBadge: TextView = view.findViewById(R.id.text_unread_badge)
 
         fun bind(room: ChatRoomListDTO) {
-            // 상대방 닉네임
+
             partnerName.text = room.partnerNickname ?: "알 수 없음"
 
-            // 마지막 메시지 내용 (백엔드에서 [사진]까지 세팅해 주므로 그대로 사용)
             val lastContent = room.lastMessageContent
             lastMessage.text = lastContent ?: "(최근 메시지 없음)"
 
-            // 🔥 상대방 프로필 이미지 사용
-            val rawProfile = room.partnerProfileImageUrl
-            val resolved = ImageUrlUtils.resolve(rawProfile)
-
+            val resolved = ImageUrlUtils.resolve(room.partnerProfileImageUrl)
             if (!resolved.isNullOrEmpty()) {
                 Glide.with(itemView.context)
                     .load(resolved)
@@ -46,7 +41,7 @@ class ChatRoomListAdapter(
                 thumbnail.setImageResource(R.drawable.no_profile)
             }
 
-            // 시간 처리
+            // --- 마지막 메시지 시간 ---
             timeText.text = room.lastMessageTime?.let {
                 try {
                     val parser = java.text.SimpleDateFormat(
@@ -61,6 +56,14 @@ class ChatRoomListAdapter(
                     ""
                 }
             } ?: ""
+
+            // --- 🔥 새로운 unreadCount 표시 추가된 부분 ---
+            if ((room.unreadCount ?: 0) > 0) {
+                unreadBadge.text = room.unreadCount.toString()
+                unreadBadge.visibility = View.VISIBLE
+            } else {
+                unreadBadge.visibility = View.GONE
+            }
 
             itemView.setOnClickListener { onItemClicked(room) }
         }

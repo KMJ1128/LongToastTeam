@@ -1,7 +1,6 @@
 package com.longtoast.bilbil
 
 import android.content.Intent
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -42,20 +41,23 @@ class ChatAdapter(
 
     private var confirmedPayload: RentalActionPayload? = null
 
-    fun resolveImageUrl(relativeOrFull: String?): String? {
-        if (relativeOrFull.isNullOrEmpty()) return null
-        return ImageUrlUtils.resolve(relativeOrFull)
-    }
-
     fun setPartnerInfo(nickname: String?, profileImageUrl: String?) {
         partnerNickname = nickname
         partnerProfileImageUrl = profileImageUrl
         notifyDataSetChanged()
     }
 
-    // ----------------------------- SENT -----------------------------
+    private fun resolveImageUrl(relativeOrFull: String?): String? {
+        if (relativeOrFull.isNullOrEmpty()) return null
+        return ImageUrlUtils.resolve(relativeOrFull)
+    }
+
+    // =====================================================
+    // SENT MESSAGE VIEW HOLDER
+    // =====================================================
     inner class SentMessageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
 
+        private val readText: TextView = view.findViewById(R.id.text_read_status)
         private val messageText: TextView = view.findViewById(R.id.text_message_sent)
         private val timestampText: TextView = view.findViewById(R.id.text_timestamp_sent)
         private val imageAttachment: ImageView? = view.findViewById(R.id.image_attachment_sent)
@@ -63,11 +65,19 @@ class ChatAdapter(
 
         fun bind(message: ChatMessage, position: Int) {
 
+            // 🔥 읽음/안읽음 표시
+            readText.text = if (message.isRead == true) "읽음" else "안읽음"
+            readText.visibility = View.VISIBLE
+
+            // 텍스트 메시지
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
                 messageText.visibility = View.VISIBLE
-            } else messageText.visibility = View.GONE
+            } else {
+                messageText.visibility = View.GONE
+            }
 
+            // 이미지 메시지
             val fullUrl = resolveImageUrl(message.imageUrl)
             if (!fullUrl.isNullOrEmpty()) {
                 imageAttachment?.visibility = View.VISIBLE
@@ -86,7 +96,9 @@ class ChatAdapter(
         }
     }
 
-    // ----------------------------- RECEIVED -----------------------------
+    // =====================================================
+    // RECEIVED MESSAGE VIEW HOLDER
+    // =====================================================
     inner class ReceivedMessageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
 
         private val messageText: TextView = view.findViewById(R.id.text_message_received)
@@ -100,21 +112,20 @@ class ChatAdapter(
 
             nicknameText.text = partnerNickname ?: "상대방"
 
+            // 상대방 프로필
             val profileUrl = resolveImageUrl(partnerProfileImageUrl)
-            if (!profileUrl.isNullOrEmpty()) {
-                Glide.with(profileImage.context)
-                    .load(profileUrl)
-                    .circleCrop()
-                    .placeholder(R.drawable.no_profile)
-                    .into(profileImage)
-            } else {
-                profileImage.setImageResource(R.drawable.no_profile)
-            }
+            Glide.with(profileImage.context)
+                .load(profileUrl)
+                .placeholder(R.drawable.no_profile)
+                .circleCrop()
+                .into(profileImage)
 
             if (!message.content.isNullOrEmpty()) {
                 messageText.text = message.content
                 messageText.visibility = View.VISIBLE
-            } else messageText.visibility = View.GONE
+            } else {
+                messageText.visibility = View.GONE
+            }
 
             val fullUrl = resolveImageUrl(message.imageUrl)
             if (!fullUrl.isNullOrEmpty()) {
@@ -134,7 +145,9 @@ class ChatAdapter(
         }
     }
 
-    // ----------------------------- RENT ACTION -----------------------------
+    // =====================================================
+    // RENT ACTION VIEW HOLDER
+    // =====================================================
     inner class RentalActionViewHolder(view: View) : RecyclerView.ViewHolder(view) {
 
         private val prompt: TextView = view.findViewById(R.id.text_rental_prompt)
@@ -153,23 +166,15 @@ class ChatAdapter(
             } ?: ""
 
             prompt.text =
-                "만약 다음과 같은 대여에 동의하신다면\n서로 간 대여 확정을 위해 버튼을 누르세요.\n\n$rentInfo"
+                "만약 다음 대여 조건에 동의하신다면\n아래 버튼을 눌러 대여를 확정하세요.\n\n$rentInfo"
 
-            // 이미 확정된 payload라면 (App 재실행해도 유지됨)
-            if (confirmedPayload != null &&
-                payload != null &&
-                confirmedPayload!!.startDate == payload.startDate &&
-                confirmedPayload!!.endDate == payload.endDate &&
-                confirmedPayload!!.totalAmount == payload.totalAmount
-            ) {
+            if (payload != null && confirmedPayload?.startDate == payload.startDate) {
                 confirmButton.text = "대여 확정 완료"
                 confirmButton.isEnabled = false
-                bindDateHeader(dateHeader, position, message)
-                return
+            } else {
+                confirmButton.text = if (isSender) "요청 전송됨" else "대여 확정하기"
+                confirmButton.isEnabled = !isSender && payload != null
             }
-
-            confirmButton.text = if (isSender) "요청 전송됨" else "대여 확정하기"
-            confirmButton.isEnabled = !isSender && payload != null
 
             confirmButton.setOnClickListener {
                 payload?.let { action ->
@@ -183,14 +188,15 @@ class ChatAdapter(
         }
     }
 
-    // ----------------------------- ViewType -----------------------------
+    // =====================================================
+    // ADAPTER CORE
+    // =====================================================
     override fun getItemViewType(position: Int): Int {
-        val message = messages[position]
-        val content = message.content?.trimStart() ?: ""
-
+        val msg = messages[position]
+        val content = msg.content?.trimStart() ?: ""
         return when {
             content.startsWith(actionPrefix) -> VIEW_TYPE_RENT_ACTION
-            message.senderId == currentUserIdInt -> VIEW_TYPE_SENT
+            msg.senderId == currentUserIdInt -> VIEW_TYPE_SENT
             else -> VIEW_TYPE_RECEIVED
         }
     }
@@ -198,16 +204,13 @@ class ChatAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, type: Int): RecyclerView.ViewHolder {
         val inf = LayoutInflater.from(parent.context)
         return when (type) {
-            VIEW_TYPE_SENT ->
-                SentMessageViewHolder(inf.inflate(R.layout.item_chat_message_sent, parent, false))
-
-            VIEW_TYPE_RENT_ACTION ->
-                RentalActionViewHolder(inf.inflate(R.layout.item_chat_rental_action, parent, false))
-
-            else ->
-                ReceivedMessageViewHolder(inf.inflate(R.layout.item_chat_message_received, parent, false))
+            VIEW_TYPE_SENT -> SentMessageViewHolder(inf.inflate(R.layout.item_chat_message_sent, parent, false))
+            VIEW_TYPE_RENT_ACTION -> RentalActionViewHolder(inf.inflate(R.layout.item_chat_rental_action, parent, false))
+            else -> ReceivedMessageViewHolder(inf.inflate(R.layout.item_chat_message_received, parent, false))
         }
     }
+
+    override fun getItemCount(): Int = messages.size
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, pos: Int) {
         val msg = messages[pos]
@@ -218,30 +221,40 @@ class ChatAdapter(
         }
     }
 
-    override fun getItemCount(): Int = messages.size
+    // =====================================================
+    // HELPERS
+    // =====================================================
+    private fun parseActionPayload(content: String?): RentalActionPayload? {
+        if (content.isNullOrEmpty()) return null
+        val clean = content.trimStart()
+        if (!clean.startsWith(actionPrefix)) return null
+        return try {
+            gson.fromJson(clean.removePrefix(actionPrefix), RentalActionPayload::class.java)
+        } catch (_: Exception) {
+            null
+        }
+    }
 
-    // ----------------------------- Helpers -----------------------------
+    fun markRentalConfirmed(payload: RentalActionPayload) {
+        confirmedPayload = payload
+        notifyDataSetChanged()
+    }
+
     private fun formatTime(iso: String?): String {
         return try {
-            if (iso.isNullOrEmpty()) return ""
-            val date = serverFormat.parse(iso) ?: return ""
+            val date = serverFormat.parse(iso ?: "") ?: return ""
             displayFormat.format(date)
-        } catch (e: Exception) {
-            "시간 오류"
+        } catch (_: Exception) {
+            ""
         }
     }
 
     private fun bindDateHeader(view: TextView, pos: Int, msg: ChatMessage) {
         val key = getDateKey(msg)
         val prev = if (pos > 0) getDateKey(messages[pos - 1]) else null
-
         if (key != null && key != prev) {
             view.visibility = View.VISIBLE
-            val date = try {
-                serverFormat.parse(msg.sentAt)
-            } catch (e: Exception) {
-                null
-            }
+            val date = serverFormat.parse(msg.sentAt)
             view.text = date?.let { dateHeaderFormat.format(it) } ?: key
         } else view.visibility = View.GONE
     }
@@ -252,27 +265,6 @@ class ChatAdapter(
         } catch (_: Exception) {
             null
         }
-    }
-
-    private fun parseActionPayload(content: String?): RentalActionPayload? {
-        if (content.isNullOrEmpty()) return null
-
-        val clean = content.trimStart()
-        if (!clean.startsWith(actionPrefix)) return null
-
-        val json = clean.removePrefix(actionPrefix)
-        return try {
-            gson.fromJson(json, RentalActionPayload::class.java)
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    // ★★★★★ 핵심: 대여 확정 완료 처리 함수
-    fun markRentalConfirmed(payload: RentalActionPayload) {
-        confirmedPayload = payload  // 재실행해도 유지됨
-
-        notifyDataSetChanged()
     }
 
     private fun openImageFullscreen(view: View, imageUrl: String) {

@@ -77,6 +77,7 @@ class ChatRoomActivity : AppCompatActivity() {
 
     private var nextTempId = -1L
 
+    // 이미지 선택기
     private val pickImageLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             uri?.let {
@@ -334,10 +335,28 @@ class ChatRoomActivity : AppCompatActivity() {
                 try {
                     val received = Gson().fromJson(payload, ChatMessage::class.java)
 
+                    // ---------------------------------------------------------
+                    // 🔥 1) 읽음 이벤트 우선 처리
+                    // ---------------------------------------------------------
+                    if (received.isRead == true) {
+                        val idx = chatMessages.indexOfFirst { it.id == received.id }
+                        if (idx != -1) {
+                            chatMessages[idx] = received
+                            chatAdapter.notifyItemChanged(idx)
+                        }
+                        return  // 읽음 이벤트는 여기서 끝
+                    }
+
+                    // ---------------------------------------------------------
+                    // 2) 대여 확정 애니메이션
+                    // ---------------------------------------------------------
                     if (received.content?.contains("대여가 확정되었습니다") == true) {
                         playHandshakeAnimation()
                     }
 
+                    // ---------------------------------------------------------
+                    // 3) 일반 메시지 처리
+                    // ---------------------------------------------------------
                     if (received.senderId == senderId) {
 
                         val match =
@@ -406,7 +425,8 @@ class ChatRoomActivity : AppCompatActivity() {
                 sentAt = SimpleDateFormat(
                     "yyyy-MM-dd'T'HH:mm:ss",
                     Locale.getDefault()
-                ).format(Date())
+                ).format(Date()),
+                isRead = false
             )
 
             chatMessages.add(tempMsg)
@@ -546,6 +566,23 @@ class ChatRoomActivity : AppCompatActivity() {
             override fun onAnimationCancel(animation: android.animation.Animator) {}
             override fun onAnimationRepeat(animation: android.animation.Animator) {}
         })
+    }
+
+    // 🔥 채팅방 들어올 때 전체 메시지 읽음 처리
+    override fun onResume() {
+        super.onResume()
+
+        RetrofitClient.getApiService()
+            .markChatRead(roomId)
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    // 서버가 STOMP로 읽음 이벤트 브로드캐스트 → handleStompFrame()에서 처리됨
+                }
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Log.e("CHAT_READ", "읽음 처리 실패", t)
+                }
+            })
     }
 
     override fun onDestroy() {

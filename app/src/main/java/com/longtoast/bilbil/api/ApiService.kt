@@ -179,4 +179,9 @@ interface ApiService {
     fun confirmVerification(
         @Body request: VerifyRequest // VerifyRequest DTO 사용 (전화번호 필드 포함)
     ): Call<MsgEntity>
+
+    @POST("/api/chat/room/{roomId}/read")
+    fun markChatRead(
+        @Path("roomId") roomId: Int
+    ): Call<MsgEntity>
 }

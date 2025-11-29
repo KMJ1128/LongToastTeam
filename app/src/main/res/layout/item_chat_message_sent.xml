@@ -53,6 +53,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/image_attachment_sent" tools:text="네, 안녕하세요! 구매 가능합니다. (보낸 메시지)" />
 
+
     <TextView
         android:id="@+id/text_timestamp_sent"
         android:layout_width="wrap_content"
@@ -62,5 +63,17 @@
         app:layout_constraintEnd_toStartOf="@id/text_message_sent"
         android:layout_marginEnd="4dp"
         tools:text="오전 10:31" />
+
+    <TextView
+        android:id="@+id/text_read_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="10sp"
+        android:layout_marginStart="-70dp"
+        android:textColor="@android:color/darker_gray"
+        app:layout_constraintBottom_toBottomOf="@id/text_message_sent"
+        app:layout_constraintStart_toEndOf="@id/text_timestamp_sent"
+        tools:text="읽음" />
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

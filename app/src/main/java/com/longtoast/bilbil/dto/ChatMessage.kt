@@ -8,5 +8,6 @@ data class ChatMessage(
     val senderId: Int,
     val content: String?,
     val imageUrl: String?,
-    val sentAt: String
+    val sentAt: String,
+    val isRead: Boolean? = false// ★ 추가됨
 )
