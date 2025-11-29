@@ -1,5 +1,6 @@
 package com.longtoast.bilbil
 
+import android.content.Intent
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -74,7 +75,15 @@ class ChatAdapter(
             if (!fullUrl.isNullOrEmpty()) {
                 imageAttachment?.visibility = View.VISIBLE
                 Glide.with(imageAttachment!!.context).load(fullUrl).into(imageAttachment)
-            } else imageAttachment?.visibility = View.GONE
+
+                // 🔥 이미지 클릭 시 풀스크린으로 보기
+                imageAttachment.setOnClickListener {
+                    openImageFullscreen(it, fullUrl)
+                }
+            } else {
+                imageAttachment?.visibility = View.GONE
+                imageAttachment?.setOnClickListener(null)
+            }
 
             timestampText.text = formatTime(message.sentAt)
             bindDateHeader(dateHeader, position, message)
@@ -124,7 +133,15 @@ class ChatAdapter(
             if (!fullUrl.isNullOrEmpty()) {
                 imageAttachment?.visibility = View.VISIBLE
                 Glide.with(imageAttachment!!.context).load(fullUrl).into(imageAttachment)
-            } else imageAttachment?.visibility = View.GONE
+
+                // 🔥 이미지 클릭 시 풀스크린으로 보기
+                imageAttachment.setOnClickListener {
+                    openImageFullscreen(it, fullUrl)
+                }
+            } else {
+                imageAttachment?.visibility = View.GONE
+                imageAttachment?.setOnClickListener(null)
+            }
 
             timestampText.text = formatTime(message.sentAt)
             bindDateHeader(dateHeader, position, message)
@@ -272,5 +289,14 @@ class ChatAdapter(
         } catch (_: Exception) {
             null
         }
+    }
+
+    // 🔥 공통: 풀스크린 이미지 액티비티 열기
+    private fun openImageFullscreen(view: View, imageUrl: String) {
+        val context = view.context
+        val intent = Intent(context, ImagePreviewActivity::class.java).apply {
+            putExtra("IMAGE_URL", imageUrl)
+        }
+        context.startActivity(intent)
     }
 }
