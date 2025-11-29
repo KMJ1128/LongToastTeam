@@ -7,6 +7,7 @@ import android.graphics.Matrix
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -14,6 +15,7 @@ import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.airbnb.lottie.LottieAnimationView
 import com.bumptech.glide.Glide
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.gson.Gson
@@ -43,6 +45,9 @@ class ChatRoomActivity : AppCompatActivity() {
     private lateinit var buttonAttachImage: ImageButton
     private lateinit var chatAdapter: ChatAdapter
     private lateinit var toolbar: MaterialToolbar
+
+    private lateinit var handshakeAnimation: LottieAnimationView
+    private lateinit var overlayBlock: View
 
     private var selectedImageUri: Uri? = null
     private val chatMessages = mutableListOf<ChatMessage>()
@@ -138,6 +143,9 @@ class ChatRoomActivity : AppCompatActivity() {
         editMessage = findViewById(R.id.edit_text_message)
         buttonSend = findViewById(R.id.button_send)
         buttonAttachImage = findViewById(R.id.button_attach_image)
+
+        handshakeAnimation = findViewById(R.id.handshake_animation)
+        overlayBlock = findViewById(R.id.overlay_block)
 
         val partnerNameText = findViewById<TextView>(R.id.text_chat_partner_name)
         val partnerImage = findViewById<ImageView>(R.id.image_chat_partner)
@@ -326,6 +334,10 @@ class ChatRoomActivity : AppCompatActivity() {
                 try {
                     val received = Gson().fromJson(payload, ChatMessage::class.java)
 
+                    if (received.content?.contains("대여가 확정되었습니다") == true) {
+                        playHandshakeAnimation()
+                    }
+
                     if (received.senderId == senderId) {
 
                         val match =
@@ -406,20 +418,17 @@ class ChatRoomActivity : AppCompatActivity() {
         }
     }
 
-    // 🔥 이미지 압축 + EXIF 회전 보정하여 업로드
     private suspend fun uploadChatImage(uri: Uri): String? =
         withContext(Dispatchers.IO) {
             try {
                 val stream = contentResolver.openInputStream(uri) ?: return@withContext null
 
-                // 1) Bitmap 로드
                 val originalBytes = stream.readBytes()
                 stream.close()
 
                 val bitmap = BitmapFactory.decodeByteArray(originalBytes, 0, originalBytes.size)
                 val rotatedBitmap = applyExifRotation(uri, bitmap)
 
-                // 2) JPEG 70% 압축
                 val outputStream = ByteArrayOutputStream()
                 rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
                 val compressedBytes = outputStream.toByteArray()
@@ -446,7 +455,6 @@ class ChatRoomActivity : AppCompatActivity() {
             }
         }
 
-    // 🔥 EXIF 회전 처리 함수
     private fun applyExifRotation(uri: Uri, bitmap: Bitmap): Bitmap {
         return try {
             val inputStream: InputStream? = contentResolver.openInputStream(uri)
@@ -489,6 +497,10 @@ class ChatRoomActivity : AppCompatActivity() {
 
                     if (response.isSuccessful) {
 
+                        playHandshakeAnimation()
+
+                        chatAdapter.markRentalConfirmed(payload)
+
                         sendMessage(
                             "📌 대여가 확정되었습니다!\n" +
                                     "기간: ${payload.startDate} ~ ${payload.endDate}\n" +
@@ -518,6 +530,22 @@ class ChatRoomActivity : AppCompatActivity() {
                     ).show()
                 }
             })
+    }
+
+    private fun playHandshakeAnimation() {
+        overlayBlock.visibility = View.VISIBLE
+        handshakeAnimation.visibility = View.VISIBLE
+        handshakeAnimation.playAnimation()
+
+        handshakeAnimation.addAnimatorListener(object : android.animation.Animator.AnimatorListener {
+            override fun onAnimationStart(animation: android.animation.Animator) {}
+            override fun onAnimationEnd(animation: android.animation.Animator) {
+                handshakeAnimation.visibility = View.GONE
+                overlayBlock.visibility = View.GONE
+            }
+            override fun onAnimationCancel(animation: android.animation.Animator) {}
+            override fun onAnimationRepeat(animation: android.animation.Animator) {}
+        })
     }
 
     override fun onDestroy() {

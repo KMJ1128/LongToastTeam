@@ -143,4 +143,30 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <!-- 🔥 화면 터치 막는 오버레이 -->
+    <View
+        android:id="@+id/overlay_block"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#66000000"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- 🔥 핸드셰이크 애니메이션 -->
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/handshake_animation"
+        android:layout_width="240dp"
+        android:layout_height="240dp"
+        android:visibility="gone"
+        app:lottie_rawRes="@raw/handshake_animation"
+        app:lottie_autoPlay="false"
+        app:lottie_loop="false"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>
