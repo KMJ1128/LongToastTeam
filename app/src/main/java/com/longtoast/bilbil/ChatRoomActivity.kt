@@ -203,7 +203,7 @@ class ChatRoomActivity : AppCompatActivity() {
 
         val normalized = img.replace(Regex("^/+"), "")   // 앞쪽의 모든 "/" 제거
 
-        val fullImageUrl = "${ServerConfig.HTTP_BASE_URL}/$normalized"
+        val fullImageUrl = "${ServerConfig.IMG_BASE_URL}/$normalized"
 
         val realLenderId = if (isLender) senderId else otherUserId
         val realBorrowerId = if (isLender) otherUserId else senderId
