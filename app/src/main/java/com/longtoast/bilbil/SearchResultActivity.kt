@@ -34,7 +34,35 @@ class SearchResultActivity : AppCompatActivity() {
     // 현재 검색 상태
     private var currentQuery: String? = null
     private var isCategory: Boolean = false
-    private var currentSort: String? = "latest" // 기본: 최신순
+
+    // 정렬 필터 상태
+    private var filterLatest: Boolean = true       // 기본: 최신순 ON
+    private var filterLowPrice: Boolean = false   // 기본: 가격 낮은 순 OFF
+
+    // ✅ 지역 필터 상태 (RegionSelectionActivity에서 선택한 전체 문자열)
+    private var currentRegionFilter: String? = null
+
+    // 서버에서 받아온 원본 리스트
+    private var originalProductList: List<ProductListDTO> = emptyList()
+
+    // ✅ 지역 선택 화면(RegionSelectionActivity)에서 결과 받아오기
+    private val regionFilterLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK && result.data != null) {
+                val selectedAddress = result.data!!.getStringExtra("FINAL_ADDRESS")
+                Log.d("REGION_FILTER", "선택된 주소: $selectedAddress")
+
+                if (!selectedAddress.isNullOrBlank()) {
+                    currentRegionFilter = selectedAddress
+                    binding.btnRegionFilter.text = selectedAddress   // 버튼에는 전체 주소 표시
+                } else {
+                    currentRegionFilter = null
+                    binding.btnRegionFilter.text = "지역 전체"
+                }
+
+                applySortAndFilter()
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,7 +75,8 @@ class SearchResultActivity : AppCompatActivity() {
         setupHeader()
         setupDrawerMenu()
         setupRecycler()
-        setupSortButton()
+        setupFilterButtons()
+        setupRegionFilterButton()   // ✅ 지역 버튼 세팅
 
         // 전달된 검색 값 확인
         var query = intent.getStringExtra("SEARCH_QUERY")
@@ -55,7 +84,7 @@ class SearchResultActivity : AppCompatActivity() {
 
         Log.d("DEBUG_FLOW", "전달 받은 원본 검색 정보 → query=$query, isCategory=$isCategory")
 
-        // 🔥 "#:{category}" 형태면 카테고리 검색 모드로 전환 (이전 로직 유지)
+        // "#:{category}" 형태면 카테고리 검색 모드로 전환
         if (!query.isNullOrBlank() && query.startsWith("#:")) {
             isCategory = true
             query = query.removePrefix("#:").trim()
@@ -68,7 +97,7 @@ class SearchResultActivity : AppCompatActivity() {
 
         currentQuery = query
 
-        // 헤더 안 검색창 세팅 (초기 검색어 표시)
+        // 헤더 검색창 세팅
         setupSearchBar(currentQuery ?: "")
 
         // 상단 "{검색어} 검색 결과" 텍스트
@@ -78,8 +107,8 @@ class SearchResultActivity : AppCompatActivity() {
             "\"$query\" 검색 결과"
         }
 
-        // 첫 로딩은 기본 정렬(최신순)으로
-        loadSearchResults(currentQuery, isCategory, currentSort)
+        // 첫 로딩: 기본 필터(최신순 ON, 가격낮은순 OFF)로
+        loadSearchResults(currentQuery, isCategory)
 
         // 헤더/드로어용 프로필 & 위치
         loadMyLocationForHeader()
@@ -93,27 +122,24 @@ class SearchResultActivity : AppCompatActivity() {
     }
 
     // -------------------------------------------------------------
-    // 헤더(홈 화면 스타일) 세팅
+    // 헤더 세팅
     // -------------------------------------------------------------
     private fun setupHeader() {
-        // 🔹 햄버거 버튼: 메인 화면과 동일하게 드로어 열기
         binding.btnMenu.setOnClickListener {
             binding.drawerLayout.openDrawer(GravityCompat.END)
         }
 
-        // 장바구니 이동
         binding.btnGoCart.setOnClickListener {
             val intent = Intent(this, CartActivity::class.java)
             startActivity(intent)
         }
 
-        // 하단 "이전으로 돌아가기" 버튼
         binding.backButton.setOnClickListener {
             finish()
         }
     }
 
-    // 🔹 헤더 안 검색창 세팅
+    // 헤더 안 검색창 세팅
     private fun setupSearchBar(initialQuery: String) {
         binding.searchBar.apply {
             setIconifiedByDefault(false)
@@ -127,12 +153,20 @@ class SearchResultActivity : AppCompatActivity() {
                     val keyword = query?.trim().orEmpty()
                     if (keyword.isNotEmpty()) {
                         currentQuery = keyword
-                        isCategory = false          // 검색창에서 검색하면 일반 제목 검색
-                        currentSort = "latest"      // 정렬은 다시 최신순으로
-                        binding.btnSort.text = "최신순"
+                        isCategory = false
+
+                        // 새 검색 시 필터 상태 초기화
+                        filterLatest = true
+                        filterLowPrice = false
+                        currentRegionFilter = null
+                        binding.btnRegionFilter.text = "지역 전체"
+
+                        binding.btnFilterLatest.isChecked = true
+                        binding.btnFilterLowPrice.isChecked = false
+
                         binding.queryText.text = "\"$keyword\" 검색 결과"
 
-                        loadSearchResults(currentQuery, isCategory, currentSort)
+                        loadSearchResults(currentQuery, isCategory)
                         clearFocus()
                     }
                     return true
@@ -143,7 +177,7 @@ class SearchResultActivity : AppCompatActivity() {
         }
     }
 
-    // 헤더용 내 위치 + 상단 프로필 (HomeFragment 느낌)
+    // 헤더용 내 위치 + 상단 프로필
     private fun loadMyLocationForHeader() {
         RetrofitClient.getApiService().getMyInfo()
             .enqueue(object : Callback<MsgEntity> {
@@ -187,7 +221,7 @@ class SearchResultActivity : AppCompatActivity() {
     }
 
     // -------------------------------------------------------------
-    // Drawer + NavigationView (메인과 동일 동작)
+    // Drawer + NavigationView
     // -------------------------------------------------------------
     private fun loadNavigationHeader() {
         RetrofitClient.getApiService().getMyInfo()
@@ -232,7 +266,6 @@ class SearchResultActivity : AppCompatActivity() {
                             profileImageView.setImageResource(R.drawable.no_profile)
                         }
 
-                        // SharedPreferences 저장 (로그인 정보 유지)
                         AuthTokenManager.saveNickname(member.nickname ?: "")
                         AuthTokenManager.saveAddress(member.address ?: "")
 
@@ -248,7 +281,6 @@ class SearchResultActivity : AppCompatActivity() {
             })
     }
 
-    // SharedPreferences에서 프로필 정보 로드 (오프라인 대비)
     private fun loadFromSharedPreferences() {
         val headerView = binding.navView.getHeaderView(0)
         val nicknameTextView = headerView.findViewById<TextView>(R.id.nav_header_nickname)
@@ -271,12 +303,10 @@ class SearchResultActivity : AppCompatActivity() {
 
                 R.id.nav_my_reviews -> {
                     Toast.makeText(this, "내가 쓴 리뷰", Toast.LENGTH_SHORT).show()
-                    // TODO: 내가 쓴 리뷰 화면으로 이동
                 }
 
                 R.id.nav_received_reviews -> {
                     Toast.makeText(this, "내가 받은 리뷰", Toast.LENGTH_SHORT).show()
-                    // TODO: 내가 받은 리뷰 화면으로 이동
                 }
 
                 R.id.nav_sign_out -> {
@@ -312,7 +342,6 @@ class SearchResultActivity : AppCompatActivity() {
         }
     }
 
-    // 프로필 수정 후 드로어 헤더 새로고침
     private val editProfileLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == RESULT_OK) {
@@ -339,68 +368,72 @@ class SearchResultActivity : AppCompatActivity() {
     }
 
     // -------------------------------------------------------------
-    // 정렬 버튼 세팅
+    // 정렬 필터 버튼 (최신순, 가격 낮은 순)
     // -------------------------------------------------------------
-    private fun setupSortButton() {
-        binding.btnSort.text = "최신순"
+    private fun setupFilterButtons() {
+        binding.btnFilterLatest.text = "최신순"
+        binding.btnFilterLowPrice.text = "가격 낮은 순"
 
-        binding.btnSort.setOnClickListener {
-            showSortDialog()
+        binding.btnFilterLatest.isCheckable = true
+        binding.btnFilterLowPrice.isCheckable = true
+
+        binding.btnFilterLatest.isChecked = filterLatest
+        binding.btnFilterLowPrice.isChecked = filterLowPrice
+
+        binding.btnFilterLatest.setOnClickListener {
+            filterLatest = binding.btnFilterLatest.isChecked
+            applySortAndFilter()
+        }
+
+        binding.btnFilterLowPrice.setOnClickListener {
+            filterLowPrice = binding.btnFilterLowPrice.isChecked
+            applySortAndFilter()
         }
     }
 
-    private fun showSortDialog() {
-        val items = arrayOf("최신순", "가격 낮은 순", "가격 높은 순")
+    // -------------------------------------------------------------
+    // ✅ 지역 필터 버튼 (RegionSelectionActivity 띄우기)
+    // -------------------------------------------------------------
+    private fun setupRegionFilterButton() {
+        binding.btnRegionFilter.text = "지역 전체"
 
-        AlertDialog.Builder(this)
-            .setTitle("정렬 기준")
-            .setItems(items) { _, which ->
-                when (which) {
-                    0 -> { // 최신순
-                        currentSort = "latest"
-                        binding.btnSort.text = "최신순"
-                    }
-
-                    1 -> { // 가격 낮은 순
-                        currentSort = "price_asc"
-                        binding.btnSort.text = "가격 낮은 순"
-                    }
-
-                    2 -> { // 가격 높은 순
-                        currentSort = "price_desc"
-                        binding.btnSort.text = "가격 높은 순"
-                    }
-                }
-                loadSearchResults(currentQuery, isCategory, currentSort)
+        binding.btnRegionFilter.setOnClickListener {
+            val intent = Intent(this, RegionSelectionActivity::class.java).apply {
+                putExtra("MODE", "FILTER")  // 선택 모드 구분용
             }
-            .show()
+            regionFilterLauncher.launch(intent)
+        }
     }
 
     // -------------------------------------------------------------
-    // 서버 통신: 검색 결과 + 정렬
+    // 서버 통신: 검색 결과
     // -------------------------------------------------------------
-    private fun loadSearchResults(query: String?, isCategory: Boolean, sort: String?) {
+    private fun loadSearchResults(query: String?, isCategory: Boolean) {
 
         Log.d(
             "DEBUG_FLOW",
-            "loadSearchResults() 호출됨 / query=$query, isCategory=$isCategory, sort=$sort"
+            "loadSearchResults() 호출됨 / query=$query, isCategory=$isCategory"
         )
 
         binding.progressBar.visibility = View.VISIBLE
         binding.emptyText.visibility = View.GONE
+
+        // 새 검색 시 지역 필터 초기화
+        currentRegionFilter = null
+        binding.btnRegionFilter.text = "지역 전체"
 
         val titleParam = if (!isCategory) query else null
         val categoryParam = if (isCategory) query else null
 
         Log.d(
             "DEBUG_FLOW",
-            "API 호출 파라미터 → title=$titleParam | category=$categoryParam | sort=$sort"
+            "API 호출 파라미터 → title=$titleParam | category=$categoryParam | sort=null(클라이언트 정렬)"
         )
 
         RetrofitClient.getApiService().getProductLists(
             title = titleParam,
             category = categoryParam,
-            sort = sort
+            sort = null     // 정렬은 클라이언트에서 처리
         ).enqueue(object : Callback<MsgEntity> {
 
             override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
@@ -415,6 +448,7 @@ class SearchResultActivity : AppCompatActivity() {
                         "❌ API 실패: code=${response.code()} | body=${response.errorBody()?.string()}"
                     )
                     binding.emptyText.visibility = View.VISIBLE
+                    originalProductList = emptyList()
                     adapter.updateList(emptyList())
                     return
                 }
@@ -425,6 +459,7 @@ class SearchResultActivity : AppCompatActivity() {
                 if (rawData == null) {
                     Log.e("DEBUG_FLOW", "❌ rawData=null (서버 문제 가능)")
                     binding.emptyText.visibility = View.VISIBLE
+                    originalProductList = emptyList()
                     adapter.updateList(emptyList())
                     return
                 }
@@ -440,17 +475,15 @@ class SearchResultActivity : AppCompatActivity() {
 
                     Log.d("DEBUG_FLOW", "파싱된 productList size=${productList.size}")
 
-                    if (productList.isEmpty()) {
-                        binding.emptyText.visibility = View.VISIBLE
-                        adapter.updateList(emptyList())
-                    } else {
-                        adapter.updateList(productList)
-                        binding.emptyText.visibility = View.GONE
-                    }
+                    originalProductList = productList
+
+                    // 🔥 정렬 + 지역 필터 적용
+                    applySortAndFilter()
 
                 } catch (e: Exception) {
                     Log.e("DEBUG_FLOW", "❌ JSON 파싱 오류", e)
                     binding.emptyText.visibility = View.VISIBLE
+                    originalProductList = emptyList()
                     adapter.updateList(emptyList())
                 }
             }
@@ -459,8 +492,93 @@ class SearchResultActivity : AppCompatActivity() {
                 Log.e("DEBUG_FLOW", "❌ 네트워크 실패", t)
                 binding.progressBar.visibility = View.GONE
                 binding.emptyText.visibility = View.VISIBLE
+                originalProductList = emptyList()
                 adapter.updateList(emptyList())
             }
         })
+    }
+
+    // -------------------------------------------------------------
+    // ✅ 선택된 주소 문자열에서 "구/군" 추출
+    //   예)
+    //    - "서울특별시 양천구 목4동"        → "양천구"
+    //    - "경기도 수원시 장안구 조원동"    → "장안구"
+    //    - "부산광역시 부산진구 가야동"     → "부산진구"
+    // -------------------------------------------------------------
+    private fun extractGuFromSelection(selection: String?): String? {
+        if (selection.isNullOrBlank()) return null
+        val parts = selection.split(" ").filter { it.isNotBlank() }
+        if (parts.isEmpty()) return null
+
+        // 1) "구" 또는 "군"으로 끝나는 토큰 우선 탐색
+        for (token in parts) {
+            if (token.endsWith("구") || token.endsWith("군")) {
+                return token
+            }
+        }
+
+        // 2) 그래도 없으면 2번째 토큰 정도를 예비로 사용 (서울 종로구 처럼 "특별시" 다음)
+        return parts.getOrNull(1)
+    }
+
+    // -------------------------------------------------------------
+    // 정렬 + 지역 필터 적용
+    // -------------------------------------------------------------
+    private fun applySortAndFilter() {
+        if (originalProductList.isEmpty()) {
+            adapter.updateList(emptyList())
+            binding.emptyText.visibility = View.VISIBLE
+            return
+        }
+
+        var list = originalProductList
+
+        // 1) ✅ 지역 필터 적용 (선택 주소에서 구/군만 뽑아서, 물품 주소에 contains)
+        currentRegionFilter?.let { selection ->
+            val guKeyword = extractGuFromSelection(selection)
+
+            if (!guKeyword.isNullOrBlank()) {
+                list = list.filter { p ->
+                    val addr = p.address ?: return@filter false
+                    addr.contains(guKeyword)
+                }
+            }
+        }
+
+        if (list.isEmpty()) {
+            adapter.updateList(emptyList())
+            binding.emptyText.visibility = View.VISIBLE
+            return
+        } else {
+            binding.emptyText.visibility = View.GONE
+        }
+
+        // 2) 정렬 필터 적용
+        if (!filterLatest && !filterLowPrice) {
+            adapter.updateList(list)
+            return
+        }
+
+        val sorted = list.sortedWith { a, b ->
+            var cmp = 0
+
+            // 최신순: id 내림차순(최근 등록된 상품일수록 id가 크다고 가정)
+            if (filterLatest) {
+                val ca = a.id
+                val cb = b.id
+                cmp = cb.compareTo(ca) // 큰 id(=최근)가 앞으로
+            }
+
+            // 가격 낮은 순 – 최신순에서 동률이면 2차 기준
+            if (cmp == 0 && filterLowPrice) {
+                val pa = a.price ?: 0
+                val pb = b.price ?: 0
+                cmp = pa.compareTo(pb) // 가격 낮은 게 앞으로
+            }
+
+            cmp
+        }
+
+        adapter.updateList(sorted)
     }
 }
