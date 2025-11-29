@@ -4,10 +4,10 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.RatingBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.textfield.TextInputEditText
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.dto.MsgEntity
@@ -21,7 +21,7 @@ class ReviewActivity : AppCompatActivity() {
     private lateinit var ratingBar: RatingBar
     private lateinit var editContent: TextInputEditText
     private lateinit var btnSubmit: Button
-    private lateinit var toolbar: MaterialToolbar
+    private lateinit var btnClose: ImageButton // 🆕 추가: 닫기 버튼
 
     // Intent로 받아와야 하는 값
     private var transactionId: Int = -1
@@ -47,12 +47,15 @@ class ReviewActivity : AppCompatActivity() {
         ratingBar = findViewById(R.id.rating_bar)
         editContent = findViewById(R.id.edit_review_content)
         btnSubmit = findViewById(R.id.btn_submit_review)
-        toolbar = findViewById(R.id.toolbar_review)
+        btnClose = findViewById(R.id.btn_close) // 🆕 추가: XML의 X 버튼 연결
+
+        // ❌ 삭제: toolbar 관련 코드는 이제 필요 없습니다.
+        // toolbar = findViewById(R.id.toolbar_review)
     }
 
     private fun setupListeners() {
-        // 뒤로가기 버튼
-        toolbar.setNavigationOnClickListener {
+        // 🆕 변경: 툴바 대신 X 버튼 클릭 시 종료
+        btnClose.setOnClickListener {
             finish()
         }
 
@@ -89,7 +92,6 @@ class ReviewActivity : AppCompatActivity() {
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (response.isSuccessful) {
-                        // ✅ [수정] 작성 성공 시 -> "내가 쓴 리뷰" 목록으로 이동
                         Toast.makeText(this@ReviewActivity, "리뷰가 등록되었습니다!", Toast.LENGTH_SHORT).show()
 
                         val intent = Intent(this@ReviewActivity, ReviewListActivity::class.java).apply {

@@ -85,43 +85,45 @@
         android:layout_marginTop="8dp" />
 
     <!-- 닉네임 안내 텍스트 -->
+
+    <!-- 위치 정보 표시 -->
     <TextView
         android:id="@+id/text_nickname_hint"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginStart="224dp"
+        android:layout_marginTop="204dp"
         android:text="2-20자의 한글, 영문, 숫자를 사용할 수 있어요"
-        android:textSize="12sp"
         android:textColor="#999999"
-        app:layout_constraintTop_toBottomOf="@id/edit_nickname"
+        android:textSize="12sp"
         app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginTop="4dp" />
+        app:layout_constraintTop_toBottomOf="@id/edit_nickname" />
 
-    <!-- 위치 정보 표시 -->
-    <TextView
-        android:id="@+id/text_location_label"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="활동 지역"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:textColor="#333333"
-        app:layout_constraintTop_toBottomOf="@id/text_nickname_hint"
-        app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginTop="32dp" />
+<!--    <TextView-->
+<!--        android:id="@+id/text_location_label"-->
+<!--        android:layout_width="0dp"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:text="활동 지역"-->
+<!--        android:textSize="16sp"-->
+<!--        android:textStyle="bold"-->
+<!--        android:textColor="#333333"-->
+<!--        app:layout_constraintTop_toBottomOf="@id/text_nickname_hint"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        android:layout_marginTop="32dp" />-->
 
-    <TextView
-        android:id="@+id/text_location_info"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="위치를 설정하세요."
-        android:textSize="16sp"
-        android:textColor="#666666"
-        android:padding="16dp"
-        android:background="@android:drawable/dialog_holo_light_frame"
-        app:layout_constraintTop_toBottomOf="@id/text_location_label"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="8dp" />
+<!--    <TextView-->
+<!--        android:id="@+id/text_location_info"-->
+<!--        android:layout_width="0dp"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:text="위치를 설정하세요."-->
+<!--        android:textSize="16sp"-->
+<!--        android:textColor="#666666"-->
+<!--        android:padding="16dp"-->
+<!--        android:background="@android:drawable/dialog_holo_light_frame"-->
+<!--        app:layout_constraintTop_toBottomOf="@id/text_location_label"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        app:layout_constraintEnd_toEndOf="parent"-->
+<!--        android:layout_marginTop="8dp" />-->
 
     <!-- 완료 버튼 -->
     <Button
