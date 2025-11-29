@@ -105,6 +105,25 @@ class ProductDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             }
             startActivity(intent)
         }
+
+        // ⭐ 판매자 프로필 클릭 시 -> 그 판매자가 받은 리뷰 목록으로 이동
+        binding.imageSellerProfile.setOnClickListener {
+            val product = currentProduct
+            if (product == null) {
+                Toast.makeText(this, "상품 정보를 아직 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val sellerId = product.userId
+            val sellerNickname = product.sellerNickname ?: "판매자"
+
+            val intent = Intent(this, ReviewListActivity::class.java).apply {
+                putExtra("REVIEW_TYPE", "SELLER")   // 모드 구분
+                putExtra("SELLER_ID", sellerId)     // 어떤 판매자인지
+                putExtra("SELLER_NICKNAME", sellerNickname)
+            }
+            startActivity(intent)
+        }
     }
 
     private fun addToCart() {

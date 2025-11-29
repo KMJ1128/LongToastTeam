@@ -1,3 +1,4 @@
+// com.longtoast.bilbil.ReviewListAdapter.kt
 package com.longtoast.bilbil
 
 import android.view.LayoutInflater
@@ -8,8 +9,10 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.longtoast.bilbil.dto.ReviewDTO
 
-class ReviewListAdapter(private var reviews: List<ReviewDTO>) :
-    RecyclerView.Adapter<ReviewListAdapter.ReviewHolder>() {
+class ReviewListAdapter(
+    private var reviews: List<ReviewDTO>,
+    private val reviewType: String   // "WRITTEN" / "RECEIVED" / "SELLER"
+) : RecyclerView.Adapter<ReviewListAdapter.ReviewHolder>() {
 
     inner class ReviewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val nickname: TextView = itemView.findViewById(R.id.text_review_nickname)
@@ -24,8 +27,23 @@ class ReviewListAdapter(private var reviews: List<ReviewDTO>) :
             ratingBar.rating = review.rating.toFloat()
             content.text = review.comment ?: ""
 
-            // DTO에 물품명이 없으므로 숨김
-            itemName.visibility = View.GONE
+            // 🔥 세 모드 전부 같은 양식: 정보가 있으면 표시
+            val title = review.itemTitle.orEmpty()
+            val seller = review.sellerNickname.orEmpty()
+            val period = review.rentalPeriod.orEmpty()
+
+            val infoParts = listOf(
+                title,
+                if (seller.isNotBlank()) "판매자: $seller" else "",
+                if (period.isNotBlank()) "대여기간: $period" else ""
+            ).filter { it.isNotBlank() }
+
+            if (infoParts.isNotEmpty()) {
+                itemName.visibility = View.VISIBLE
+                itemName.text = infoParts.joinToString(" | ")
+            } else {
+                itemName.visibility = View.GONE
+            }
         }
     }
 
