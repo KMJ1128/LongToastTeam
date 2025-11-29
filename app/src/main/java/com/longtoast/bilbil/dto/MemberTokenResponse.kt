@@ -6,6 +6,7 @@ data class MemberTokenResponse(
     val nickname: String,
     val userId: Long,
     val address: String?,             // 🚨 주소 필드 추가 (null 가능)
+    val phoneNumber: String?,
     val locationLatitude: Double?,    // 🚨 위도 필드 추가 (null 가능)
     val locationLongitude: Double?    // 🚨 경도 필드 추가 (null 가능)
     

@@ -176,17 +176,42 @@ class MainActivity : AppCompatActivity() {
             val token = memberTokenResponse.serviceToken
             val userId = memberTokenResponse.userId.toInt()
             val nickname = memberTokenResponse.nickname
+            // 🟢 [추가] userName 필드도 추출 (SettingProfileActivity로 전달해야 함)
+            // MemberTokenResponse DTO에 username 필드가 있다고 가정합니다. (현재 DTO 코드는 불확실)
+            val username = "SOCIAL_USER" // 임시 값 또는 DTO에서 추출
+
+            // 🟢 [핵심] 전화번호 누락 여부 확인
+            val isPhoneNumberMissing = memberTokenResponse.phoneNumber.isNullOrEmpty()
 
             val isAddressMissing =
                 memberTokenResponse.address.isNullOrEmpty() ||
                         memberTokenResponse.locationLatitude == null ||
                         memberTokenResponse.locationLongitude == null
 
-            if (isAddressMissing) {
+            // 🟢 [수정] 1. 전화번호가 누락된 경우 → PhoneVerificationActivity로 이동
+            if (isPhoneNumberMissing) {
                 if (token != null) {
                     onLoginSuccess(token, userId)
                 }
 
+                Log.i("AUTH_FLOW", "🚨 전화번호 누락 → PhoneVerificationActivity로 이동")
+                val intent = Intent(this@MainActivity, PhoneVerificationActivity::class.java).apply {
+                    putExtra("USER_ID", userId)
+                    putExtra("SERVICE_TOKEN", token)
+                    putExtra("USER_NICKNAME", nickname)
+                    putExtra("USER_NAME", username) // userName 전달
+                }
+                startActivity(intent)
+                finish()
+                return
+            }
+            // 2. 전화번호는 있지만 주소가 누락된 경우 → SettingProfileActivity로 이동
+            else if (isAddressMissing) {
+                if (token != null) {
+                    onLoginSuccess(token, userId)
+                }
+
+                Log.i("AUTH_FLOW", "위치 정보 누락 → SettingProfileActivity로 이동")
                 val intent = Intent(this@MainActivity, SettingProfileActivity::class.java).apply {
                     putExtra("USER_ID", userId)
                     putExtra("SERVICE_TOKEN", token)
@@ -194,9 +219,11 @@ class MainActivity : AppCompatActivity() {
                     putExtra("USER_NICKNAME", nickname)
                 }
                 startActivity(intent)
+                finish()
                 return
             }
 
+            // 3. 모든 정보가 있을 경우 메인 화면으로 이동
             if (token != null) {
                 onLoginSuccess(token, userId)
             }

@@ -57,6 +57,9 @@ class SettingProfileActivity : AppCompatActivity() {
     private var userName: String? = null // 💡 [추가] MemberDTO.kt에 username 필드가 추가되었다는 가정
     private var pendingNickname: String = ""
 
+    // 🟢 [추가] PhoneVerificationActivity에서 전달받은 인증된 전화번호
+    private var verifiedPhoneNumber: String? = null
+
     private val CAMERA_PERMISSION_CODE = 100
 
     // 갤러리에서 이미지 선택
@@ -102,9 +105,12 @@ class SettingProfileActivity : AppCompatActivity() {
         userId = intent.getIntExtra("USER_ID", 0)
         userName = intent.getStringExtra("USER_NAME")
 
+        // 🟢 [핵심 수정] 인증된 전화번호를 받습니다. (PhoneVerificationActivity에서 넘어온 경우)
+        verifiedPhoneNumber = intent.getStringExtra("VERIFIED_PHONE_NUMBER")
+
         Log.d(
             "SettingProfile",
-            "인증 정보 - USER_ID: $userId, SERVICE_TOKEN: ${serviceToken?.substring(0, Math.min(serviceToken?.length ?: 0, 10))}..."
+            "인증 정보 - USER_ID: $userId, Verified Phone: $verifiedPhoneNumber"
         )
     }
 
@@ -118,7 +124,13 @@ class SettingProfileActivity : AppCompatActivity() {
 
     private fun displayData() {
         editNickname.setText(userNickname)
-        textLocationInfo.text = "지역 선택 단계에서 설정됩니다."
+
+        // 🟢 [수정] 인증된 번호가 있으면 UI 메시지를 업데이트합니다.
+        if (verifiedPhoneNumber != null) {
+            textLocationInfo.text = "인증 완료 (전화번호: ${verifiedPhoneNumber!!.takeLast(4)}). 지역 설정 단계로 넘어갑니다."
+        } else {
+            textLocationInfo.text = "지역 선택 단계에서 설정됩니다."
+        }
     }
 
     private fun setupListeners() {
@@ -251,6 +263,8 @@ class SettingProfileActivity : AppCompatActivity() {
             putExtra("USER_ID", userId)
             putExtra("SERVICE_TOKEN", serviceToken)
             putExtra("USER_NICKNAME", nickname)
+            // 🟢 [핵심] 인증된 전화번호를 RegionSelectionActivity로 전달합니다. (최종 저장 시 사용)
+            putExtra("VERIFIED_PHONE_NUMBER", verifiedPhoneNumber)
         }
         regionSelectionLauncher.launch(intent)
     }
@@ -276,6 +290,8 @@ class SettingProfileActivity : AppCompatActivity() {
             nickname = pendingNickname,
             username = userName,
             address = address,
+            // 🟢 [핵심 수정] 인증 완료된 전화번호를 사용합니다. (null일 경우 null 전송)
+            phoneNumber = verifiedPhoneNumber,
             locationLatitude = latitude,
             locationLongitude = longitude,
             creditScore = 720,
