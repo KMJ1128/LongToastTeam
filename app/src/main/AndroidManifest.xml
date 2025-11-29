@@ -50,6 +50,9 @@
         <activity
             android:name=".ChatRoomActivity"
             android:exported="false" />
+
+        <activity android:name=".ImagePreviewActivity" />
+
         <activity
             android:name=".ProductDetailActivity"
             android:exported="false" />

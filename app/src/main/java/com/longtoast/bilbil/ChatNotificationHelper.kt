@@ -1,3 +1,5 @@
+// com.longtoast.bilbil.ChatNotificationHelper.kt
+
 package com.longtoast.bilbil
 
 import android.Manifest
@@ -72,6 +74,13 @@ object ChatNotificationHelper {
         val intent = Intent(context, ChatRoomActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             room.roomId?.let { putExtra("ROOM_ID", it) }
+
+            // 🔥 상대방 정보도 같이 넘겨서 채팅방 상단에 표시
+            putExtra("PARTNER_ID", room.partnerId ?: -1)
+            putExtra("PARTNER_NICKNAME", room.partnerNickname)
+            putExtra("PARTNER_PROFILE_URL", room.partnerProfileImageUrl)
+
+            // (구 버전 호환용) SELLER_NICKNAME도 같이 넣어둠
             putExtra("SELLER_NICKNAME", room.partnerNickname)
         }
 

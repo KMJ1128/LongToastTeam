@@ -5,28 +5,32 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:padding="24dp"
+    android:background="@color/trust_background">
 
     <TextView
         android:id="@+id/txtTitle"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="내 활동 지역 설정"
-        android:textSize="22sp"
+        android:textSize="24sp"
         android:textStyle="bold"
+        android:textColor="@color/trust_text_primary"
+        android:layout_marginTop="16dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"/>
 
-    <!-- 🔍 주소 검색 영역 -->
     <LinearLayout
         android:id="@+id/layoutSearch"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="6dp"
-        android:background="@android:drawable/edit_text"
-        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_rounded_white"
+        android:elevation="2dp"
+        android:layout_marginTop="24dp"
+        android:gravity="center_vertical"
         app:layout_constraintTop_toBottomOf="@id/txtTitle"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -36,39 +40,59 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="주소 검색"
-            android:padding="8dp"
+            android:hint="도로명, 지번으로 검색"
+            android:padding="12dp"
+            android:textSize="15sp"
+            android:background="@null"
+            android:textColor="@color/trust_text_primary"
             android:imeOptions="actionSearch"
             android:inputType="text" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSearch"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="검색" />
+            android:layout_height="40dp"
+            android:text="검색"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:cornerRadius="8dp"
+            app:backgroundTint="@color/colorPrimary"
+            android:layout_marginEnd="4dp"/>
     </LinearLayout>
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnCurrentLocation"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="40dp"
         android:text="📍 현재 위치"
-        android:layout_marginTop="10dp"
+        android:textSize="13sp"
+        android:textColor="@color/colorPrimary"
+        app:strokeColor="@color/colorPrimary"
+        app:strokeWidth="1dp"
+        app:backgroundTint="@color/white"
+        app:cornerRadius="20dp"
+        android:paddingHorizontal="12dp"
+        android:layout_marginTop="16dp"
         app:layout_constraintTop_toBottomOf="@id/layoutSearch"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- 🔥 네이버 지도 MapView (카카오 지도 제거됨) -->
-    <com.naver.maps.map.MapView
-        android:id="@+id/mapView"
+    <androidx.cardview.widget.CardView
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="10dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
         app:layout_constraintTop_toBottomOf="@id/btnCurrentLocation"
         app:layout_constraintBottom_toTopOf="@id/txtSelectedAddress"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent">
 
+        <com.naver.maps.map.MapView
+            android:id="@+id/mapView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </androidx.cardview.widget.CardView>
 
     <TextView
         android:id="@+id/txtSelectedAddress"
@@ -76,18 +100,24 @@
         android:layout_height="wrap_content"
         android:text="지도를 움직여 위치를 선택하세요"
         android:gravity="center"
-        android:textColor="#666"
-        android:padding="8dp"
+        android:textSize="15sp"
+        android:textColor="@color/trust_text_secondary"
+        android:background="@drawable/bg_rounded_white"
+        android:padding="16dp"
+        android:layout_marginBottom="16dp"
         app:layout_constraintBottom_toTopOf="@id/btnConfirm"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnConfirm"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="56dp"
         android:text="이 위치로 설정"
-        android:padding="16dp"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:cornerRadius="12dp"
+        app:backgroundTint="@color/colorPrimary"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -95,9 +125,13 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_search_result"
         android:layout_width="0dp"
-        android:layout_height="200dp"
+        android:layout_height="250dp"
+        android:background="@color/white"
         android:visibility="gone"
+        android:elevation="10dp"
+        android:padding="8dp"
         app:layout_constraintTop_toBottomOf="@id/layoutSearch"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>
