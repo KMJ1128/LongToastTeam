@@ -199,12 +199,13 @@ class ChatRoomActivity : AppCompatActivity() {
             return
         }
 
-        val img = productImageUrl ?: ""
+        val raw = productImageUrl ?: return
 
-        val normalized = img.replace(Regex("^/+"), "")   // 앞쪽의 모든 "/" 제거
-
-        val fullImageUrl = "${ServerConfig.IMG_BASE_URL}/$normalized"
-
+        val fullImageUrl = if (raw.startsWith("http")) raw else {
+            val base = ServerConfig.IMG_BASE_URL.trimEnd('/')
+            val path = raw.trimStart('/')
+            "$base/$path"
+        }
         val realLenderId = if (isLender) senderId else otherUserId
         val realBorrowerId = if (isLender) otherUserId else senderId
 
