@@ -11,8 +11,8 @@ object ServerConfig {
     //const val HTTP_BASE_URL = "https://unpaneled-jennette-phonily.ngrok-free.dev/"
     //const val HTTP_BASE_URL = "http://192.168.45.105:8080/"
     //const val HTTP_BASE_URL = "http://172.16.101.164:8080/"
-    const val HTTP_BASE_URL = "http://192.168.0.211:8080/"
-    const val IMG_BASE_URL = "http://192.168.0.211:8080/"
+    const val HTTP_BASE_URL = "https://jamie-predelinquent-hayden.ngrok-free.dev/"
+    const val IMG_BASE_URL = "https://jamie-predelinquent-hayden.ngrok-free.dev/"
 
     val WEBSOCKET_URL: String
         get() {

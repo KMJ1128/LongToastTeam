@@ -13,20 +13,56 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="@color/white"
-        app:titleTextColor="@color/black"
         app:layout_constraintTop_toTopOf="parent">
 
-        <TextView
-            android:id="@+id/text_chat_title"
+        <!-- 🔥 BilBil + 상대 프로필 + 상대 이름 한 줄 정렬 -->
+        <LinearLayout
+            android:id="@+id/layout_chat_header"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="상대방"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_gravity="center_vertical"/>
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_gravity="center_vertical|start"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp">
+
+            <!-- BilBil 고정 텍스트 -->
+            <TextView
+                android:id="@+id/text_app_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="BilBil"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/black"/>
+
+            <!-- 상대방 프로필 이미지 -->
+            <ImageView
+                android:id="@+id/image_chat_partner"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="8dp"
+                android:src="@drawable/no_profile"
+                android:scaleType="centerCrop"
+                android:background="@drawable/chat_avatar_background"
+                android:padding="2dp"
+                android:contentDescription="상대방 프로필"/>
+
+            <!-- 상대방 이름 -->
+            <TextView
+                android:id="@+id/text_chat_partner_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="상대방"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/black"/>
+        </LinearLayout>
+
     </com.google.android.material.appbar.MaterialToolbar>
 
-    <!-- ⭐ Toolbar 밖으로 뺀 대여 합의하기 버튼 -->
+    <!-- ⭐ Toolbar 밖에 있는 대여 합의하기 버튼 (오른쪽) -->
     <Button
         android:id="@+id/btn_rent_agree"
         android:layout_width="wrap_content"
