@@ -1,3 +1,4 @@
+// com.longtoast.bilbil.ReviewListActivity.kt
 package com.longtoast.bilbil
 
 import android.os.Bundle
@@ -20,8 +21,10 @@ class ReviewListActivity : AppCompatActivity() {
     private lateinit var binding: ActivityReviewListBinding
     private lateinit var adapter: ReviewListAdapter
 
-    // "WRITTEN"(내가 쓴) 또는 "RECEIVED"(내가 받은)
+    // "WRITTEN"(내가 쓴) / "RECEIVED"(내가 받은) / "SELLER"(특정 판매자)
     private var reviewType: String = "WRITTEN"
+    private var sellerId: Int = -1
+    private var sellerNickname: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,16 +33,27 @@ class ReviewListActivity : AppCompatActivity() {
 
         // Intent로 타입 받기
         reviewType = intent.getStringExtra("REVIEW_TYPE") ?: "WRITTEN"
+        sellerId = intent.getIntExtra("SELLER_ID", -1)
+        sellerNickname = intent.getStringExtra("SELLER_NICKNAME")
 
         setupUI()
         fetchReviews()
     }
 
     private fun setupUI() {
-        binding.toolbarTitle.text = if (reviewType == "WRITTEN") "내가 쓴 리뷰" else "내가 받은 리뷰"
+        // 툴바 제목 설정
+        val title = when (reviewType) {
+            "WRITTEN" -> "내가 쓴 리뷰"
+            "RECEIVED" -> "내가 받은 리뷰"
+            "SELLER" -> sellerNickname?.let { "$it 님의 리뷰" } ?: "판매자 리뷰"
+            else -> "리뷰 목록"
+        }
+        binding.toolbarTitle.text = title
+
         binding.btnBack.setOnClickListener { finish() }
 
-        adapter = ReviewListAdapter(emptyList())
+        // ⭐ 어댑터에 reviewType 전달
+        adapter = ReviewListAdapter(emptyList(), reviewType)
         binding.recyclerReviewList.layoutManager = LinearLayoutManager(this)
         binding.recyclerReviewList.adapter = adapter
     }
@@ -48,10 +62,25 @@ class ReviewListActivity : AppCompatActivity() {
         binding.progressBar.visibility = View.VISIBLE
 
         val apiService = RetrofitClient.getApiService()
-        val call = if (reviewType == "WRITTEN") {
-            apiService.getMyWrittenReviews() // GET /reviews/my
-        } else {
-            apiService.getMyReceivedReviews() // GET /reviews/received
+
+        val call: Call<MsgEntity> = when (reviewType) {
+            "WRITTEN" -> {
+                apiService.getMyWrittenReviews() // GET /reviews/my
+            }
+            "RECEIVED" -> {
+                apiService.getMyReceivedReviews() // GET /reviews/received
+            }
+            "SELLER" -> {
+                if (sellerId == -1) {
+                    binding.progressBar.visibility = View.GONE
+                    Toast.makeText(this, "판매자 정보가 없습니다.", Toast.LENGTH_SHORT).show()
+                    return
+                }
+                apiService.getSellerReviews(sellerId) // GET /reviews/seller/{sellerId}
+            }
+            else -> {
+                apiService.getMyWrittenReviews()
+            }
         }
 
         call.enqueue(object : Callback<MsgEntity> {

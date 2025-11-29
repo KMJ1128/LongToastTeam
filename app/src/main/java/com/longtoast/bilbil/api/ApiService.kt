@@ -83,6 +83,11 @@ interface ApiService {
         @Body request: ReviewCreateRequest
     ): Call<MsgEntity>
 
+    @GET("/reviews/seller/{sellerId}")
+    fun getSellerReviews(
+        @Path("sellerId") sellerId: Int
+    ): Call<MsgEntity>
+
     @POST("/location/update")
     suspend fun sendLocation(@Body request: LocationRequest): Response<MsgEntity>
 
