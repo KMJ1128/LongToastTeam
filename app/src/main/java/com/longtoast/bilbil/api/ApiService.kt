@@ -56,9 +56,9 @@ interface ApiService {
     ): Call<MsgEntity>
 
     @Multipart
-    @POST("writeproduct/create")
+    @POST("/writeproduct/create")
     fun createProduct(
-        @Part("product") productJson: RequestBody,
+        @Part product: MultipartBody.Part,
         @Part images: List<MultipartBody.Part>
     ): Call<MsgEntity>
 

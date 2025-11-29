@@ -103,49 +103,71 @@ class PhoneVerificationActivity : AppCompatActivity() {
         buttonRequestVerify.isEnabled = false
         textVerifyStatus.text = "인증 요청 중..."
 
-        RetrofitClient.getApiService().requestVerification(VerifyRequest(phoneNumber)).enqueue(object : Callback<MsgEntity> {
-            override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                buttonRequestVerify.isEnabled = true
-                if (!response.isSuccessful || response.body()?.data == null) {
-                    val errorBody = response.errorBody()?.string()
-                    Log.e("VERIFY_FLOW", "인증 요청 실패: ${response.code()}, $errorBody")
-                    Toast.makeText(this@PhoneVerificationActivity, "인증 요청 실패: 이미 가입된 번호일 수 있습니다.", Toast.LENGTH_LONG).show()
-                    textVerifyStatus.text = "인증 요청 실패. 다시 시도해주세요."
-                    return
-                }
+        RetrofitClient.getApiService().requestVerification(VerifyRequest(phoneNumber))
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    buttonRequestVerify.isEnabled = true
 
-                try {
-                    val gson = Gson()
-                    val dataJson = gson.toJson(response.body()!!.data)
-                    val responseData: VerificationResponse = gson.fromJson(dataJson, VerificationResponse::class.java)
+                    // ------------------------------
+                    // 🔥 (1) 실패 응답 처리 (400 등)
+                    // ------------------------------
+                    if (!response.isSuccessful) {
+                        val errorText = response.errorBody()?.string()
+                        Log.e("VERIFY_FLOW", "실패 응답: $errorText")
+
+                        try {
+                            val errorMsg = Gson().fromJson(errorText, MsgEntity::class.java)
+
+                            if (errorMsg.message == "이미 다른 소셜로그인으로 가입된 사용자입니다") {
+                                Toast.makeText(
+                                    this@PhoneVerificationActivity,
+                                    "이미 다른 소셜로그인으로 가입된 사용자입니다",
+                                    Toast.LENGTH_LONG
+                                ).show()
+
+                                textVerifyStatus.text = "이미 가입된 번호입니다."
+                                return
+                            }
+
+                        } catch (e: Exception) {
+                            Log.e("VERIFY_FLOW", "에러 파싱 실패", e)
+                        }
+
+                        Toast.makeText(
+                            this@PhoneVerificationActivity,
+                            "인증 요청 실패",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        textVerifyStatus.text = "인증 요청 실패"
+                        return
+                    }
+
+                    // ------------------------------
+                    // 🔥 (2) 성공 응답 처리
+                    // ------------------------------
+                    val entity = response.body()
+                    val dataJson = Gson().toJson(entity?.data)
+                    val responseData = Gson().fromJson(dataJson, VerificationResponse::class.java)
 
                     val smsUrl = responseData.smsUrl
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(smsUrl))
-                    startActivity(intent)
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(smsUrl)))
 
-                    textVerifyStatus.text = "문자가 자동으로 입력되었습니다. '보내기' 후 '인증 완료' 버튼을 눌러주세요."
-                    Toast.makeText(this@PhoneVerificationActivity,
-                        "문자 앱이 열렸습니다. 인증 문자를 '그대로' 전송 후, '인증 완료' 버튼을 눌러주세요.",
-                        Toast.LENGTH_LONG).show()
+                    textVerifyStatus.text =
+                        "문자를 보낸 뒤 '인증 완료' 버튼을 눌러주세요."
 
                     buttonConfirmVerify.isEnabled = true
-                    editPhoneNumber.isEnabled = false // 전송 후 번호 수정 방지
-                    buttonRequestVerify.visibility = View.GONE // 요청 버튼 숨김
-
-                } catch (e: Exception) {
-                    Log.e("VERIFY_FLOW", "인증 응답 파싱 오류", e)
-                    textVerifyStatus.text = "인증 요청 처리 오류."
-                    Toast.makeText(this@PhoneVerificationActivity, "인증 요청 처리 오류", Toast.LENGTH_SHORT).show()
+                    editPhoneNumber.isEnabled = false
+                    buttonRequestVerify.visibility = View.GONE
                 }
-            }
 
-            override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                buttonRequestVerify.isEnabled = true
-                textVerifyStatus.text = "네트워크 오류 발생."
-                Toast.makeText(this@PhoneVerificationActivity, "네트워크 오류", Toast.LENGTH_SHORT).show()
-            }
-        })
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    buttonRequestVerify.isEnabled = true
+                    textVerifyStatus.text = "네트워크 오류 발생."
+                    Toast.makeText(this@PhoneVerificationActivity, "네트워크 오류", Toast.LENGTH_SHORT).show()
+                }
+            })
     }
+
 
     // 3단계: 인증 확인 API 호출
     private fun confirmVerification(phoneNumber: String) {

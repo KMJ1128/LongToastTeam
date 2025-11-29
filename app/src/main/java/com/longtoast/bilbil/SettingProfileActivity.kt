@@ -8,110 +8,103 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ImageView
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.gson.Gson
+import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.dto.MemberDTO
 import com.longtoast.bilbil.dto.MsgEntity
-import java.io.File
-import java.io.IOException
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import com.longtoast.bilbil.api.RetrofitClient
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.MultipartBody
-
-import okhttp3.RequestBody.Companion.asRequestBody
-
+import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 
 class SettingProfileActivity : AppCompatActivity() {
 
+    // region Views
     private lateinit var imageProfile: ImageView
-    private lateinit var fabChangePhoto: FloatingActionButton
+    private lateinit var fabChangePhoto: com.google.android.material.floatingactionbutton.FloatingActionButton
     private lateinit var editNickname: EditText
     private lateinit var textLocationInfo: TextView
     private lateinit var buttonComplete: Button
+    // endregion
 
-    private var profileImageUri: Uri? = null
     private var profileBitmap: Bitmap? = null
+    private var profileImageUri: Uri? = null
 
-    // Intent로 받은 데이터
-    private var userNickname: String = ""
-
+    // Intent 데이터
+    private var userId = 0
     private var serviceToken: String? = null
-    private var userId: Int = 0
-
-    private var userName: String? = null // 💡 [추가] MemberDTO.kt에 username 필드가 추가되었다는 가정
     private var pendingNickname: String = ""
-
-    // 🟢 [추가] PhoneVerificationActivity에서 전달받은 인증된 전화번호
     private var verifiedPhoneNumber: String? = null
+    private var userName: String? = null
 
     private val CAMERA_PERMISSION_CODE = 100
 
-    // 갤러리에서 이미지 선택
+    // -------------------------------
+    // 🔥 Region launcher (핵심)
+    // -------------------------------
+    private val regionSelectionLauncher: ActivityResultLauncher<Intent> =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+
+            if (result.resultCode != RESULT_OK || result.data == null) return@registerForActivityResult
+
+            val address = result.data!!.getStringExtra("FINAL_ADDRESS") ?: return@registerForActivityResult
+            val latitude = result.data!!.getDoubleExtra("FINAL_LATITUDE", 0.0)
+            val longitude = result.data!!.getDoubleExtra("FINAL_LONGITUDE", 0.0)
+
+            // 🔥 recreate 시점에서도 crash 방지
+            if (::textLocationInfo.isInitialized) {
+                textLocationInfo.text = address
+            }
+
+            submitProfile(address, latitude, longitude)
+        }
+
+    // -------------------------------
+    // 이미지 선택 런처
+    // -------------------------------
     private val pickImageLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            handleImageResult(it)
-        }
-    }
+    ) { uri -> uri?.let { handleImageResult(it) } }
 
-    // 카메라로 사진 촬영
     private val takePictureLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicture()
-    ) { success: Boolean ->
-        if (success) {
-            profileImageUri?.let {
-                handleImageResult(it)
-            }
+    ) { success ->
+        if (success && profileImageUri != null) {
+            handleImageResult(profileImageUri!!)
         }
     }
 
+    // -------------------------------------------------------
+    // Activity lifecycle
+    // -------------------------------------------------------
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_setting_profile)
 
         getIntentData()
-
-        // 신규 회원의 초기 진입 시 토큰이 누락되지 않도록 안전하게 보관
-        serviceToken?.let { AuthTokenManager.saveToken(it) }
-        if (userId != 0) {
-            AuthTokenManager.saveUserId(userId)
-        }
         initViews()
-//        displayData()
         setupListeners()
     }
 
     private fun getIntentData() {
-        userNickname = intent.getStringExtra("USER_NICKNAME") ?: ""
-
-        serviceToken = intent.getStringExtra("SERVICE_TOKEN")
         userId = intent.getIntExtra("USER_ID", 0)
-        userName = intent.getStringExtra("USER_NAME")
-
-        // 🟢 [핵심 수정] 인증된 전화번호를 받습니다. (PhoneVerificationActivity에서 넘어온 경우)
+        serviceToken = intent.getStringExtra("SERVICE_TOKEN")
         verifiedPhoneNumber = intent.getStringExtra("VERIFIED_PHONE_NUMBER")
-
-        Log.d(
-            "SettingProfile",
-            "인증 정보 - USER_ID: $userId, Verified Phone: $verifiedPhoneNumber"
-        )
+        userName = intent.getStringExtra("USER_NAME")
     }
 
     private fun initViews() {
@@ -122,138 +115,19 @@ class SettingProfileActivity : AppCompatActivity() {
         buttonComplete = findViewById(R.id.button_complete)
     }
 
-//    private fun displayData() {
-//        editNickname.setText(userNickname)
-//
-//        // 🟢 [수정] 인증된 번호가 있으면 UI 메시지를 업데이트합니다.
-//        if (verifiedPhoneNumber != null) {
-//            textLocationInfo.text = "인증 완료. 지역 설정 단계로 넘어갑니다."
-//        } else {
-//            textLocationInfo.text = "지역 선택 단계에서 설정됩니다."
-//        }
-//    }
-
     private fun setupListeners() {
-        fabChangePhoto.setOnClickListener {
-            showImagePickerDialog()
-        }
-
-        buttonComplete.setOnClickListener {
-            onCompleteButtonClicked()
-        }
+        fabChangePhoto.setOnClickListener { showImagePickerDialog() }
+        buttonComplete.setOnClickListener { onCompleteButtonClicked() }
     }
 
-    private fun showImagePickerDialog() {
-        val options = arrayOf("갤러리에서 선택", "카메라로 촬영", "취소")
-
-        AlertDialog.Builder(this)
-            .setTitle("프로필 사진 변경")
-            .setItems(options) { dialog, which ->
-                when (which) {
-                    0 -> openGallery()
-                    1 -> openCamera()
-                    2 -> dialog.dismiss()
-                }
-            }
-            .show()
-    }
-
-    private fun openGallery() {
-        pickImageLauncher.launch("image/*")
-    }
-
-    private fun openCamera() {
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            launchCamera()
-        } else {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.CAMERA),
-                CAMERA_PERMISSION_CODE
-            )
-        }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if (requestCode == CAMERA_PERMISSION_CODE) {
-            if (grantResults.isNotEmpty() &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED
-            ) {
-                launchCamera()
-            } else {
-                Toast.makeText(this, "카메라 권한이 필요합니다", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun launchCamera() {
-        try {
-            val photoFile = File.createTempFile(
-                "profile_",
-                ".jpg",
-                cacheDir
-            )
-
-            val uri = FileProvider.getUriForFile(
-                this,
-                "${packageName}.fileprovider",
-                photoFile
-            )
-
-            profileImageUri = uri
-            takePictureLauncher.launch(uri)
-        } catch (e: IOException) {
-            e.printStackTrace()
-            Toast.makeText(this, "카메라 실행 오류", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun handleImageResult(uri: Uri) {
-        try {
-            val inputStream = contentResolver.openInputStream(uri)
-            profileBitmap = BitmapFactory.decodeStream(inputStream)
-            inputStream?.close()
-
-            imageProfile.setImageBitmap(profileBitmap)
-
-            Log.d("IMAGE", "프로필 이미지 설정 완료")
-            Toast.makeText(this, "프로필 사진이 설정되었습니다", Toast.LENGTH_SHORT).show()
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Log.e("IMAGE", "이미지 로드 오류", e)
-            Toast.makeText(this, "이미지를 불러올 수 없습니다", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    /**
-     * 완료 버튼 클릭 시, 지역 선택 화면으로 이동한 뒤 위치까지 설정해 저장합니다.
-     */
+    // -------------------------------------------------------
+    // 프로필 완료 버튼 → RegionSelectionActivity 호출
+    // -------------------------------------------------------
     private fun onCompleteButtonClicked() {
         val nickname = editNickname.text.toString().trim()
 
-        // 닉네임 유효성 검사
-        if (nickname.isEmpty() || nickname.length < 2) {
-            Toast.makeText(this, "닉네임은 2자 이상이어야 합니다", Toast.LENGTH_SHORT).show()
-            editNickname.requestFocus()
-            return
-        }
-
-        if (serviceToken == null || userId == 0) {
-            Log.e("PROFILE_COMPLETE", "🚨 JWT 또는 USER_ID 누락. 홈 이동 실패.")
-            Toast.makeText(this, "인증 정보가 부족합니다. 다시 로그인해주세요.", Toast.LENGTH_LONG).show()
-            startActivity(Intent(this, MainActivity::class.java))
-            finishAffinity()
+        if (nickname.length < 2) {
+            Toast.makeText(this, "닉네임은 2자 이상입니다.", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -263,34 +137,23 @@ class SettingProfileActivity : AppCompatActivity() {
             putExtra("USER_ID", userId)
             putExtra("SERVICE_TOKEN", serviceToken)
             putExtra("USER_NICKNAME", nickname)
-            // 🟢 [핵심] 인증된 전화번호를 RegionSelectionActivity로 전달합니다. (최종 저장 시 사용)
             putExtra("VERIFIED_PHONE_NUMBER", verifiedPhoneNumber)
+            putExtra(RegionSelectionActivity.EXTRA_MODE, RegionSelectionActivity.MODE_PROFILE)
         }
+
         regionSelectionLauncher.launch(intent)
     }
 
-    private val regionSelectionLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode != RESULT_OK || result.data == null) return@registerForActivityResult
-
-            val address = result.data?.getStringExtra("FINAL_ADDRESS") ?: return@registerForActivityResult
-            val latitude = result.data?.getDoubleExtra("FINAL_LATITUDE", 0.0) ?: 0.0
-            val longitude = result.data?.getDoubleExtra("FINAL_LONGITUDE", 0.0) ?: 0.0
-
-            textLocationInfo.text = address
-
-            submitProfile(address, latitude, longitude)
-        }
-
+    // -------------------------------------------------------
+    // RegionSelectionActivity → SettingProfile 복귀 → 서버 저장
+    // -------------------------------------------------------
     private fun submitProfile(address: String, latitude: Double, longitude: Double) {
 
-        // 1. MemberDTO → JSON 변환
         val updateRequest = MemberDTO(
             id = userId,
             nickname = pendingNickname,
             username = userName,
             address = address,
-            // 🟢 [핵심 수정] 인증 완료된 전화번호를 사용합니다. (null일 경우 null 전송)
             phoneNumber = verifiedPhoneNumber,
             locationLatitude = latitude,
             locationLongitude = longitude,
@@ -299,77 +162,87 @@ class SettingProfileActivity : AppCompatActivity() {
             createdAt = null
         )
 
-        val gson = Gson()
-        val memberJson = gson.toJson(updateRequest)
+        val memberJson = Gson().toJson(updateRequest)
+        val memberRequestBody = memberJson.toRequestBody("application/json".toMediaType())
 
-        val memberRequestBody = memberJson
-            .toRequestBody("application/json; charset=utf-8".toMediaType())
-
-
-        // 2. 프로필 이미지 → Multipart 변환
+        // 이미지 multipart 변환
         var imagePart: MultipartBody.Part? = null
 
         if (profileBitmap != null) {
             try {
                 val file = File(cacheDir, "profile_upload.jpg")
-
                 val fos = FileOutputStream(file)
                 profileBitmap!!.compress(Bitmap.CompressFormat.JPEG, 90, fos)
-                fos.flush()
                 fos.close()
 
-                val reqFile = file.asRequestBody("image/jpeg".toMediaType())
-                imagePart = MultipartBody.Part.createFormData(
-                    "profileImage",
-                    file.name,
-                    reqFile
-                )
-
-                Log.d("PROFILE_API", "이미지 multipart 변환 성공 → ${file.name}")
+                val req = file.asRequestBody("image/jpeg".toMediaType())
+                imagePart = MultipartBody.Part.createFormData("profileImage", file.name, req)
 
             } catch (e: Exception) {
-                Log.e("PROFILE_API", "이미지 변환 실패", e)
+                Log.e("PROFILE_IMAGE", "이미지 변환 실패", e)
             }
-        } else {
-            Log.d("PROFILE_API", "프로필 이미지 없음 → null 로 전송")
         }
 
-
-        // 3. 서버 요청 전 인증 데이터 저장
-        serviceToken?.let { AuthTokenManager.saveToken(it) }
-        AuthTokenManager.saveUserId(userId)
-
-
-        // 4. API 호출 (Multipart)
         RetrofitClient.getApiService().updateProfile(
             memberRequestBody,
             imagePart
         ).enqueue(object : Callback<MsgEntity> {
-
             override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-
                 if (!response.isSuccessful) {
-                    Log.e("PROFILE_API", "프로필 업데이트 실패: ${response.code()}, ${response.errorBody()?.string()}")
-
-                    Toast.makeText(this@SettingProfileActivity, "프로필 저장 실패: ${response.code()}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@SettingProfileActivity, "프로필 저장 실패", Toast.LENGTH_LONG).show()
                     return
                 }
 
-                Toast.makeText(this@SettingProfileActivity, "프로필 설정 및 저장 완료!", Toast.LENGTH_SHORT).show()
-                Log.d("PROFILE_API", "프로필 업데이트 성공!")
-
-                AuthTokenManager.saveNickname(pendingNickname)
-                AuthTokenManager.saveAddress(address)
-
-                startActivity(Intent(this@SettingProfileActivity, HomeHostActivity::class.java))
+                // 성공 → 홈으로 이동
+                Toast.makeText(this@SettingProfileActivity, "프로필 설정 완료!", Toast.LENGTH_SHORT).show()
+                val intent = Intent(this@SettingProfileActivity, HomeHostActivity::class.java)
+                startActivity(intent)
                 finishAffinity()
             }
 
             override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                Log.e("PROFILE_API", "서버 통신 오류", t)
-                Toast.makeText(this@SettingProfileActivity, "서버 연결 오류", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@SettingProfileActivity, "서버 통신 오류", Toast.LENGTH_LONG).show()
             }
         })
     }
 
+    // -------------------------------------------------------
+    // 이미지 처리
+    // -------------------------------------------------------
+    private fun showImagePickerDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("프로필 사진 변경")
+            .setItems(arrayOf("갤러리", "카메라", "취소")) { dialog, which ->
+                when (which) {
+                    0 -> pickImageLauncher.launch("image/*")
+                    1 -> openCamera()
+                    2 -> dialog.dismiss()
+                }
+            }.show()
+    }
+
+    private fun openCamera() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), CAMERA_PERMISSION_CODE)
+            return
+        }
+
+        val file = File.createTempFile("profile_", ".jpg", cacheDir)
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+        profileImageUri = uri
+
+        takePictureLauncher.launch(uri)
+    }
+
+    private fun handleImageResult(uri: Uri) {
+        try {
+            val input = contentResolver.openInputStream(uri)
+            profileBitmap = BitmapFactory.decodeStream(input)
+            input?.close()
+            imageProfile.setImageBitmap(profileBitmap)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }
