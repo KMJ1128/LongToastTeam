@@ -231,7 +231,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="작성 완료"
-        android:backgroundTint="#FF9800"
+        android:backgroundTint="#00BFA5"
         android:padding="16dp"
         android:textSize="18sp"
         app:layout_constraintBottom_toBottomOf="parent" />

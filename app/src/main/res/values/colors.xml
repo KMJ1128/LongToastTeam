@@ -1,22 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <color name="colorPrimary">#00BFA5</color>       <color name="colorPrimaryDark">#00897B</color>   <color name="colorPrimaryVariant">#E0F2F1</color> <color name="colorSecondary">#263238</color>     <color name="colorAccent">#FFD700</color>        <color name="colorError">#D32F2F</color>         <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
 
-    <!-- 신뢰감 있는 청록/블루 톤 팔레트 -->
-    <color name="trust_primary">#2F80ED</color>
-    <color name="trust_primary_dark">#1B4F8C</color>
-    <color name="trust_surface">#F4F8FB</color>
-    <color name="trust_card">#FFFFFFFF</color>
-    <color name="trust_stroke">#CDE3F5</color>
-    <color name="trust_text_primary">#0F2940</color>
-    <color name="trust_text_secondary">#4A6378</color>
-    <color name="trust_chip_bg">#E3F2FF</color>
+    <color name="colorSurface">#FFFFFF</color>       <color name="colorBackground">#F5F5F5</color>    <color name="trust_primary">@color/colorPrimary</color>
+    <color name="trust_primary_dark">@color/colorPrimaryDark</color>
+    <color name="trust_text_primary">#222222</color>   <color name="trust_text_secondary">#757575</color> <color name="trust_stroke">#EEEEEE</color>         <color name="trust_background">@color/colorBackground</color>
+    <color name="trust_surface">@color/colorSurface</color>
+    <color name="trust_card">@color/white</color>
 
-    <!-- App-wide additions -->
-    <color name="trust_gradient_start">#7EDFD7</color>
-    <color name="trust_gradient_end">#2F80ED</color>
-    <color name="trust_glow">#262F80ED</color>
-    <color name="trust_chip_border">#CBE3F5</color>
-    <color name="trust_muted_bg">#F6FBFF</color>
+    <color name="trust_chip_border">@color/colorPrimary</color> <color name="trust_chip_bg">@color/colorPrimaryVariant</color> <color name="trust_gradient_start">@color/colorPrimary</color>
+    <color name="trust_gradient_end">@color/colorPrimaryDark</color>
+    <color name="trust_glow">#4D00BFA5</color>
+    <color name="trust_muted_bg">@color/colorPrimaryVariant</color>
+
 </resources>
