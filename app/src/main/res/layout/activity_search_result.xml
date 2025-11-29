@@ -7,14 +7,12 @@
     android:layout_height="match_parent"
     android:fitsSystemWindows="true">
 
-    <!-- 검색 결과 메인 컨텐츠 -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/search_result_root"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@color/trust_background">
 
-        <!-- 🔹 헤더 바 (두 번째 레이아웃 스타일 + 첫 번째 레이아웃의 ID 유지) -->
         <LinearLayout
             android:id="@+id/topBar"
             android:layout_width="0dp"
@@ -28,7 +26,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <!-- 1줄째 : 위치 / 프로필 / 장바구니 / 햄버거 -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -61,7 +58,6 @@
                         android:textStyle="bold" />
                 </LinearLayout>
 
-                <!-- 오른쪽 프로필 + 장바구니 + 메뉴 -->
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -70,7 +66,6 @@
                     app:layout_constraintTop_toTopOf="parent"
                     app:layout_constraintBottom_toBottomOf="parent">
 
-                    <!-- 프로필 이미지 (id 유지: profileImage) -->
                     <de.hdodenhof.circleimageview.CircleImageView
                         android:id="@+id/profileImage"
                         android:layout_width="32dp"
@@ -80,7 +75,6 @@
                         app:civ_border_color="@color/white"
                         android:layout_marginEnd="12dp" />
 
-                    <!-- 장바구니 -->
                     <FrameLayout
                         android:id="@+id/cart_container"
                         android:layout_width="wrap_content"
@@ -110,7 +104,6 @@
                             android:visibility="gone" />
                     </FrameLayout>
 
-                    <!-- 햄버거 메뉴 -->
                     <ImageButton
                         android:id="@+id/btn_menu"
                         android:layout_width="32dp"
@@ -123,7 +116,6 @@
                 </LinearLayout>
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <!-- 🔹 검색창 (id: search_bar 유지) -->
             <androidx.appcompat.widget.SearchView
                 android:id="@+id/search_bar"
                 android:layout_width="match_parent"
@@ -131,10 +123,8 @@
                 android:background="@drawable/bg_rounded_white"
                 app:iconifiedByDefault="false"
                 app:queryHint="다른 물건 검색하기"/>
-<!--                app:searchIcon="@drawable/ic_search" -->
         </LinearLayout>
 
-        <!-- 🔹 검색어 + 정렬 버튼 행 (두 번째 레이아웃 info_bar + 첫 번째 레이아웃 sort 버튼들 결합) -->
         <LinearLayout
             android:id="@+id/info_bar"
             android:layout_width="0dp"
@@ -149,7 +139,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <!-- 검색어 표시 텍스트 (id 유지: query_text) -->
             <TextView
                 android:id="@+id/query_text"
                 android:layout_width="0dp"
@@ -160,33 +149,54 @@
                 android:textStyle="bold"
                 android:textColor="@color/trust_text_primary" />
 
-            <!-- 정렬 토글 그룹 (id: group_sort + 내부 버튼 id 유지) -->
-            <com.google.android.material.button.MaterialButtonToggleGroup
-                android:id="@+id/group_sort"
+            <LinearLayout
+                android:id="@+id/group_sort_container"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:singleSelection="false">
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_filter_latest"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="최신순"
-                    android:textSize="13sp" />
+                    android:text="시간순"  android:textSize="12sp"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="6dp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_filter_low_price"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="가격 낮은 순"
-                    android:textSize="13sp"
-                    android:layout_marginStart="8dp" />
-            </com.google.android.material.button.MaterialButtonToggleGroup>
+                    android:text="가격순"  android:textSize="12sp"
+                    android:layout_marginStart="8dp"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="6dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_filter_period"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="일"
+                    android:textSize="12sp"
+                    android:layout_marginStart="8dp"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                    app:icon="@drawable/ic_arrow_down"
+                    app:iconGravity="end"
+                    app:iconSize="16dp"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="6dp" />
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- 🔹 지역 필터 버튼 (동 선택용) - 첫 번째 레이아웃 유지 -->
         <LinearLayout
             android:id="@+id/region_filter_row"
             android:layout_width="0dp"
@@ -212,7 +222,6 @@
                 android:focusable="true" />
         </LinearLayout>
 
-        <!-- 🔹 상품 리스트 -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler_view"
             android:layout_width="0dp"
@@ -224,7 +233,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- 🔹 빈 결과 텍스트 -->
         <TextView
             android:id="@+id/empty_text"
             android:layout_width="wrap_content"
@@ -237,7 +245,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- 🔹 로딩 인디케이터 -->
         <ProgressBar
             android:id="@+id/progress_bar"
             android:layout_width="wrap_content"
@@ -248,7 +255,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- 🔹 하단 뒤로가기 버튼 컨테이너 (두 번째 레이아웃 스타일 + id back_button 유지) -->
         <LinearLayout
             android:id="@+id/back_button_container"
             android:layout_width="0dp"
@@ -273,7 +279,6 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- 오른쪽 사이드 메뉴 -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view"
         android:layout_width="wrap_content"

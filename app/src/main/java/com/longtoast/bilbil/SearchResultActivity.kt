@@ -11,10 +11,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
+import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
+import com.google.android.material.button.MaterialButton
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.longtoast.bilbil.api.RetrofitClient
@@ -31,19 +33,30 @@ class SearchResultActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySearchResultBinding
     private lateinit var adapter: ProductAdapter
 
+    // 정렬 상태를 정의하는 Enum
+    private enum class TimeSort { LATEST, OLDEST }
+    private enum class PriceSort { LOW, HIGH }
+    // 기간 필터 Enum은 그대로 사용 (단위 필터로 역할 변경)
+    private enum class PeriodFilter { DAY, MONTH, HOUR }
+
+    // 💡 복합 정렬을 위한 새로운 상태 변수: null이면 비활성화, 값이 있으면 활성화된 정렬 모드
+    private var timeSortMode: TimeSort? = TimeSort.LATEST    // 기본: 최신순 활성화
+    private var priceSortMode: PriceSort? = null             // 기본: 가격순 비활성화
+    private var currentPeriodFilter: PeriodFilter = PeriodFilter.DAY // 기본: 일 (price_unit=1)
+
     // 현재 검색 상태
     private var currentQuery: String? = null
     private var isCategory: Boolean = false
 
-    // 정렬 필터 상태
-    private var filterLatest: Boolean = true       // 기본: 최신순 ON
-    private var filterLowPrice: Boolean = false   // 기본: 가격 낮은 순 OFF
-
-    // ✅ 지역 필터 상태 (RegionSelectionActivity에서 선택한 전체 문자열)
+    // ✅ 지역 필터 상태
     private var currentRegionFilter: String? = null
 
     // 서버에서 받아온 원본 리스트
     private var originalProductList: List<ProductListDTO> = emptyList()
+
+    // 색상 정의 (MaterialButton의 TextColor를 수동으로 변경해야 토글처럼 보임)
+    private val colorActive: Int by lazy { ContextCompat.getColor(this, R.color.colorPrimary) }
+    private val colorInactive: Int by lazy { ContextCompat.getColor(this, R.color.trust_text_secondary) }
 
     // ✅ 지역 선택 화면(RegionSelectionActivity)에서 결과 받아오기
     private val regionFilterLauncher =
@@ -64,6 +77,16 @@ class SearchResultActivity : AppCompatActivity() {
             }
         }
 
+    private val editProfileLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                loadNavigationHeader()
+                loadMyLocationForHeader()
+                Toast.makeText(this, "프로필이 업데이트되었습니다", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -76,19 +99,16 @@ class SearchResultActivity : AppCompatActivity() {
         setupDrawerMenu()
         setupRecycler()
         setupFilterButtons()
-        setupRegionFilterButton()   // ✅ 지역 버튼 세팅
+        setupPeriodFilterButton()
+        setupRegionFilterButton()
 
         // 전달된 검색 값 확인
         var query = intent.getStringExtra("SEARCH_QUERY")
         isCategory = intent.getBooleanExtra("SEARCH_IS_CATEGORY", false)
 
-        Log.d("DEBUG_FLOW", "전달 받은 원본 검색 정보 → query=$query, isCategory=$isCategory")
-
-        // "#:{category}" 형태면 카테고리 검색 모드로 전환
         if (!query.isNullOrBlank() && query.startsWith("#:")) {
             isCategory = true
             query = query.removePrefix("#:").trim()
-            Log.d("DEBUG_FLOW", "파싱 후 → query=$query | isCategory=$isCategory (카테고리 검색 모드)")
         }
 
         if (query == null) {
@@ -107,7 +127,7 @@ class SearchResultActivity : AppCompatActivity() {
             "\"$query\" 검색 결과"
         }
 
-        // 첫 로딩: 기본 필터(최신순 ON, 가격낮은순 OFF)로
+        // 첫 로딩: 기본 필터로
         loadSearchResults(currentQuery, isCategory)
 
         // 헤더/드로어용 프로필 & 위치
@@ -155,14 +175,15 @@ class SearchResultActivity : AppCompatActivity() {
                         currentQuery = keyword
                         isCategory = false
 
-                        // 새 검색 시 필터 상태 초기화
-                        filterLatest = true
-                        filterLowPrice = false
+                        // 새 검색 시 필터 상태 초기화 (시간순=최신순, 가격순=OFF, 기간=일)
+                        timeSortMode = TimeSort.LATEST
+                        priceSortMode = null
+                        currentPeriodFilter = PeriodFilter.DAY // 기본: 일 단위
                         currentRegionFilter = null
-                        binding.btnRegionFilter.text = "지역 전체"
 
-                        binding.btnFilterLatest.isChecked = true
-                        binding.btnFilterLowPrice.isChecked = false
+                        updateFilterButtonUI() // UI 업데이트
+                        binding.btnFilterPeriod.text = "일"
+                        binding.btnRegionFilter.text = "지역 전체"
 
                         binding.queryText.text = "\"$keyword\" 검색 결과"
 
@@ -177,7 +198,7 @@ class SearchResultActivity : AppCompatActivity() {
         }
     }
 
-    // 헤더용 내 위치 + 상단 프로필
+    // 💡 헤더용 내 위치 + 상단 프로필
     private fun loadMyLocationForHeader() {
         RetrofitClient.getApiService().getMyInfo()
             .enqueue(object : Callback<MsgEntity> {
@@ -209,7 +230,7 @@ class SearchResultActivity : AppCompatActivity() {
             })
     }
 
-    // 장바구니 뱃지 표시
+    // 💡 장바구니 뱃지 표시
     private fun updateCartBadge() {
         val count = CartManager.getItems().size
         if (count > 0) {
@@ -223,6 +244,7 @@ class SearchResultActivity : AppCompatActivity() {
     // -------------------------------------------------------------
     // Drawer + NavigationView
     // -------------------------------------------------------------
+    // 💡 내비게이션 드로어 헤더 로드
     private fun loadNavigationHeader() {
         RetrofitClient.getApiService().getMyInfo()
             .enqueue(object : Callback<MsgEntity> {
@@ -281,6 +303,7 @@ class SearchResultActivity : AppCompatActivity() {
             })
     }
 
+    // 💡 SharedPreferences에서 정보 로드
     private fun loadFromSharedPreferences() {
         val headerView = binding.navView.getHeaderView(0)
         val nicknameTextView = headerView.findViewById<TextView>(R.id.nav_header_nickname)
@@ -293,6 +316,7 @@ class SearchResultActivity : AppCompatActivity() {
         addressTextView.text = address ?: "위치 미지정"
     }
 
+    // 💡 드로어 메뉴 세팅
     private fun setupDrawerMenu() {
         binding.navView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
@@ -342,14 +366,6 @@ class SearchResultActivity : AppCompatActivity() {
         }
     }
 
-    private val editProfileLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                loadNavigationHeader()
-                loadMyLocationForHeader()
-                Toast.makeText(this, "프로필이 업데이트되었습니다", Toast.LENGTH_SHORT).show()
-            }
-        }
 
     // -------------------------------------------------------------
     // RecyclerView & Adapter
@@ -368,28 +384,108 @@ class SearchResultActivity : AppCompatActivity() {
     }
 
     // -------------------------------------------------------------
-    // 정렬 필터 버튼 (최신순, 가격 낮은 순)
+    // 💡 정렬 필터 버튼 (시간순, 가격순) - 복합 정렬 지원 로직
     // -------------------------------------------------------------
+    // 버튼 외형을 상태에 맞춰 업데이트
+    private fun updateButtonAppearance(button: MaterialButton, isActive: Boolean, activeText: String) {
+        if (isActive) {
+            button.text = activeText
+            button.setTextColor(colorActive)
+            button.setStrokeColorResource(R.color.colorPrimary) // 활성 시 테두리 색상
+        } else {
+            button.text = when (button.id) {
+                R.id.btn_filter_latest -> "시간순"
+                R.id.btn_filter_low_price -> "가격순"
+                else -> ""
+            }
+            button.setTextColor(colorInactive)
+            button.setStrokeColorResource(R.color.trust_text_secondary) // 비활성 시 테두리 색상
+        }
+    }
+
     private fun setupFilterButtons() {
-        binding.btnFilterLatest.text = "최신순"
-        binding.btnFilterLowPrice.text = "가격 낮은 순"
+        // 초기 UI 상태 설정
+        updateFilterButtonUI()
 
-        binding.btnFilterLatest.isCheckable = true
-        binding.btnFilterLowPrice.isCheckable = true
-
-        binding.btnFilterLatest.isChecked = filterLatest
-        binding.btnFilterLowPrice.isChecked = filterLowPrice
-
+        // 💡 시간순 토글 로직
         binding.btnFilterLatest.setOnClickListener {
-            filterLatest = binding.btnFilterLatest.isChecked
+            timeSortMode = when (timeSortMode) {
+                TimeSort.LATEST -> TimeSort.OLDEST // 최신순 -> 오래된순
+                TimeSort.OLDEST -> null          // 오래된순 -> 비활성화
+                null -> TimeSort.LATEST          // 비활성화 -> 최신순
+            }
+            // 가격순 상태는 유지
+            updateFilterButtonUI()
             applySortAndFilter()
         }
 
+        // 💡 가격순 토글 로직
         binding.btnFilterLowPrice.setOnClickListener {
-            filterLowPrice = binding.btnFilterLowPrice.isChecked
+            priceSortMode = when (priceSortMode) {
+                PriceSort.LOW -> PriceSort.HIGH  // 낮은순 -> 높은순
+                PriceSort.HIGH -> null           // 높은순 -> 비활성화
+                null -> PriceSort.LOW            // 비활성화 -> 낮은순
+            }
+            // 시간순 상태는 유지
+            updateFilterButtonUI()
             applySortAndFilter()
         }
     }
+
+    // 필터 버튼 UI를 현재 상태에 맞춰 업데이트하는 유틸리티
+    private fun updateFilterButtonUI() {
+        // 시간순 버튼 UI 업데이트
+        val isTimeActive = timeSortMode != null
+        val timeActiveText = when (timeSortMode) {
+            TimeSort.LATEST -> "최신순"
+            TimeSort.OLDEST -> "오래된순"
+            else -> "시간순"
+        }
+        updateButtonAppearance(binding.btnFilterLatest, isTimeActive, timeActiveText)
+
+        // 가격순 버튼 UI 업데이트
+        val isPriceActive = priceSortMode != null
+        val priceActiveText = when (priceSortMode) {
+            PriceSort.LOW -> "가격낮은순"
+            PriceSort.HIGH -> "가격높은순"
+            else -> "가격순"
+        }
+        updateButtonAppearance(binding.btnFilterLowPrice, isPriceActive, priceActiveText)
+    }
+
+    // -------------------------------------------------------------
+    // 💡 기간 필터 버튼 (일, 월, 시간) - [최종 수정: 가격 단위 필터로 사용]
+    // -------------------------------------------------------------
+    private fun setupPeriodFilterButton() {
+        binding.btnFilterPeriod.text = "일" // 초기 텍스트: 일
+
+        binding.btnFilterPeriod.setOnClickListener {
+            val periods = arrayOf("일", "월", "시간")
+
+            AlertDialog.Builder(this)
+                .setTitle("가격 단위 필터 선택")
+                .setItems(periods) { _, which ->
+                    val selectedPeriod = periods[which]
+
+                    binding.btnFilterPeriod.text = selectedPeriod
+
+                    // PeriodFilter Enum 값은 그대로 사용, 서버에 보낼 때 가격 단위 키워드로 사용
+                    currentPeriodFilter = when (selectedPeriod) {
+                        "일" -> PeriodFilter.DAY
+                        "월" -> PeriodFilter.MONTH
+                        "시간" -> PeriodFilter.HOUR
+                        else -> PeriodFilter.DAY
+                    }
+
+                    // 서버에 재요청: 서버는 이 파라미터를 price_unit으로 해석해야 함
+                    loadSearchResults(currentQuery, isCategory)
+
+                    Toast.makeText(this, "$selectedPeriod 단위로 가격 필터링 요청됨", Toast.LENGTH_SHORT).show()
+                }
+                .show()
+        }
+    }
+
 
     // -------------------------------------------------------------
     // ✅ 지역 필터 버튼 (RegionSelectionActivity 띄우기)
@@ -406,7 +502,7 @@ class SearchResultActivity : AppCompatActivity() {
     }
 
     // -------------------------------------------------------------
-    // 서버 통신: 검색 결과
+    // 서버 통신: 검색 결과 (period 파라미터가 price_unit 필터로 사용됨)
     // -------------------------------------------------------------
     private fun loadSearchResults(query: String?, isCategory: Boolean) {
 
@@ -419,21 +515,35 @@ class SearchResultActivity : AppCompatActivity() {
         binding.emptyText.visibility = View.GONE
 
         // 새 검색 시 지역 필터 초기화
-        currentRegionFilter = null
-        binding.btnRegionFilter.text = "지역 전체"
+        if (query != currentQuery) {
+            currentRegionFilter = null
+            binding.btnRegionFilter.text = "지역 전체"
+        }
 
         val titleParam = if (!isCategory) query else null
         val categoryParam = if (isCategory) query else null
 
+        // 💡 periodParam을 서버가 price_unit 필터로 사용하도록 한국어 키워드 전송
+        val periodParam = currentPeriodFilter.name.toLowerCase().run {
+            when (this) {
+                "day" -> "일"     // price_unit=1 (일)
+                "month" -> "월"   // price_unit=2 (월)
+                "hour" -> "시간"  // price_unit=3 (시간)
+                else -> "일"
+            }
+        }
+
         Log.d(
             "DEBUG_FLOW",
-            "API 호출 파라미터 → title=$titleParam | category=$categoryParam | sort=null(클라이언트 정렬)"
+            "API 호출 파라미터 → title=$titleParam | category=$categoryParam | sort=null(클라이언트 정렬) | period_AS_PRICE_UNIT=$periodParam"
         )
 
+        // 💡 period 파라미터 전송
         RetrofitClient.getApiService().getProductLists(
             title = titleParam,
             category = categoryParam,
-            sort = null     // 정렬은 클라이언트에서 처리
+            sort = null,     // 정렬은 클라이언트에서 처리
+            period = periodParam
         ).enqueue(object : Callback<MsgEntity> {
 
             override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
@@ -500,10 +610,6 @@ class SearchResultActivity : AppCompatActivity() {
 
     // -------------------------------------------------------------
     // ✅ 선택된 주소 문자열에서 "구/군" 추출
-    //   예)
-    //    - "서울특별시 양천구 목4동"        → "양천구"
-    //    - "경기도 수원시 장안구 조원동"    → "장안구"
-    //    - "부산광역시 부산진구 가야동"     → "부산진구"
     // -------------------------------------------------------------
     private fun extractGuFromSelection(selection: String?): String? {
         if (selection.isNullOrBlank()) return null
@@ -522,7 +628,7 @@ class SearchResultActivity : AppCompatActivity() {
     }
 
     // -------------------------------------------------------------
-    // 정렬 + 지역 필터 적용
+    // 💡 정렬 + 지역 필터 적용 (복합 정렬 로직)
     // -------------------------------------------------------------
     private fun applySortAndFilter() {
         if (originalProductList.isEmpty()) {
@@ -533,7 +639,7 @@ class SearchResultActivity : AppCompatActivity() {
 
         var list = originalProductList
 
-        // 1) ✅ 지역 필터 적용 (선택 주소에서 구/군만 뽑아서, 물품 주소에 contains)
+        // 1) 지역 필터 적용
         currentRegionFilter?.let { selection ->
             val guKeyword = extractGuFromSelection(selection)
 
@@ -553,32 +659,49 @@ class SearchResultActivity : AppCompatActivity() {
             binding.emptyText.visibility = View.GONE
         }
 
-        // 2) 정렬 필터 적용
-        if (!filterLatest && !filterLowPrice) {
-            adapter.updateList(list)
-            return
-        }
+        // 2) 💡 복합 정렬 필터 적용 (Comparator chaining 사용)
 
-        val sorted = list.sortedWith { a, b ->
-            var cmp = 0
+        // 정렬 기준 목록 (우선순위 순서대로)
+        val comparators = mutableListOf<Comparator<ProductListDTO>>()
 
-            // 최신순: id 내림차순(최근 등록된 상품일수록 id가 크다고 가정)
-            if (filterLatest) {
-                val ca = a.id
-                val cb = b.id
-                cmp = cb.compareTo(ca) // 큰 id(=최근)가 앞으로
-            }
-
-            // 가격 낮은 순 – 최신순에서 동률이면 2차 기준
-            if (cmp == 0 && filterLowPrice) {
+        // 1순위: 가격순 정렬 (가격순이 활성화된 경우)
+        priceSortMode?.let { sort ->
+            val priceComparator = Comparator<ProductListDTO> { a, b ->
                 val pa = a.price ?: 0
                 val pb = b.price ?: 0
-                cmp = pa.compareTo(pb) // 가격 낮은 게 앞으로
+                when (sort) {
+                    PriceSort.LOW -> pa.compareTo(pb) // 낮은 가격이 앞으로 (오름차순)
+                    PriceSort.HIGH -> pb.compareTo(pa) // 높은 가격이 앞으로 (내림차순)
+                }
             }
-
-            cmp
+            comparators.add(priceComparator)
         }
 
+        // 2순위: 시간순 정렬 (시간순이 활성화된 경우)
+        timeSortMode?.let { sort ->
+            val timeComparator = Comparator<ProductListDTO> { a, b ->
+                // id를 시간 기준으로 사용 (최근 등록된 상품일수록 id가 크다고 가정)
+                val ca = a.id
+                val cb = b.id
+                when (sort) {
+                    TimeSort.LATEST -> cb.compareTo(ca) // 큰 id(=최근)가 앞으로 (내림차순)
+                    TimeSort.OLDEST -> ca.compareTo(cb) // 작은 id(=오래됨)가 앞으로 (오름차순)
+                }
+            }
+            comparators.add(timeComparator)
+        }
+
+        // Comparator chaining을 사용하여 복합 정렬 적용
+        val finalComparator: Comparator<ProductListDTO> = when (comparators.size) {
+            0 -> Comparator { _, _ -> 0 } // 정렬 기준이 없으면 순서 유지
+            1 -> comparators[0]
+            else -> comparators.drop(1).fold(comparators[0]) { acc, comparator ->
+                acc.thenComparing(comparator)
+            }
+        }
+
+        // 정렬된 리스트 업데이트
+        val sorted = list.sortedWith(finalComparator)
         adapter.updateList(sorted)
     }
 }

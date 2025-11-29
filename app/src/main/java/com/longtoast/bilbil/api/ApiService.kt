@@ -20,7 +20,6 @@ import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.Response
-import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.POST
 import retrofit2.http.GET
@@ -30,6 +29,7 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Body
 
 interface ApiService {
 
@@ -48,11 +48,13 @@ interface ApiService {
     @GET("/products/myrentals")
     fun getMyRentedProducts(): Call<MsgEntity>
 
+    // 💡 수정됨: period 파라미터 추가
     @GET("/products/lists")
     fun getProductLists(
         @Query("title") title: String? = null,
         @Query("category") category: String? = null,
-        @Query("sort") sort: String? = null
+        @Query("sort") sort: String? = null,
+        @Query("period") period: String? = null
     ): Call<MsgEntity>
 
     @Multipart
@@ -177,6 +179,4 @@ interface ApiService {
     fun confirmVerification(
         @Body request: VerifyRequest // VerifyRequest DTO 사용 (전화번호 필드 포함)
     ): Call<MsgEntity>
-
-
 }

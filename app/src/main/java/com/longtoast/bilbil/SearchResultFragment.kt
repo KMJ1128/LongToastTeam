@@ -54,7 +54,7 @@ class SearchResultFragment : Fragment() {
         binding.queryText.text = if (isCategory) "\"$query\" 카테고리" else "\"$query\" 검색 결과"
 
         // ViewModel 호출 등 기존 로직 유지 (binding.recyclerView, binding.progressBar, binding.emptyText)
-        // 예: viewModel.products.observe(viewLifecycleOwner) { list -> ... }
+        // 이 Fragment는 Activity와 독립적으로 검색 결과를 표시하는 역할만 수행합니다.
     }
 
     override fun onDestroyView() {
