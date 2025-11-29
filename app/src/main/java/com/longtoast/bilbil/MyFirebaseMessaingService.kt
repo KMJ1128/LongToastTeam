@@ -48,7 +48,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     /**
-     * 안드로이드 알림 생성
+     * 안드로이드 알림 생성 dd
      */
     private fun showNotification(title: String, message: String, roomId: String?) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

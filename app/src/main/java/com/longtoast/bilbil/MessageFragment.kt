@@ -84,6 +84,8 @@ class MessageFragment : Fragment() {
                 putExtra("PRODUCT_ID", room.itemId)
                 putExtra("PRODUCT_TITLE", room.itemTitle)
                 putExtra("PRODUCT_PRICE", room.itemPrice)
+                putExtra("PARTNER_ID", room.partnerId)
+                putExtra("IMAGE_URL", room.itemMainImageUrl)
             }
             startActivity(intent)
         }

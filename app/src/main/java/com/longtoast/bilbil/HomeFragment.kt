@@ -37,7 +37,7 @@ class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
 
-    // 🔥 이제 이 어댑터는 "최근 검색어 리스트" 표시용
+    // 최근 검색어 리스트용 어댑터
     private lateinit var popularAdapter: PopularSearchAdapter
     private lateinit var productAdapter: ProductAdapter
     private lateinit var productLayoutManager: RecyclerView.LayoutManager
@@ -45,7 +45,7 @@ class HomeFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         loadMyLocation()
-        loadPopularSearches()   // 🔥 위쪽 Chip에 "인기 검색어" 채우기
+        loadPopularSearches()     // 상단 Chip "인기 검색어"
         updateCartBadge()
     }
 
@@ -61,7 +61,7 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 햄버거 메뉴
+        // 1. 햄버거 메뉴 버튼
         binding.btnMenu.setOnClickListener {
             val drawerLayout = requireActivity().findViewById<DrawerLayout>(R.id.drawer_layout)
             if (drawerLayout != null) {
@@ -71,21 +71,32 @@ class HomeFragment : Fragment() {
             }
         }
 
-        // 장바구니 버튼
+        // 2. 장바구니 버튼
         binding.btnGoCart.setOnClickListener {
             val intent = Intent(requireContext(), CartActivity::class.java)
             startActivity(intent)
+        }
+
+        // 3. 당겨서 새로고침
+        binding.swipeRefreshLayout.setOnRefreshListener {
+            loadProducts(isRefresh = true)
         }
 
         setupSearchBar()
         setupCategoryRecycler()
         setupPopularRecycler()
         setupProductRecycler()
-        loadProducts()
-        // 인기 검색어는 onResume에서 호출
+
+        // 초기 상품 로드
+        loadProducts(isRefresh = false)
+
+        // 인기 검색어(Chip)는 onResume에서도 갱신하지만, 첫 진입 시 한 번 호출
+        loadPopularSearches()
     }
 
-    // 🔥 장바구니 뱃지
+    // ----------------------------------------------------
+    // 장바구니 뱃지
+    // ----------------------------------------------------
     private fun updateCartBadge() {
         val count = CartManager.getItems().size
         if (count > 0) {
@@ -96,6 +107,9 @@ class HomeFragment : Fragment() {
         }
     }
 
+    // ----------------------------------------------------
+    // 내 위치 / 프로필
+    // ----------------------------------------------------
     private fun loadMyLocation() {
         RetrofitClient.getApiService().getMyInfo()
             .enqueue(object : Callback<MsgEntity> {
@@ -115,6 +129,12 @@ class HomeFragment : Fragment() {
                                 .circleCrop()
                                 .into(binding.profileImage)
                         }
+
+                        // 주소 정보 저장 (근처 물건 필터링에 사용)
+                        if (!member.address.isNullOrEmpty()) {
+                            AuthTokenManager.saveAddress(member.address)
+                        }
+
                     } catch (e: Exception) {
                         Log.e("MY_INFO", "MemberDTO 파싱 오류", e)
                     }
@@ -126,6 +146,9 @@ class HomeFragment : Fragment() {
             })
     }
 
+    // ----------------------------------------------------
+    // 검색바: 클릭 시 최근 검색어 리스트(RecyclerView) 표시
+    // ----------------------------------------------------
     private fun setupSearchBar() {
         binding.searchBar.apply {
             setIconifiedByDefault(true)
@@ -134,7 +157,7 @@ class HomeFragment : Fragment() {
             setOnClickListener {
                 if (isIconified) setIconified(false)
                 requestFocus()
-                // 🔥 검색창 클릭 시: 아래 리스트(RecyclerView)에 "최근 검색어" 표시
+                // 검색창 클릭 시: 아래 리스트에 "최근 검색어" 표시
                 togglePopularList(true)
                 loadSearchHistory()
             }
@@ -167,6 +190,7 @@ class HomeFragment : Fragment() {
             })
         }
 
+        // 스크롤 영역 터치 시 포커스 제거
         binding.scrollView.setOnTouchListener { _, _ ->
             if (binding.searchBar.hasFocus()) binding.searchBar.clearFocus()
             false
@@ -181,15 +205,21 @@ class HomeFragment : Fragment() {
         startActivity(intent)
     }
 
+    // ----------------------------------------------------
+    // 카테고리 RecyclerView
+    // ----------------------------------------------------
     private fun setupCategoryRecycler() {
         val categoryList = listOf("자전거", "가구", "캠핑", "전자제품", "운동", "의류")
         binding.categoryRecyclerView.layoutManager = GridLayoutManager(requireContext(), 3)
         binding.categoryRecyclerView.adapter = CategoryAdapter(categoryList) { categoryName ->
+            // 카테고리 클릭 → 카테고리 검색 모드로 SearchResultActivity 이동
             moveToSearchResult(categoryName, true)
         }
     }
 
-    // 🔥 여기 RecyclerView는 이제 "최근 검색어" 리스트용
+    // ----------------------------------------------------
+    // 최근 검색어 RecyclerView (search/history)
+    // ----------------------------------------------------
     private fun setupPopularRecycler() {
         popularAdapter = PopularSearchAdapter(emptyList()) { keyword ->
             moveToSearchResult(keyword, false)
@@ -205,6 +235,9 @@ class HomeFragment : Fragment() {
         }
     }
 
+    // ----------------------------------------------------
+    // 상품 목록 RecyclerView
+    // ----------------------------------------------------
     private fun setupProductRecycler() {
         productLayoutManager = LinearLayoutManager(requireContext())
         productAdapter = ProductAdapter(emptyList()) { itemId ->
@@ -224,35 +257,72 @@ class HomeFragment : Fragment() {
         binding.popularRecyclerView.visibility = if (show) View.VISIBLE else View.GONE
     }
 
-    private fun loadProducts() {
-        binding.productsProgress.isVisible = true
+    // ----------------------------------------------------
+    // 근처 인기 물건 로드 (Lottie + 새로고침 + 최신순 + 지역 필터)
+    // ----------------------------------------------------
+    private fun loadProducts(isRefresh: Boolean) {
+        // 새로고침 제스처가 아닐 때만 Lottie 로더 표시
+        if (!isRefresh) {
+            binding.lottieLoading.isVisible = true
+            binding.lottieLoading.playAnimation()
+            binding.recyclerProducts.isVisible = false
+        }
+
         binding.textProductsEmpty.isVisible = false
+
+        val myFullAddress = AuthTokenManager.getAddress() ?: ""
+        val myRegionKeyword = myFullAddress.split(" ").getOrNull(1) ?: ""
 
         RetrofitClient.getApiService().getProductLists()
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                    binding.productsProgress.isVisible = false
+                    stopLoading()
+
                     if (!response.isSuccessful) {
                         binding.textProductsEmpty.isVisible = true
                         Toast.makeText(requireContext(), "상품을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
                         return
                     }
+
                     val rawData = response.body()?.data ?: run {
                         binding.textProductsEmpty.isVisible = true
                         return
                     }
+
                     try {
                         val gson = Gson()
                         val listType = object : TypeToken<List<ProductListDTO>>() {}.type
-                        val productList: List<ProductListDTO> =
+                        val allProducts: List<ProductListDTO> =
                             gson.fromJson(gson.toJson(rawData), listType)
 
-                        if (productList.isEmpty()) {
+                        // 1) 최신순 정렬 (id 기준 내림차순)
+                        val sortedProducts = allProducts.sortedByDescending { it.id }
+
+                        // 2) 내 주소의 "구" 기준으로 필터링
+                        val filteredList = if (myRegionKeyword.isNotEmpty()) {
+                            sortedProducts.filter { product ->
+                                product.address?.contains(myRegionKeyword) == true
+                            }
+                        } else {
+                            sortedProducts
+                        }
+
+                        // 3) 결과 표시
+                        if (filteredList.isEmpty()) {
+                            if (myRegionKeyword.isNotEmpty()) {
+                                binding.textProductsEmpty.text =
+                                    "'$myRegionKeyword' 근처에\n등록된 최신 물품이 없습니다."
+                            } else {
+                                binding.textProductsEmpty.text = "등록된 물품이 없습니다."
+                            }
                             binding.textProductsEmpty.isVisible = true
+                            productAdapter.updateList(emptyList())
                         } else {
                             binding.textProductsEmpty.isVisible = false
-                            productAdapter.updateList(productList)
+                            binding.recyclerProducts.isVisible = true
+                            productAdapter.updateList(filteredList)
                         }
+
                     } catch (e: Exception) {
                         binding.textProductsEmpty.isVisible = true
                         Log.e("HOME_PRODUCTS", "상품 목록 파싱 오류", e)
@@ -260,13 +330,22 @@ class HomeFragment : Fragment() {
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                    binding.productsProgress.isVisible = false
+                    stopLoading()
                     binding.textProductsEmpty.isVisible = true
                 }
             })
     }
 
-    // 🔥 "인기 검색어" → 위쪽 ChipGroup 에 뿌리기
+    // Lottie & SwipeRefresh 로딩 종료 공통 처리
+    private fun stopLoading() {
+        binding.lottieLoading.pauseAnimation()
+        binding.lottieLoading.isVisible = false
+        binding.swipeRefreshLayout.isRefreshing = false
+    }
+
+    // ----------------------------------------------------
+    // 인기 검색어 (ChipGroup)
+    // ----------------------------------------------------
     private fun loadPopularSearches() {
         RetrofitClient.getApiService().getPopularSearches()
             .enqueue(object : Callback<MsgEntity> {
@@ -297,7 +376,6 @@ class HomeFragment : Fragment() {
             })
     }
 
-    // ✅ 인기 검색어 → ChipGroup
     private fun renderPopularChips(popularList: List<PopularSearchDTO>) {
         val chipGroup = binding.chipGroupPopular
         chipGroup.removeAllViews()
@@ -316,7 +394,9 @@ class HomeFragment : Fragment() {
         }
     }
 
-    // ✅ 최근 검색어 → RecyclerView 리스트(popularRecyclerView)
+    // ----------------------------------------------------
+    // 최근 검색어(history) → RecyclerView 리스트
+    // ----------------------------------------------------
     private fun loadSearchHistory() {
         RetrofitClient.getApiService().getMySearchHistory()
             .enqueue(object : Callback<MsgEntity> {

@@ -22,7 +22,7 @@
         android:id="@+id/text_region_subtitle"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="도 → 시/구 → 동 순서로 선택하면 대여 가능 지역을 맞춤 설정해요"
+        android:text="도 → 시/구 → 동 순서로 맞춤 지역을 설정하세요."
         android:textSize="14sp"
         android:textColor="@color/trust_text_secondary"
         android:layout_marginTop="8dp"
@@ -59,7 +59,6 @@
             android:padding="8dp"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp" />
-
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/list_town"
             android:layout_width="0dp"

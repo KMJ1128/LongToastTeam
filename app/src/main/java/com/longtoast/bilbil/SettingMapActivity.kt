@@ -3,7 +3,6 @@ package com.longtoast.bilbil
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Location
 import android.os.Bundle
 import android.util.Log
 import android.view.inputmethod.EditorInfo
@@ -31,7 +30,6 @@ import com.naver.maps.map.MapView
 import com.naver.maps.map.NaverMap
 import com.naver.maps.map.OnMapReadyCallback
 import com.naver.maps.map.CameraUpdate
-import com.naver.maps.map.CameraPosition
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.overlay.Marker
 
@@ -56,12 +54,19 @@ class SettingMapActivity : AppCompatActivity(), OnMapReadyCallback {
     private var currentLng = 126.8675615713012
     private var currentAddress: String = ""
 
-    // 🔥 검색은 카카오 REST API 그대로 사용
+    // 검색은 카카오 REST API 그대로 사용
     private val KAKAO_REST_API_KEY = "9f3f18b8416277279d74a206762f21b1"
+
+    // 🆕 추가: 프로필 수정 모드인지 구분
+    private var isProfileEditMode: Boolean = false
+    private var userId: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_setting_map)
+
+        userId = intent.getIntExtra("USER_ID", 0)
+        isProfileEditMode = intent.getBooleanExtra("IS_PROFILE_EDIT", false)  // 🆕 추가
 
         initViews()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -186,7 +191,12 @@ class SettingMapActivity : AppCompatActivity(), OnMapReadyCallback {
 
                 currentAddress = address
 
-                val ok = sendLocationToServer(userId, currentLat, currentLng, currentAddress)
+                // 🆕 수정: 프로필 수정 모드일 때만 서버에 저장
+                val ok = if (isProfileEditMode) {
+                    sendLocationToServer(userId, currentLat, currentLng, currentAddress)
+                } else {
+                    true  // 게시글 작성 모드는 서버 저장 안 함
+                }
 
                 if (ok) {
                     val resultIntent = Intent().apply {

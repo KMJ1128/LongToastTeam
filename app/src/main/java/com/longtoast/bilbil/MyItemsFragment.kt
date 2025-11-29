@@ -2,7 +2,6 @@ package com.longtoast.bilbil
 
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.view.*
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -183,19 +182,19 @@ class MyItemsFragment : Fragment() {
 
         val adapter = MyItemsAdapter(
             productList = list,
-            isOwner = isOwner,     // ★ 핵심
+            isOwner = isOwner,
             onItemClicked = { product ->
                 val intent = Intent(requireContext(), ProductDetailActivity::class.java).apply {
                     putExtra("ITEM_ID", product.id)
                 }
                 startActivity(intent)
             },
+            // ✅ [수정] 리뷰 작성 클릭 핸들러
             onReviewClicked = { product ->
                 if (!isOwner) {
-                    // 렌트한 물품에만 리뷰 O
                     val transactionId = product.transactionId
-                    if (transactionId == null) {
-                        Toast.makeText(requireContext(), "거래 정보가 없어 리뷰를 작성할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                    if (transactionId == null || transactionId == 0L) {
+                        Toast.makeText(requireContext(), "아직 거래가 확정되지 않았습니다.", Toast.LENGTH_SHORT).show()
                         return@MyItemsAdapter
                     }
 
@@ -206,11 +205,9 @@ class MyItemsFragment : Fragment() {
                 }
             },
             onEditClicked = { product ->
-                // isOwner=true(등록한 물품)에서만 호출됨
                 openEditScreen(product)
             },
             onDeleteClicked = { product ->
-                // isOwner=true(등록한 물품)에서만 호출됨
                 confirmDelete(product)
             }
         )
@@ -268,7 +265,6 @@ class MyItemsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        //d
         _binding = null
     }
 }

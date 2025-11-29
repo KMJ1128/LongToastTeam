@@ -7,13 +7,14 @@
     android:layout_height="match_parent"
     tools:context=".ChatRoomActivity">
 
+    <!-- 상단 툴바 -->
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar_chat"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="@color/white"
         app:titleTextColor="@color/black"
-        app:layout_scrollFlags="scroll|enterAlways">
+        app:layout_constraintTop_toTopOf="parent">
 
         <TextView
             android:id="@+id/text_chat_title"
@@ -23,20 +24,24 @@
             android:textSize="18sp"
             android:textStyle="bold"
             android:layout_gravity="center_vertical"/>
-
-        <Button
-            android:id="@+id/btn_rent_agree"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="대여 합의하기"
-            android:layout_gravity="end|center_vertical"
-            android:backgroundTint="@color/colorPrimary"
-            android:textColor="@color/white"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:layout_marginEnd="8dp"/>
     </com.google.android.material.appbar.MaterialToolbar>
 
+    <!-- ⭐ Toolbar 밖으로 뺀 대여 합의하기 버튼 -->
+    <Button
+        android:id="@+id/btn_rent_agree"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="대여 합의하기"
+        android:backgroundTint="@color/colorPrimary"
+        android:textColor="@color/white"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:layout_marginEnd="12dp"
+        app:layout_constraintTop_toTopOf="@id/toolbar_chat"
+        app:layout_constraintBottom_toBottomOf="@id/toolbar_chat"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- 채팅 목록 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_view_chat"
         android:layout_width="0dp"
@@ -49,6 +54,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         tools:listitem="@layout/item_chat_message_sent" />
 
+    <!-- 입력창 -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_chat_input"
         android:layout_width="0dp"
