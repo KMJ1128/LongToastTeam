@@ -21,4 +21,6 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
             @QueryHint(name = "jakarta.persistence.query.timeout", value = "1000") // 쿼리 시간 제한 설정 (선택 사항)
     })
     Optional<ChatMessage> findTopByChatRoom_IdOrderBySentAtDesc(Integer chatRoomId);
+
+    List<ChatMessage> findByChatRoom_IdAndSender_IdNotAndIsReadFalse(Integer chatRoomId, Integer senderId);
 }

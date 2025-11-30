@@ -119,16 +119,55 @@ public class ChatService {
     public void broadcastMessage(Integer roomId, ChatMessage message) {
 
         Map<String, Object> payload = new HashMap<>();
+        payload.put("id", message.getId());
         payload.put("roomId", roomId);
         payload.put("senderId", message.getSender().getId());
         payload.put("content", message.getContent());
         payload.put("imageUrl", message.getImageUrl()); // null 가능 OK
         payload.put("sentAt", message.getSentAt().toString());
+        payload.put("isRead", message.getIsRead());
 
         messagingTemplate.convertAndSend(
-                "/sub/chat/room/" + roomId,
+                "/topic/signal/" + roomId,
                 payload
         );
+    }
+
+    /**
+     * 특정 채팅방에서 내가 아닌 상대방이 보낸 읽지 않은 메시지를 모두 읽음 처리하고
+     * 각 메시지를 STOMP로 다시 브로드캐스트합니다.
+     */
+    @Transactional
+    public List<ChatMessage> markMessagesAsRead(Integer roomId, Integer currentUserId) {
+
+        // 1. 채팅방 존재 여부 확인 (권한 체크 용도)
+        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new EntityNotFoundException("ChatRoom not found with ID: " + roomId));
+
+        // 2. 현재 사용자가 해당 채팅방의 참가자인지 확인
+        boolean isParticipant = chatRoom.getLender().getId().equals(currentUserId)
+                || chatRoom.getBorrower().getId().equals(currentUserId);
+
+        if (!isParticipant) {
+            throw new IllegalArgumentException("현재 사용자가 채팅방 참가자가 아닙니다.");
+        }
+
+        // 3. 내가 아닌 상대방이 보낸 읽지 않은 메시지 조회
+        List<ChatMessage> unreadMessages = chatMessageRepository
+                .findByChatRoom_IdAndSender_IdNotAndIsReadFalse(roomId, currentUserId);
+
+        if (unreadMessages.isEmpty()) {
+            return List.of();
+        }
+
+        // 4. 읽음 처리 후 저장
+        unreadMessages.forEach(msg -> msg.setIsRead(true));
+        List<ChatMessage> updated = chatMessageRepository.saveAll(unreadMessages);
+
+        // 5. 읽음 상태를 STOMP로 브로드캐스트하여 상대방이 즉시 갱신하도록 함
+        updated.forEach(message -> broadcastMessage(roomId, message));
+
+        return updated;
     }
 
 }
