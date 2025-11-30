@@ -117,15 +117,19 @@ public class ChatService {
     @Transactional
     public void markMessagesAsRead(Integer roomId, Integer currentUserId) {
 
-        // 1) DB 업데이트
+        // 1) 먼저 현재 읽지 않은 메시지를 조회 (읽음 처리 대상)
+        List<ChatMessage> unreadMessages =
+                chatMessageRepository.findUnreadMessages(roomId, currentUserId);
+
+        if (unreadMessages.isEmpty()) {
+            return; // 읽을 메시지가 없으면 종료
+        }
+
+        // 2) DB 상태를 읽음으로 업데이트
         chatMessageRepository.markMessagesAsRead(roomId, currentUserId);
 
-        // 2) 방의 읽히지 않은 메시지를 다시 조회 (내가 읽은 메시지들)
-        List<ChatMessage> readMessages =
-                chatMessageRepository.findUnreadMessagesByRoomAndReceiver(roomId, currentUserId);
-
         // 3) 각 메시지를 isRead = true 로 STOMP 브로드캐스트
-        for (ChatMessage msg : readMessages) {
+        for (ChatMessage msg : unreadMessages) {
 
             Map<String, Object> payload = new HashMap<>();
             payload.put("id", msg.getId());

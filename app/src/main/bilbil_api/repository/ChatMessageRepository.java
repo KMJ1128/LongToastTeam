@@ -20,10 +20,10 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
     })
     Optional<ChatMessage> findTopByChatRoom_IdOrderBySentAtDesc(Integer chatRoomId);
 
-    @Query("SELECT m FROM ChatMessage m " +
-            "WHERE m.chatRoom.id = :roomId " +
-            "AND m.sender.id <> :currentUserId " +
-            "AND m.isRead = false")
+    @Query("SELECT m FROM ChatMessage m"+
+    "WHERE m.chatRoom.id = :roomId"+
+    "AND m.sender.id <> :currentUserId"+
+    "AND m.isRead = false")
     List<ChatMessage> findUnreadMessages(@Param("roomId") Integer roomId,
                                          @Param("currentUserId") Integer currentUserId);
 
