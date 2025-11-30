@@ -1,21 +1,15 @@
 package com.longtoast.bilbil
 
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Matrix
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.airbnb.lottie.LottieAnimationView
 import com.bumptech.glide.Glide
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.gson.Gson
@@ -30,8 +24,6 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import java.io.ByteArrayOutputStream
-import java.io.InputStream
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -46,9 +38,6 @@ class ChatRoomActivity : AppCompatActivity() {
     private lateinit var chatAdapter: ChatAdapter
     private lateinit var toolbar: MaterialToolbar
 
-    private lateinit var handshakeAnimation: LottieAnimationView
-    private lateinit var overlayBlock: View
-
     private var selectedImageUri: Uri? = null
     private val chatMessages = mutableListOf<ChatMessage>()
     private val tempMessageMap = mutableMapOf<Long, ChatMessage>()
@@ -62,6 +51,7 @@ class ChatRoomActivity : AppCompatActivity() {
 
     private val senderId: Int by lazy { AuthTokenManager.getUserId() ?: 1 }
 
+    // 서버에서 받아오는 값들
     private var productId: Int? = null
     private var productTitle: String? = null
     private var productPrice: Int = 0
@@ -72,12 +62,12 @@ class ChatRoomActivity : AppCompatActivity() {
     private var isLender: Boolean = false
     private var otherUserId: Int = -1
 
+    // 상대방 정보
     private var partnerNickname: String? = null
     private var partnerProfileImageUrl: String? = null
 
     private var nextTempId = -1L
 
-    // 이미지 선택기
     private val pickImageLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             uri?.let {
@@ -119,8 +109,9 @@ class ChatRoomActivity : AppCompatActivity() {
         val borrowerFromIntent = intent.getIntExtra("BORROWER_ID", -1)
 
         if (lenderFromIntent > 0 || borrowerFromIntent > 0) {
-            if (lenderFromIntent > 0) isLender = senderId == lenderFromIntent
-
+            if (lenderFromIntent > 0) {
+                isLender = senderId == lenderFromIntent
+            }
             otherUserId = when {
                 isLender && borrowerFromIntent > 0 -> borrowerFromIntent
                 !isLender && lenderFromIntent > 0 -> lenderFromIntent
@@ -132,12 +123,14 @@ class ChatRoomActivity : AppCompatActivity() {
             .takeIf { it > 0 && otherUserId <= 0 }
             ?.let { otherUserId = it }
 
+        // 인텐트로 넘어온 초기 상대방 이름 (상품 상세에서 채팅 진입 시)
         partnerNickname = intent.getStringExtra("SELLER_NICKNAME")
     }
 
     private fun setupViews() {
         toolbar = findViewById(R.id.toolbar_chat)
         setSupportActionBar(toolbar)
+        // 기본 액션바 타이틀 숨김
         supportActionBar?.setDisplayShowTitleEnabled(false)
 
         recyclerChat = findViewById(R.id.recycler_view_chat)
@@ -145,19 +138,21 @@ class ChatRoomActivity : AppCompatActivity() {
         buttonSend = findViewById(R.id.button_send)
         buttonAttachImage = findViewById(R.id.button_attach_image)
 
-        handshakeAnimation = findViewById(R.id.handshake_animation)
-        overlayBlock = findViewById(R.id.overlay_block)
-
         val partnerNameText = findViewById<TextView>(R.id.text_chat_partner_name)
         val partnerImage = findViewById<ImageView>(R.id.image_chat_partner)
         val rentAgreeBtn = findViewById<Button>(R.id.btn_rent_agree)
 
+        // 초기에는 인텐트에서 받은 닉네임 사용, 없으면 "채팅"
         partnerNameText.text = partnerNickname ?: "채팅"
+        // 헤더 프로필 기본값
         partnerImage.setImageResource(R.drawable.no_profile)
 
         rentAgreeBtn.setOnClickListener {
+            Log.d("RENT_BTN", "대여 합의하기 버튼 클릭됨!!!")
+            Toast.makeText(this, "대여 합의하기 버튼 클릭됨", Toast.LENGTH_SHORT).show()
             openRentRequestForm()
         }
+
         rentAgreeBtn.bringToFront()
     }
 
@@ -168,6 +163,7 @@ class ChatRoomActivity : AppCompatActivity() {
         recyclerChat.adapter = chatAdapter
         recyclerChat.layoutManager = LinearLayoutManager(this)
 
+        // 🔥 인텐트로 이미 알고 있는 상대방 정보가 있다면 어댑터에 먼저 반영
         chatAdapter.setPartnerInfo(partnerNickname, partnerProfileImageUrl)
     }
 
@@ -189,11 +185,16 @@ class ChatRoomActivity : AppCompatActivity() {
                     isLender = (senderId == info.lender.id)
                     otherUserId = if (isLender) info.borrower.id else info.lender.id
 
-                    partnerNickname =
-                        if (isLender) info.borrower.nickname else info.lender.nickname
+                    // 🔥 상대방 정보 결정
+                    partnerNickname = if (isLender) info.borrower.nickname else info.lender.nickname
                     partnerProfileImageUrl =
                         if (isLender) info.borrower.profileImageUrl else info.lender.profileImageUrl
 
+                    Log.d("ROOM_INFO_ITEM", "itemId=$productId / title=$productTitle / price=$productPrice / img=$productImageUrl")
+                    Log.d("ROOM_INFO_ROLE", "isLender=$isLender senderId=$senderId lender=${info.lender.id} borrower=${info.borrower.id}")
+                    Log.d("ROOM_INFO_PARTNER", "partner=$partnerNickname, profile=$partnerProfileImageUrl")
+
+                    // 🔥 헤더 텍스트 & 이미지 갱신
                     val partnerNameText = findViewById<TextView>(R.id.text_chat_partner_name)
                     val profileImage = findViewById<ImageView>(R.id.image_chat_partner)
 
@@ -207,8 +208,11 @@ class ChatRoomActivity : AppCompatActivity() {
                             .error(R.drawable.no_profile)
                             .circleCrop()
                             .into(profileImage)
-                    } else profileImage.setImageResource(R.drawable.no_profile)
+                    } else {
+                        profileImage.setImageResource(R.drawable.no_profile)
+                    }
 
+                    // 🔥 채팅 말풍선 쪽에도 같은 정보 반영
                     chatAdapter.setPartnerInfo(partnerNickname, partnerProfileImageUrl)
                 }
 
@@ -220,10 +224,18 @@ class ChatRoomActivity : AppCompatActivity() {
 
     private fun openRentRequestForm() {
 
-        val id = productId ?: return
+        val id = productId
+
+        if (id == null || id <= 0) {
+            Toast.makeText(this, "상품 정보를 불러오는 중입니다.", Toast.LENGTH_SHORT)
+                .show()
+            loadChatRoomRoleInfo()
+            return
+        }
 
         if (otherUserId <= 0) {
             Toast.makeText(this, "상대방 정보를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
+            loadChatRoomRoleInfo()
             return
         }
 
@@ -234,7 +246,6 @@ class ChatRoomActivity : AppCompatActivity() {
             val path = raw.trimStart('/')
             "$base/$path"
         }
-
         val realLenderId = if (isLender) senderId else otherUserId
         val realBorrowerId = if (isLender) otherUserId else senderId
 
@@ -249,6 +260,11 @@ class ChatRoomActivity : AppCompatActivity() {
             putExtra("DEPOSIT", productDeposit)
             putExtra("IMAGE_URL", fullImageUrl)
         }
+
+        Log.d(
+            "OPEN_FORM",
+            "item=$id lender=$realLenderId borrower=$realBorrowerId img=$productImageUrl"
+        )
 
         startActivity(intent)
     }
@@ -271,6 +287,7 @@ class ChatRoomActivity : AppCompatActivity() {
         RetrofitClient.getApiService().getChatHistory(roomId)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+
                     val raw = response.body()?.data ?: return
                     val gson = Gson()
                     val listType = object : TypeToken<List<ChatMessage>>() {}.type
@@ -278,7 +295,6 @@ class ChatRoomActivity : AppCompatActivity() {
 
                     chatMessages.addAll(list)
                     chatAdapter.notifyDataSetChanged()
-
                     if (chatMessages.isNotEmpty()) {
                         recyclerChat.scrollToPosition(chatMessages.size - 1)
                     }
@@ -304,6 +320,7 @@ class ChatRoomActivity : AppCompatActivity() {
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
+
             override fun onOpen(ws: WebSocket, response: okhttp3.Response) {
                 val frame =
                     "CONNECT\naccept-version:1.2\nheart-beat:10000,10000\nAuthorization:Bearer $token\n\n\u0000"
@@ -326,7 +343,6 @@ class ChatRoomActivity : AppCompatActivity() {
             }
 
             frame.startsWith("MESSAGE") -> {
-
                 val parts = frame.split("\n\n")
                 if (parts.size <= 1) return
 
@@ -335,35 +351,12 @@ class ChatRoomActivity : AppCompatActivity() {
                 try {
                     val received = Gson().fromJson(payload, ChatMessage::class.java)
 
-                    // ---------------------------------------------------------
-                    // 🔥 1) 읽음 이벤트 우선 처리
-                    // ---------------------------------------------------------
-                    if (received.isRead == true) {
-                        val idx = chatMessages.indexOfFirst { it.id == received.id }
-                        if (idx != -1) {
-                            chatMessages[idx] = received
-                            chatAdapter.notifyItemChanged(idx)
-                        }
-                        return  // 읽음 이벤트는 여기서 끝
-                    }
-
-                    // ---------------------------------------------------------
-                    // 2) 대여 확정 애니메이션
-                    // ---------------------------------------------------------
-                    if (received.content?.contains("대여가 확정되었습니다") == true) {
-                        playHandshakeAnimation()
-                    }
-
-                    // ---------------------------------------------------------
-                    // 3) 일반 메시지 처리
-                    // ---------------------------------------------------------
                     if (received.senderId == senderId) {
 
-                        val match =
-                            tempMessageMap.entries.firstOrNull {
-                                it.value.content == received.content &&
-                                        it.value.imageUrl == received.imageUrl
-                            }
+                        val match = tempMessageMap.entries.firstOrNull {
+                            it.value.content == received.content &&
+                                    it.value.imageUrl == received.imageUrl
+                        }
 
                         if (match != null) {
                             val idx = chatMessages.indexOf(match.value)
@@ -374,6 +367,7 @@ class ChatRoomActivity : AppCompatActivity() {
                             chatMessages.add(received)
                             chatAdapter.notifyItemInserted(chatMessages.size - 1)
                         }
+
                     } else {
                         chatMessages.add(received)
                         chatAdapter.notifyItemInserted(chatMessages.size - 1)
@@ -425,8 +419,7 @@ class ChatRoomActivity : AppCompatActivity() {
                 sentAt = SimpleDateFormat(
                     "yyyy-MM-dd'T'HH:mm:ss",
                     Locale.getDefault()
-                ).format(Date()),
-                isRead = false
+                ).format(Date())
             )
 
             chatMessages.add(tempMsg)
@@ -442,18 +435,10 @@ class ChatRoomActivity : AppCompatActivity() {
         withContext(Dispatchers.IO) {
             try {
                 val stream = contentResolver.openInputStream(uri) ?: return@withContext null
-
-                val originalBytes = stream.readBytes()
+                val bytes = stream.readBytes()
                 stream.close()
 
-                val bitmap = BitmapFactory.decodeByteArray(originalBytes, 0, originalBytes.size)
-                val rotatedBitmap = applyExifRotation(uri, bitmap)
-
-                val outputStream = ByteArrayOutputStream()
-                rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
-                val compressedBytes = outputStream.toByteArray()
-
-                val body = RequestBody.create("image/jpeg".toMediaTypeOrNull(), compressedBytes)
+                val body = RequestBody.create("image/jpeg".toMediaTypeOrNull(), bytes)
                 val part = MultipartBody.Part.createFormData(
                     "image",
                     "chat_${System.currentTimeMillis()}.jpg",
@@ -475,30 +460,6 @@ class ChatRoomActivity : AppCompatActivity() {
             }
         }
 
-    private fun applyExifRotation(uri: Uri, bitmap: Bitmap): Bitmap {
-        return try {
-            val inputStream: InputStream? = contentResolver.openInputStream(uri)
-            val exif = ExifInterface(inputStream!!)
-            val orientation = exif.getAttributeInt(
-                ExifInterface.TAG_ORIENTATION,
-                ExifInterface.ORIENTATION_NORMAL
-            )
-            inputStream.close()
-
-            val matrix = Matrix()
-            when (orientation) {
-                ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
-                ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
-                ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
-            }
-
-            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-
-        } catch (e: Exception) {
-            bitmap
-        }
-    }
-
     private fun confirmRental(payload: RentalActionPayload) {
 
         val req = RentalApproveRequest(
@@ -516,10 +477,6 @@ class ChatRoomActivity : AppCompatActivity() {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
 
                     if (response.isSuccessful) {
-
-                        playHandshakeAnimation()
-
-                        chatAdapter.markRentalConfirmed(payload)
 
                         sendMessage(
                             "📌 대여가 확정되었습니다!\n" +
@@ -548,39 +505,6 @@ class ChatRoomActivity : AppCompatActivity() {
                         "네트워크 오류",
                         Toast.LENGTH_SHORT
                     ).show()
-                }
-            })
-    }
-
-    private fun playHandshakeAnimation() {
-        overlayBlock.visibility = View.VISIBLE
-        handshakeAnimation.visibility = View.VISIBLE
-        handshakeAnimation.playAnimation()
-
-        handshakeAnimation.addAnimatorListener(object : android.animation.Animator.AnimatorListener {
-            override fun onAnimationStart(animation: android.animation.Animator) {}
-            override fun onAnimationEnd(animation: android.animation.Animator) {
-                handshakeAnimation.visibility = View.GONE
-                overlayBlock.visibility = View.GONE
-            }
-            override fun onAnimationCancel(animation: android.animation.Animator) {}
-            override fun onAnimationRepeat(animation: android.animation.Animator) {}
-        })
-    }
-
-    // 🔥 채팅방 들어올 때 전체 메시지 읽음 처리
-    override fun onResume() {
-        super.onResume()
-
-        RetrofitClient.getApiService()
-            .markChatRead(roomId)
-            .enqueue(object : Callback<MsgEntity> {
-                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                    // 서버가 STOMP로 읽음 이벤트 브로드캐스트 → handleStompFrame()에서 처리됨
-                }
-
-                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
-                    Log.e("CHAT_READ", "읽음 처리 실패", t)
                 }
             })
     }

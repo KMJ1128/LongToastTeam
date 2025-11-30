@@ -9,5 +9,5 @@ data class ChatMessage(
     val content: String?,
     val imageUrl: String?,
     val sentAt: String,
-    val isRead: Boolean? = false// ★ 추가됨
+    val isRead: Boolean? // ★ 추가됨
 )
