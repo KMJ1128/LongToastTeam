@@ -290,6 +290,9 @@ class ChatRoomActivity : AppCompatActivity() {
                     chatMessages.addAll(list)
                     chatAdapter.notifyDataSetChanged()
 
+                    // ✅ 이 방이 예전에 대여 확정된 방이라면 버튼 비활성 상태 복원
+                    restoreRentalConfirmedFlagIfNeeded()
+
                     if (chatMessages.isNotEmpty()) {
                         recyclerChat.scrollToPosition(chatMessages.size - 1)
                     }
@@ -533,6 +536,9 @@ class ChatRoomActivity : AppCompatActivity() {
 
                     if (response.isSuccessful) {
 
+                        // ✅ 로컬에 이 방의 "대여 확정 완료" 상태 저장
+                        saveRentalConfirmedFlag()
+
                         playHandshakeAnimation()
 
                         chatAdapter.markRentalConfirmed(payload)
@@ -681,5 +687,23 @@ class ChatRoomActivity : AppCompatActivity() {
                     Log.e("CHAT_READ", "읽음 처리 실패", t)
                 }
             })
+    }
+
+    // 🔥 이 방에서 대여가 한 번 확정되면 true 로 저장
+    private fun saveRentalConfirmedFlag() {
+        val prefs = getSharedPreferences("rental_prefs", MODE_PRIVATE)
+        prefs.edit()
+            .putBoolean("rental_confirmed_room_$roomId", true)
+            .apply()
+    }
+
+    // 🔥 채팅방 다시 들어왔을 때(혹은 히스토리 로딩 후) 저장된 값 복원
+    private fun restoreRentalConfirmedFlagIfNeeded() {
+        val prefs = getSharedPreferences("rental_prefs", MODE_PRIVATE)
+        val confirmed = prefs.getBoolean("rental_confirmed_room_$roomId", false)
+        if (confirmed) {
+            // 어댑터에게 "이미 확정된 방이다" 알려주기
+            chatAdapter.restoreRentalConfirmedFromStorage()
+        }
     }
 }

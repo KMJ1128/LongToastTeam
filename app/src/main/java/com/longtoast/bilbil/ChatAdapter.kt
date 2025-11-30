@@ -39,6 +39,10 @@ class ChatAdapter(
     private val actionPrefix = "[RENT_CONFIRM]"
     private val numberFormat = java.text.DecimalFormat("#,###")
 
+    // 🔥 한 번이라도 "대여 확정하기"가 눌렸는지 여부 (방을 나갔다 와도 유지되도록 ChatRoomActivity에서 복원)
+    private var isRentalConfirmed: Boolean = false
+
+    // (필요하면 payload 정보도 같이 보관)
     private var confirmedPayload: RentalActionPayload? = null
 
     fun setPartnerInfo(nickname: String?, profileImageUrl: String?) {
@@ -168,7 +172,9 @@ class ChatAdapter(
             prompt.text =
                 "만약 다음 대여 조건에 동의하신다면\n아래 버튼을 눌러 대여를 확정하세요.\n\n$rentInfo"
 
-            if (payload != null && confirmedPayload?.startDate == payload.startDate) {
+            // 🔥 이 방에서 이미 한 번이라도 "대여 확정하기"가 눌린 적 있다면
+            //    (SharedPreferences 에서 복원된 플래그 포함)
+            if (payload != null && isRentalConfirmed) {
                 confirmButton.text = "대여 확정 완료"
                 confirmButton.isEnabled = false
             } else {
@@ -177,10 +183,10 @@ class ChatAdapter(
             }
 
             confirmButton.setOnClickListener {
-                payload?.let { action ->
+                if (!isSender && payload != null && !isRentalConfirmed) {
                     confirmButton.isEnabled = false
                     confirmButton.text = "처리 중..."
-                    onRentalConfirm?.invoke(action)
+                    onRentalConfirm?.invoke(payload)
                 }
             }
 
@@ -204,9 +210,29 @@ class ChatAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, type: Int): RecyclerView.ViewHolder {
         val inf = LayoutInflater.from(parent.context)
         return when (type) {
-            VIEW_TYPE_SENT -> SentMessageViewHolder(inf.inflate(R.layout.item_chat_message_sent, parent, false))
-            VIEW_TYPE_RENT_ACTION -> RentalActionViewHolder(inf.inflate(R.layout.item_chat_rental_action, parent, false))
-            else -> ReceivedMessageViewHolder(inf.inflate(R.layout.item_chat_message_received, parent, false))
+            VIEW_TYPE_SENT -> SentMessageViewHolder(
+                inf.inflate(
+                    R.layout.item_chat_message_sent,
+                    parent,
+                    false
+                )
+            )
+
+            VIEW_TYPE_RENT_ACTION -> RentalActionViewHolder(
+                inf.inflate(
+                    R.layout.item_chat_rental_action,
+                    parent,
+                    false
+                )
+            )
+
+            else -> ReceivedMessageViewHolder(
+                inf.inflate(
+                    R.layout.item_chat_message_received,
+                    parent,
+                    false
+                )
+            )
         }
     }
 
@@ -235,8 +261,16 @@ class ChatAdapter(
         }
     }
 
+    /** ✅ 대여 확정이 끝났을 때 (버튼 누른 직후) 호출 */
     fun markRentalConfirmed(payload: RentalActionPayload) {
         confirmedPayload = payload
+        isRentalConfirmed = true
+        notifyDataSetChanged()
+    }
+
+    /** ✅ 채팅방 다시 들어왔을 때 SharedPreferences 에서 복원용 */
+    fun restoreRentalConfirmedFromStorage() {
+        isRentalConfirmed = true
         notifyDataSetChanged()
     }
 
