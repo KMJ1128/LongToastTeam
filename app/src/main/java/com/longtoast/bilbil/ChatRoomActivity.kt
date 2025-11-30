@@ -381,6 +381,11 @@ class ChatRoomActivity : AppCompatActivity() {
 
                     recyclerChat.scrollToPosition(chatMessages.size - 1)
 
+                    // 📌 내가 현재 방에 있을 때 받은 메시지는 바로 읽음 처리 요청
+                    if (received.senderId != senderId) {
+                        markChatAsRead()
+                    }
+
                 } catch (e: Exception) {
                     Log.e("STOMP_MSG", "파싱 오류", e)
                 }
@@ -571,7 +576,18 @@ class ChatRoomActivity : AppCompatActivity() {
     // 🔥 채팅방 들어올 때 전체 메시지 읽음 처리
     override fun onResume() {
         super.onResume()
+        markChatAsRead()
+    }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        if (::webSocket.isInitialized) {
+            webSocket.close(1000, "Activity destroyed")
+        }
+    }
+
+    // 서버에 읽음 처리 요청을 보내고, 결과는 STOMP 이벤트로 받아 UI를 갱신한다.
+    private fun markChatAsRead() {
         RetrofitClient.getApiService()
             .markChatRead(roomId)
             .enqueue(object : Callback<MsgEntity> {
@@ -583,12 +599,5 @@ class ChatRoomActivity : AppCompatActivity() {
                     Log.e("CHAT_READ", "읽음 처리 실패", t)
                 }
             })
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        if (::webSocket.isInitialized) {
-            webSocket.close(1000, "Activity destroyed")
-        }
     }
 }

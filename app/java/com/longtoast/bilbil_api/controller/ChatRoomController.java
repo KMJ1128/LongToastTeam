@@ -144,6 +144,36 @@ public class ChatRoomController {
         }
     }
 
+    /**
+     * 현재 사용자가 해당 방에서 확인하지 않은 메시지를 모두 읽음 처리합니다.
+     * 읽음 처리된 메시지는 STOMP로 다시 브로드캐스트되어 상대방 화면이 즉시 갱신됩니다.
+     */
+    @PostMapping("/room/{roomId}/read")
+    public ResponseEntity<MsgEntity> markChatRead(
+            @PathVariable Integer roomId,
+            @AuthenticationPrincipal Integer currentUserId
+    ) {
+        if (currentUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new MsgEntity("인증 오류", "로그인이 필요합니다."));
+        }
+
+        try {
+            chatService.markMessagesAsRead(roomId, currentUserId);
+            return ResponseEntity.ok(new MsgEntity("읽음 처리 완료", null));
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new MsgEntity("요청 오류", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new MsgEntity("권한 오류", e.getMessage()));
+        } catch (Exception e) {
+            log.error("채팅 읽음 처리 중 오류", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new MsgEntity("내부 서버 오류", "읽음 처리 중 문제가 발생했습니다."));
+        }
+    }
+
     @GetMapping("/room/{roomId}/info")
     public ResponseEntity<MsgEntity> getChatRoomInfo(
             @PathVariable Integer roomId,
