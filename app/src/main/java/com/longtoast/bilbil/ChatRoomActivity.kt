@@ -6,10 +6,13 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
 import android.os.Bundle
+import android.text.InputType
 import android.util.Log
+import android.view.Gravity
 import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.lifecycleScope
@@ -151,14 +154,22 @@ class ChatRoomActivity : AppCompatActivity() {
         val partnerNameText = findViewById<TextView>(R.id.text_chat_partner_name)
         val partnerImage = findViewById<ImageView>(R.id.image_chat_partner)
         val rentAgreeBtn = findViewById<Button>(R.id.btn_rent_agree)
+        val reportBtn = findViewById<Button>(R.id.btn_report)
 
         partnerNameText.text = partnerNickname ?: "채팅"
         partnerImage.setImageResource(R.drawable.no_profile)
 
+        // 대여 합의하기
         rentAgreeBtn.setOnClickListener {
             openRentRequestForm()
         }
         rentAgreeBtn.bringToFront()
+
+        // 🔥 신고 버튼
+        reportBtn.setOnClickListener {
+            showReportDialog()
+        }
+        reportBtn.bringToFront()
     }
 
     private fun setupRecycler() {
@@ -571,6 +582,77 @@ class ChatRoomActivity : AppCompatActivity() {
             override fun onAnimationCancel(animation: android.animation.Animator) {}
             override fun onAnimationRepeat(animation: android.animation.Animator) {}
         })
+    }
+
+    // 🔥 신고 다이얼로그
+    private fun showReportDialog() {
+        if (roomId <= 0) {
+            Toast.makeText(this, "채팅방 정보가 없습니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val input = EditText(this).apply {
+            hint = "신고 사유를 입력해주세요"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            setLines(4)
+            gravity = Gravity.TOP or Gravity.START
+            setPadding(32, 32, 32, 32)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("신고하기")
+            .setMessage("해당 채팅방을 신고하시겠습니까?\n구체적인 신고 사유를 적어주세요.")
+            .setView(input)
+            .setPositiveButton("신고") { dialog, _ ->
+                val reason = input.text.toString().trim()
+                if (reason.isEmpty()) {
+                    Toast.makeText(this, "신고 사유를 입력해주세요.", Toast.LENGTH_SHORT).show()
+                } else {
+                    sendReport(reason)
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton("취소") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    // 🔥 신고 요청 전송
+    private fun sendReport(reason: String) {
+        val req = ChatRoomReportRequest(
+            roomId = roomId,
+            reason = reason
+        )
+
+        RetrofitClient.getApiService()
+            .reportChatRoom(req)
+            .enqueue(object : Callback<MsgEntity> {
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
+                    if (response.isSuccessful) {
+                        Toast.makeText(
+                            this@ChatRoomActivity,
+                            "신고가 접수되었습니다.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        Toast.makeText(
+                            this@ChatRoomActivity,
+                            "신고 처리에 실패했습니다.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
+                    Log.e("CHAT_REPORT", "신고 전송 실패", t)
+                    Toast.makeText(
+                        this@ChatRoomActivity,
+                        "네트워크 오류로 신고에 실패했습니다.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            })
     }
 
     // 🔥 채팅방 들어올 때 전체 메시지 읽음 처리

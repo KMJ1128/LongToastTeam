@@ -5,6 +5,7 @@ import com.longtoast.bilbil.dto.KakaoTokenRequest
 import com.longtoast.bilbil.dto.LocationRequest
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ChatMessage
+import com.longtoast.bilbil.dto.ChatRoomReportRequest
 import com.longtoast.bilbil.dto.ChatSendRequest
 import com.longtoast.bilbil.dto.FcmTokenRequest
 import com.longtoast.bilbil.dto.NaverTokenRequest
@@ -121,6 +122,11 @@ interface ApiService {
     fun uploadChatImage(
         @Path("roomId") roomId: Int,
         @Part image: MultipartBody.Part
+    ): Call<MsgEntity>
+
+    @POST("/chat/report")
+    fun reportChatRoom(
+        @Body request: ChatRoomReportRequest
     ): Call<MsgEntity>
 
     // 🔥 프로필 업데이트 API (단 하나만)

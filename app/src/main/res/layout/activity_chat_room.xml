@@ -62,7 +62,22 @@
 
     </com.google.android.material.appbar.MaterialToolbar>
 
-    <!-- ⭐ Toolbar 밖에 있는 대여 합의하기 버튼 (오른쪽) -->
+    <!-- ⭐ Toolbar 밖에 있는 신고 버튼 (오른쪽, 대여 합의하기 왼쪽) -->
+    <Button
+        android:id="@+id/btn_report"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="신고"
+        android:backgroundTint="@color/colorPrimary"
+        android:textColor="@color/white"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:layout_marginEnd="8dp"
+        app:layout_constraintTop_toTopOf="@id/toolbar_chat"
+        app:layout_constraintBottom_toBottomOf="@id/toolbar_chat"
+        app:layout_constraintEnd_toStartOf="@id/btn_rent_agree" />
+
+    <!-- ⭐ Toolbar 밖에 있는 대여 합의하기 버튼 (오른쪽 끝) -->
     <Button
         android:id="@+id/btn_rent_agree"
         android:layout_width="wrap_content"
