@@ -179,6 +179,10 @@ class ChatRoomActivity : AppCompatActivity() {
         chatAdapter.setPartnerInfo(partnerNickname, partnerProfileImageUrl)
     }
 
+    /** -----------------------
+     *  🔥 수정된 핵심 부분
+     *  item == null 안전 처리
+     * ------------------------ */
     private fun loadChatRoomRoleInfo() {
         RetrofitClient.getApiService().getChatRoomInfo(roomId)
             .enqueue(object : Callback<MsgEntity> {
@@ -188,15 +192,24 @@ class ChatRoomActivity : AppCompatActivity() {
                     val info = Gson().fromJson(infoJson, ChatRoomInfoResponse::class.java)
 
                     val item = info.item
-                    productId = item.id
-                    productTitle = item.title
-                    productPrice = item.price
-                    productImageUrl = item.imageUrl
+
+                    if (item == null) {
+                        productId = null
+                        productTitle = "삭제된 상품"
+                        productPrice = 0
+                        productImageUrl = null
+                    } else {
+                        productId = item.id
+                        productTitle = item.title
+                        productPrice = item.price
+                        productImageUrl = item.imageUrl
+                    }
 
                     isLender = (senderId == info.lender.id)
                     otherUserId = if (isLender) info.borrower.id else info.lender.id
 
-                    partnerNickname = if (isLender) info.borrower.nickname else info.lender.nickname
+                    partnerNickname =
+                        if (isLender) info.borrower.nickname else info.lender.nickname
                     partnerProfileImageUrl =
                         if (isLender) info.borrower.profileImageUrl else info.lender.profileImageUrl
 
@@ -222,9 +235,10 @@ class ChatRoomActivity : AppCompatActivity() {
             })
     }
 
+    /** --- 이하 기존 코드 동일 --- */
+
     private fun openRentRequestForm() {
         val id = productId ?: return
-
         if (otherUserId <= 0) {
             Toast.makeText(this, "상대방 정보를 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
             return
@@ -346,7 +360,6 @@ class ChatRoomActivity : AppCompatActivity() {
                         return
                     }
 
-                    // 🔥 새로운 대여 요청이 오면 확정 플래그 초기화
                     if (received.content?.trimStart()?.startsWith("[RENT_CONFIRM]") == true) {
                         chatAdapter.resetRentalConfirmedState()
                     }
