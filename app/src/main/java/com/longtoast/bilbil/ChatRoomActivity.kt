@@ -80,7 +80,7 @@ class ChatRoomActivity : AppCompatActivity() {
 
     private var nextTempId = -1L
 
-    // 이미지 선택기
+
     private val pickImageLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             uri?.let {
@@ -159,16 +159,13 @@ class ChatRoomActivity : AppCompatActivity() {
         partnerNameText.text = partnerNickname ?: "채팅"
         partnerImage.setImageResource(R.drawable.no_profile)
 
-        // 대여 합의하기
         rentAgreeBtn.setOnClickListener {
+            chatAdapter.resetRentalConfirmedState()
             openRentRequestForm()
         }
         rentAgreeBtn.bringToFront()
 
-        // 🔥 신고 버튼
-        reportBtn.setOnClickListener {
-            showReportDialog()
-        }
+        reportBtn.setOnClickListener { showReportDialog() }
         reportBtn.bringToFront()
     }
 
@@ -183,7 +180,6 @@ class ChatRoomActivity : AppCompatActivity() {
     }
 
     private fun loadChatRoomRoleInfo() {
-
         RetrofitClient.getApiService().getChatRoomInfo(roomId)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
@@ -200,8 +196,7 @@ class ChatRoomActivity : AppCompatActivity() {
                     isLender = (senderId == info.lender.id)
                     otherUserId = if (isLender) info.borrower.id else info.lender.id
 
-                    partnerNickname =
-                        if (isLender) info.borrower.nickname else info.lender.nickname
+                    partnerNickname = if (isLender) info.borrower.nickname else info.lender.nickname
                     partnerProfileImageUrl =
                         if (isLender) info.borrower.profileImageUrl else info.lender.profileImageUrl
 
@@ -211,14 +206,12 @@ class ChatRoomActivity : AppCompatActivity() {
                     partnerNameText.text = partnerNickname ?: "채팅"
 
                     val fullProfile = ImageUrlUtils.resolve(partnerProfileImageUrl)
-                    if (!fullProfile.isNullOrEmpty()) {
-                        Glide.with(this@ChatRoomActivity)
-                            .load(fullProfile)
-                            .placeholder(R.drawable.no_profile)
-                            .error(R.drawable.no_profile)
-                            .circleCrop()
-                            .into(profileImage)
-                    } else profileImage.setImageResource(R.drawable.no_profile)
+                    Glide.with(this@ChatRoomActivity)
+                        .load(fullProfile)
+                        .placeholder(R.drawable.no_profile)
+                        .error(R.drawable.no_profile)
+                        .circleCrop()
+                        .into(profileImage)
 
                     chatAdapter.setPartnerInfo(partnerNickname, partnerProfileImageUrl)
                 }
@@ -230,7 +223,6 @@ class ChatRoomActivity : AppCompatActivity() {
     }
 
     private fun openRentRequestForm() {
-
         val id = productId ?: return
 
         if (otherUserId <= 0) {
@@ -290,9 +282,6 @@ class ChatRoomActivity : AppCompatActivity() {
                     chatMessages.addAll(list)
                     chatAdapter.notifyDataSetChanged()
 
-                    // ✅ 이 방이 예전에 대여 확정된 방이라면 버튼 비활성 상태 복원
-                    restoreRentalConfirmedFlagIfNeeded()
-
                     if (chatMessages.isNotEmpty()) {
                         recyclerChat.scrollToPosition(chatMessages.size - 1)
                     }
@@ -305,7 +294,6 @@ class ChatRoomActivity : AppCompatActivity() {
     }
 
     private fun connectWebSocket() {
-
         val token = AuthTokenManager.getToken()
 
         val client = OkHttpClient.Builder()
@@ -349,28 +337,24 @@ class ChatRoomActivity : AppCompatActivity() {
                 try {
                     val received = Gson().fromJson(payload, ChatMessage::class.java)
 
-                    // ---------------------------------------------------------
-                    // 🔥 1) 읽음 이벤트 우선 처리
-                    // ---------------------------------------------------------
                     if (received.isRead == true) {
                         val idx = chatMessages.indexOfFirst { it.id == received.id }
                         if (idx != -1) {
                             chatMessages[idx] = received
                             chatAdapter.notifyItemChanged(idx)
                         }
-                        return  // 읽음 이벤트는 여기서 끝
+                        return
                     }
 
-                    // ---------------------------------------------------------
-                    // 2) 대여 확정 애니메이션
-                    // ---------------------------------------------------------
+                    // 🔥 새로운 대여 요청이 오면 확정 플래그 초기화
+                    if (received.content?.trimStart()?.startsWith("[RENT_CONFIRM]") == true) {
+                        chatAdapter.resetRentalConfirmedState()
+                    }
+
                     if (received.content?.contains("대여가 확정되었습니다") == true) {
                         playHandshakeAnimation()
                     }
 
-                    // ---------------------------------------------------------
-                    // 3) 일반 메시지 처리
-                    // ---------------------------------------------------------
                     if (received.senderId == senderId) {
 
                         val match =
@@ -384,10 +368,12 @@ class ChatRoomActivity : AppCompatActivity() {
                             if (idx != -1) chatMessages[idx] = received
                             chatAdapter.notifyItemChanged(idx)
                             tempMessageMap.remove(match.key)
+
                         } else {
                             chatMessages.add(received)
                             chatAdapter.notifyItemInserted(chatMessages.size - 1)
                         }
+
                     } else {
                         chatMessages.add(received)
                         chatAdapter.notifyItemInserted(chatMessages.size - 1)
@@ -395,10 +381,7 @@ class ChatRoomActivity : AppCompatActivity() {
 
                     recyclerChat.scrollToPosition(chatMessages.size - 1)
 
-                    // 📌 내가 현재 방에 있을 때 받은 메시지는 바로 읽음 처리 요청
-                    if (received.senderId != senderId) {
-                        markChatAsRead()
-                    }
+                    if (received.senderId != senderId) markChatAsRead()
 
                 } catch (e: Exception) {
                     Log.e("STOMP_MSG", "파싱 오류", e)
@@ -441,10 +424,7 @@ class ChatRoomActivity : AppCompatActivity() {
                 senderId = senderId,
                 content = if (content.isNotEmpty()) content else null,
                 imageUrl = imageUrl,
-                sentAt = SimpleDateFormat(
-                    "yyyy-MM-dd'T'HH:mm:ss",
-                    Locale.getDefault()
-                ).format(Date()),
+                sentAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date()),
                 isRead = false
             )
 
@@ -461,7 +441,6 @@ class ChatRoomActivity : AppCompatActivity() {
         withContext(Dispatchers.IO) {
             try {
                 val stream = contentResolver.openInputStream(uri) ?: return@withContext null
-
                 val originalBytes = stream.readBytes()
                 stream.close()
 
@@ -536,9 +515,6 @@ class ChatRoomActivity : AppCompatActivity() {
 
                     if (response.isSuccessful) {
 
-                        // ✅ 로컬에 이 방의 "대여 확정 완료" 상태 저장
-                        saveRentalConfirmedFlag()
-
                         playHandshakeAnimation()
 
                         chatAdapter.markRentalConfirmed(payload)
@@ -579,18 +555,19 @@ class ChatRoomActivity : AppCompatActivity() {
         handshakeAnimation.visibility = View.VISIBLE
         handshakeAnimation.playAnimation()
 
-        handshakeAnimation.addAnimatorListener(object : android.animation.Animator.AnimatorListener {
+        handshakeAnimation.addAnimatorListener(object :
+            android.animation.Animator.AnimatorListener {
             override fun onAnimationStart(animation: android.animation.Animator) {}
             override fun onAnimationEnd(animation: android.animation.Animator) {
                 handshakeAnimation.visibility = View.GONE
                 overlayBlock.visibility = View.GONE
             }
+
             override fun onAnimationCancel(animation: android.animation.Animator) {}
             override fun onAnimationRepeat(animation: android.animation.Animator) {}
         })
     }
 
-    // 🔥 신고 다이얼로그
     private fun showReportDialog() {
         if (roomId <= 0) {
             Toast.makeText(this, "채팅방 정보가 없습니다.", Toast.LENGTH_SHORT).show()
@@ -613,18 +590,13 @@ class ChatRoomActivity : AppCompatActivity() {
                 val reason = input.text.toString().trim()
                 if (reason.isEmpty()) {
                     Toast.makeText(this, "신고 사유를 입력해주세요.", Toast.LENGTH_SHORT).show()
-                } else {
-                    sendReport(reason)
-                }
+                } else sendReport(reason)
                 dialog.dismiss()
             }
-            .setNegativeButton("취소") { dialog, _ ->
-                dialog.dismiss()
-            }
+            .setNegativeButton("취소") { dialog, _ -> dialog.dismiss() }
             .show()
     }
 
-    // 🔥 신고 요청 전송
     private fun sendReport(reason: String) {
         val req = ChatRoomReportRequest(
             roomId = roomId,
@@ -635,19 +607,11 @@ class ChatRoomActivity : AppCompatActivity() {
             .reportChatRoom(req)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                    if (response.isSuccessful) {
-                        Toast.makeText(
-                            this@ChatRoomActivity,
-                            "신고가 접수되었습니다.",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    } else {
-                        Toast.makeText(
-                            this@ChatRoomActivity,
-                            "신고 처리에 실패했습니다.",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
+                    Toast.makeText(
+                        this@ChatRoomActivity,
+                        if (response.isSuccessful) "신고가 접수되었습니다." else "신고 처리 실패",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
@@ -661,58 +625,30 @@ class ChatRoomActivity : AppCompatActivity() {
             })
     }
 
-    // 🔥 채팅방 들어올 때 전체 메시지 읽음 처리
     override fun onResume() {
         super.onResume()
-        // ✅ 지금 이 기기에서 열려 있는 채팅방 ID 저장
         CurrentChatRoomTracker.setCurrentRoom(this, roomId)
-
         markChatAsRead()
     }
 
     override fun onPause() {
         super.onPause()
-        // ✅ 채팅방 화면에서 벗어나면 "현재 방" 정보 제거
         CurrentChatRoomTracker.setCurrentRoom(this, null)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        if (::webSocket.isInitialized) {
-            webSocket.close(1000, "Activity destroyed")
-        }
+        if (::webSocket.isInitialized) webSocket.close(1000, "Activity destroyed")
     }
 
-    // 서버에 읽음 처리 요청을 보내고, 결과는 STOMP 이벤트로 받아 UI를 갱신한다.
     private fun markChatAsRead() {
         RetrofitClient.getApiService()
             .markChatRead(roomId)
             .enqueue(object : Callback<MsgEntity> {
-                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
-                    // 서버가 STOMP로 읽음 이벤트 브로드캐스트 → handleStompFrame()에서 처리됨
-                }
-
+                override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {}
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
                     Log.e("CHAT_READ", "읽음 처리 실패", t)
                 }
             })
-    }
-
-    // 🔥 이 방에서 대여가 한 번 확정되면 true 로 저장
-    private fun saveRentalConfirmedFlag() {
-        val prefs = getSharedPreferences("rental_prefs", MODE_PRIVATE)
-        prefs.edit()
-            .putBoolean("rental_confirmed_room_$roomId", true)
-            .apply()
-    }
-
-    // 🔥 채팅방 다시 들어왔을 때(혹은 히스토리 로딩 후) 저장된 값 복원
-    private fun restoreRentalConfirmedFlagIfNeeded() {
-        val prefs = getSharedPreferences("rental_prefs", MODE_PRIVATE)
-        val confirmed = prefs.getBoolean("rental_confirmed_room_$roomId", false)
-        if (confirmed) {
-            // 어댑터에게 "이미 확정된 방이다" 알려주기
-            chatAdapter.restoreRentalConfirmedFromStorage()
-        }
     }
 }
