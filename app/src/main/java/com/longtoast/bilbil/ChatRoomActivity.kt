@@ -664,7 +664,16 @@ class ChatRoomActivity : AppCompatActivity() {
     // 🔥 채팅방 들어올 때 전체 메시지 읽음 처리
     override fun onResume() {
         super.onResume()
+        // ✅ 지금 이 기기에서 열려 있는 채팅방 ID 저장
+        CurrentChatRoomTracker.setCurrentRoom(this, roomId)
+
         markChatAsRead()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // ✅ 채팅방 화면에서 벗어나면 "현재 방" 정보 제거
+        CurrentChatRoomTracker.setCurrentRoom(this, null)
     }
 
     override fun onDestroy() {
