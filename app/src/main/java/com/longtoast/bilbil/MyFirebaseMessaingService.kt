@@ -40,15 +40,23 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             ?: message.notification?.body
             ?: ""
 
-        val roomId = message.data["roomId"]   // ← 지금 4 찍히는 그 값
+        val roomIdStr = message.data["roomId"]
+        val fcmRoomId = roomIdStr?.toIntOrNull()
+        val currentRoomId = CurrentChatRoomTracker.getCurrentRoom(this)
 
-        Log.d("FCM", "roomId from FCM data = $roomId")
+        Log.d("FCM", "roomId from FCM data = $roomIdStr, currentRoomId=$currentRoomId")
 
-        showNotification(title, body, roomId)
+        // ✅ 상대방이 지금 나와 같은 채팅방을 보고 있으면 알림 안 띄우기
+        if (fcmRoomId != null && currentRoomId != null && fcmRoomId == currentRoomId) {
+            Log.d("FCM", "같은 채팅방이 열려 있어 FCM 알림을 표시하지 않습니다.")
+            return
+        }
+
+        showNotification(title, body, roomIdStr)
     }
 
     /**
-     * 안드로이드 알림 생성 dd
+     * 안드로이드 알림 생성
      */
     private fun showNotification(title: String, message: String, roomId: String?) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

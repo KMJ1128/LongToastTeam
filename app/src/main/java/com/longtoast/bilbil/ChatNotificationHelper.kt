@@ -69,6 +69,13 @@ object ChatNotificationHelper {
     fun showNewMessageNotification(context: Context, room: ChatRoomListDTO) {
         if (!canPostNotifications(context)) return
 
+        // ✅ 현재 열려 있는 채팅방과 같으면 알림 띄우지 않음
+        val currentRoomId = CurrentChatRoomTracker.getCurrentRoom(context)
+        if (room.roomId != null && currentRoomId != null && room.roomId == currentRoomId) {
+            // 같은 채팅방에서 이미 대화 중이므로 알림 스킵
+            return
+        }
+
         ensureChannel(context)
 
         val intent = Intent(context, ChatRoomActivity::class.java).apply {
