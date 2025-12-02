@@ -9,7 +9,7 @@ object ServerConfig {
     /** HTTP(S) API 기본 주소는 반드시 `/` 로 끝나야 합니다. */
 
     //const val HTTP_BASE_URL = "https://unpaneled-jennette-phonily.ngrok-free.dev/"
-    const val HTTP_BASE_URL = "http://192.168.0.211:8080/"
+    const val HTTP_BASE_URL= "http://192.168.0.211:8080/"
     const val IMG_BASE_URL="http://192.168.0.211:8080/"
    // const val HTTP_BASE_URL = "https://jamie-predelinquent-hayden.ngrok-free.dev/"
     //const val IMG_BASE_URL = "https://jamie-predelinquent-hayden.ngrok-free.dev"

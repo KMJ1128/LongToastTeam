@@ -20,6 +20,15 @@ class ProductAdapter(
             binding.textItemLocation.text = product.address
             binding.textItemPrice.text = "₩ ${String.format("%,d", product.price)}"
 
+            // --- 🔥 상태 표시 추가 ---
+            val isAvailable = product.status == "AVAILABLE"
+            binding.textItemStatus.text = if (isAvailable) "대여 가능" else "대여중"
+            binding.textItemStatus.setBackgroundResource(
+                if (isAvailable) R.drawable.badge_available else R.drawable.badge_rented
+            )
+            binding.textItemStatus.setTextColor(binding.root.resources.getColor(android.R.color.white))
+
+            // --- 이미지 표시 ---
             val fullUrl = ImageUrlUtils.resolve(product.imageUrl)
 
             Glide.with(binding.root)
@@ -27,6 +36,7 @@ class ProductAdapter(
                 .placeholder(R.drawable.ic_default_category)
                 .into(binding.imageItemThumbnail)
 
+            // --- 클릭은 그대로 유지 ---
             binding.root.setOnClickListener {
                 onItemClick(product.id)
             }

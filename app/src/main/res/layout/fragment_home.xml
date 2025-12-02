@@ -152,7 +152,7 @@
                         android:orientation="vertical"
                         android:padding="16dp">
                         <TextView
-                            android:text="최근 검색어"
+                            android:text="인기 검색어"
                             android:textSize="16sp"
                             android:textStyle="bold"
                             android:textColor="@color/trust_text_primary"

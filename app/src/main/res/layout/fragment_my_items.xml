@@ -55,6 +55,7 @@
                 android:clipToPadding="false"
                 android:paddingBottom="80dp"/>
 
+            <!-- 로딩 애니 -->
             <com.airbnb.lottie.LottieAnimationView
                 android:id="@+id/loadingAnimation"
                 android:layout_width="100dp"
@@ -65,7 +66,9 @@
                 app:lottie_autoPlay="true"
                 app:lottie_loop="true"/>
 
+            <!-- 빈 상태 전체 레이아웃 -->
             <LinearLayout
+                android:id="@+id/emptyLayout"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"

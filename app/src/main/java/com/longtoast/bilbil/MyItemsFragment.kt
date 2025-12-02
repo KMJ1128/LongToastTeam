@@ -57,14 +57,15 @@ class MyItemsFragment : Fragment() {
         loadRegisteredItems()
     }
 
+    /* ------------------------- Loading UI --------------------------- */
+
     private fun showLoading() = safe { b ->
         b.loadingAnimation.visibility = View.VISIBLE
         b.loadingAnimation.repeatCount = -1
         b.loadingAnimation.playAnimation()
 
         b.recyclerViewMyItems.visibility = View.GONE
-        b.textEmptyState.visibility = View.GONE
-        b.emptyAnimation.visibility = View.GONE
+        b.emptyLayout.visibility = View.GONE
     }
 
     private fun hideLoading() = safe { b ->
@@ -72,6 +73,8 @@ class MyItemsFragment : Fragment() {
         b.loadingAnimation.visibility = View.GONE
         b.swipeRefresh.isRefreshing = false
     }
+
+    /* ----------------------------- Toggle -------------------------------- */
 
     private fun setupToggle() = safe { b ->
         b.toggleMyActivity.addOnButtonCheckedListener { _, checkedId, isChecked ->
@@ -86,7 +89,6 @@ class MyItemsFragment : Fragment() {
                     if (registeredItems.isEmpty()) loadRegisteredItems()
                     else showList(registeredItems, isOwner = true)
                 }
-
                 b.btnRented.id -> {
                     currentTab = Tab.RENTED
                     b.textEmptyState.text = "렌트한 상품이 없습니다."
@@ -99,11 +101,12 @@ class MyItemsFragment : Fragment() {
 
     private fun resetUI() = safe { b ->
         b.recyclerViewMyItems.visibility = View.GONE
-        b.textEmptyState.visibility = View.GONE
-        b.emptyAnimation.visibility = View.GONE
         b.loadingAnimation.visibility = View.GONE
         b.loadingAnimation.cancelAnimation()
+        // emptyLayout은 여기서 건드리지 않음 → showEmptyState가 처리함
     }
+
+    /* -------------------------- Load API -------------------------------- */
 
     private fun loadRegisteredItems() {
         showLoading()
@@ -171,12 +174,15 @@ class MyItemsFragment : Fragment() {
             })
     }
 
-    private fun showList(list: List<ProductDTO>, isOwner: Boolean) = safe { b ->
+    /* -------------------------- Show List -------------------------------- */
 
+    private fun showList(list: List<ProductDTO>, isOwner: Boolean) = safe { b ->
         b.loadingAnimation.cancelAnimation()
         b.loadingAnimation.visibility = View.GONE
-        b.emptyAnimation.visibility = View.GONE
-        b.textEmptyState.visibility = View.GONE
+
+        // 전체 empty 레이아웃 숨기기
+        b.emptyLayout.visibility = View.GONE
+        b.emptyAnimation.cancelAnimation()
 
         b.recyclerViewMyItems.visibility = View.VISIBLE
 
@@ -189,7 +195,6 @@ class MyItemsFragment : Fragment() {
                 }
                 startActivity(intent)
             },
-            // ✅ [수정] 리뷰 작성 클릭 핸들러
             onReviewClicked = { product ->
                 if (!isOwner) {
                     val transactionId = product.transactionId
@@ -204,16 +209,31 @@ class MyItemsFragment : Fragment() {
                     startActivity(intent)
                 }
             },
-            onEditClicked = { product ->
-                openEditScreen(product)
-            },
-            onDeleteClicked = { product ->
-                confirmDelete(product)
-            }
+            onEditClicked = { product -> openEditScreen(product) },
+            onDeleteClicked = { product -> confirmDelete(product) }
         )
 
         b.recyclerViewMyItems.adapter = adapter
     }
+
+    /* --------------------------- Empty State ------------------------------ */
+
+    private fun showEmptyState(message: String) = safe { b ->
+        b.recyclerViewMyItems.visibility = View.GONE
+
+        b.loadingAnimation.cancelAnimation()
+        b.loadingAnimation.visibility = View.GONE
+
+        b.emptyLayout.visibility = View.VISIBLE
+        b.textEmptyState.text = message
+        b.textEmptyState.visibility = View.VISIBLE
+
+        b.emptyAnimation.visibility = View.VISIBLE
+        b.emptyAnimation.repeatCount = 0
+        b.emptyAnimation.playAnimation()
+    }
+
+    /* --------------------------- Edit/Delete ------------------------------ */
 
     private fun openEditScreen(product: ProductDTO) {
         val host = activity as? HomeHostActivity
@@ -251,16 +271,6 @@ class MyItemsFragment : Fragment() {
                     Toast.makeText(requireContext(), "네트워크 오류", Toast.LENGTH_SHORT).show()
                 }
             })
-    }
-
-    private fun showEmptyState(message: String) = safe { b ->
-        b.recyclerViewMyItems.visibility = View.GONE
-        b.textEmptyState.text = message
-        b.textEmptyState.visibility = View.VISIBLE
-
-        b.emptyAnimation.visibility = View.VISIBLE
-        b.emptyAnimation.repeatCount = 0
-        b.emptyAnimation.playAnimation()
     }
 
     override fun onDestroyView() {
