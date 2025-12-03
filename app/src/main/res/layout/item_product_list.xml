@@ -4,7 +4,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="16dp"
+    android:paddingVertical="8dp"
+    android:paddingHorizontal="16dp"
     android:background="@drawable/border_bottom">
 
     <ImageView
@@ -16,16 +17,17 @@
         android:background="@drawable/bg_rounded_gray_border"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        />
 
     <LinearLayout
+        android:id="@+id/layout_item_info"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:layout_marginStart="16dp"
         app:layout_constraintStart_toEndOf="@id/image_item_thumbnail"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="@id/image_item_thumbnail">
 
         <TextView
             android:id="@+id/text_item_title"
@@ -35,7 +37,6 @@
             android:textStyle="bold"
             android:textSize="16sp"
             android:textColor="#000000" />
-
         <TextView
             android:id="@+id/text_item_location"
             android:layout_width="wrap_content"
@@ -43,7 +44,7 @@
             android:text="서울시 구로구"
             android:textSize="12sp"
             android:textColor="#888888"
-            android:layout_marginTop="2dp"/>
+            android:layout_marginTop="1dp"/>
 
         <TextView
             android:id="@+id/text_item_price"
@@ -52,7 +53,7 @@
             android:text="10,000원 / 일"
             android:textStyle="bold"
             android:textColor="#000000"
-            android:layout_marginTop="4dp"/>
+            android:layout_marginTop="3dp"/>
 
         <TextView
             android:id="@+id/text_item_deposit"
@@ -61,7 +62,19 @@
             android:text="보증금 5,000원"
             android:textSize="12sp"
             android:textColor="#FF5722"
-            android:visibility="gone"/>
+            android:visibility="gone"
+            android:layout_marginTop="1dp"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_status_and_actions"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp"
+        app:layout_constraintStart_toStartOf="@id/layout_item_info"
+        app:layout_constraintEnd_toEndOf="@id/layout_item_info"
+        app:layout_constraintTop_toBottomOf="@id/layout_item_info">
 
         <TextView
             android:id="@+id/text_item_status"
@@ -72,48 +85,53 @@
             android:textColor="#FFFFFF"
             android:background="@drawable/badge_available"
             android:paddingHorizontal="6dp"
-            android:paddingVertical="2dp"
-            android:layout_marginTop="4dp"/>
-    </LinearLayout>
+            android:paddingVertical="2dp" />
 
-    <LinearLayout
-        android:id="@+id/layout_item_actions"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        <Space
+            android:layout_width="6dp"
+            android:layout_height="wrap_content" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_edit_item"
+        <LinearLayout
+            android:id="@+id/layout_item_actions"
             android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:text="수정"
-            android:textSize="12sp"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_marginEnd="4dp"/>
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:visibility="gone">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_delete_item"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:text="삭제"
-            android:textSize="12sp"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:textColor="#FF0000"
-            app:strokeColor="#FF0000"/>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_edit_item"
+                android:layout_width="60dp"  android:layout_height="wrap_content"
+                android:text="수정"
+                android:textSize="10sp"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_marginEnd="4dp"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_delete_item"
+                android:layout_width="60dp"  android:layout_height="wrap_content"
+                android:text="삭제"
+                android:textSize="10sp"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:textColor="#FF0000"
+                app:strokeColor="#FF0000"/>
+        </LinearLayout>
+
     </LinearLayout>
 
     <Button
         android:id="@+id/btn_write_review"
         android:layout_width="wrap_content"
-        android:layout_height="40dp"
+        android:layout_height="38dp"
         android:text="리뷰 쓰기"
         android:textSize="12sp"
         android:backgroundTint="#FF9800"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+
+        app:layout_constraintTop_toTopOf="@id/layout_status_and_actions"
+        app:layout_constraintBottom_toBottomOf="@id/layout_status_and_actions"
+
+        app:layout_constraintEnd_toEndOf="parent"
+
+        />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
