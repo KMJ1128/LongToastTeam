@@ -173,6 +173,24 @@ interface ApiService {
     @GET("/reviews/received")
     fun getMyReceivedReviews(): Call<MsgEntity>
 
+    @GET("/reviews/lender-targets")
+    fun getLenderReviewTargets(): Call<MsgEntity>
+
+
+
+    @GET("/reviews/my/seller")
+    fun getMyWrittenReviewsAsSeller(): Call<MsgEntity>
+
+    @GET("/reviews/my/borrower")
+    fun getMyWrittenReviewsAsBorrower(): Call<MsgEntity>
+
+    // 🔥 추가: 역할별로 받은 리뷰
+    @GET("/reviews/received/seller")
+    fun getMyReceivedReviewsAsSeller(): Call<MsgEntity>
+
+    @GET("/reviews/received/borrower")
+    fun getMyReceivedReviewsAsBorrower(): Call<MsgEntity>
+
 
     // 1. 서버에 인증 요청 (서버가 코드를 생성하고 SMS URL을 반환)
     @POST("/member/verification/request")

@@ -64,10 +64,14 @@ class HomeHostActivity : AppCompatActivity() {
 
                         // 헤더 뷰 가져오기
                         val headerView = binding.navView.getHeaderView(0)
-                        val profileImageView = headerView.findViewById<ImageView>(R.id.nav_header_profile_image)
-                        val nicknameTextView = headerView.findViewById<TextView>(R.id.nav_header_nickname)
-                        val creditScoreTextView = headerView.findViewById<TextView>(R.id.nav_header_credit_score)
-                        val addressTextView = headerView.findViewById<TextView>(R.id.nav_header_address)
+                        val profileImageView =
+                            headerView.findViewById<ImageView>(R.id.nav_header_profile_image)
+                        val nicknameTextView =
+                            headerView.findViewById<TextView>(R.id.nav_header_nickname)
+                        val creditScoreTextView =
+                            headerView.findViewById<TextView>(R.id.nav_header_credit_score)
+                        val addressTextView =
+                            headerView.findViewById<TextView>(R.id.nav_header_address)
 
                         // 닉네임 설정
                         nicknameTextView.text = member.nickname ?: "닉네임 미지정"
@@ -137,17 +141,23 @@ class HomeHostActivity : AppCompatActivity() {
                     editProfileLauncher.launch(intent)
                 }
 
-                // ✅ [수정] 내가 쓴 리뷰
+                // ✅ 내가 쓴 리뷰 (역할 탭: 대여자/사용자)
                 R.id.nav_my_reviews -> {
                     val intent = Intent(this, ReviewListActivity::class.java)
-                    intent.putExtra("REVIEW_TYPE", "WRITTEN")
+                    intent.putExtra("REVIEW_TYPE", "MY_WRITTEN")
                     startActivity(intent)
                 }
 
-                // ✅ [수정] 내가 받은 리뷰
+                // ✅ 내가 받은 리뷰 (역할 탭: 대여자/사용자)
                 R.id.nav_received_reviews -> {
                     val intent = Intent(this, ReviewListActivity::class.java)
-                    intent.putExtra("REVIEW_TYPE", "RECEIVED")
+                    intent.putExtra("REVIEW_TYPE", "MY_RECEIVED")
+                    startActivity(intent)
+                }
+
+                // ✅ 내 물건 빌려간 사람 리뷰 쓰기
+                R.id.nav_lender_review_targets -> {
+                    val intent = Intent(this, LenderReviewTargetsActivity::class.java)
                     startActivity(intent)
                 }
 
@@ -166,6 +176,7 @@ class HomeHostActivity : AppCompatActivity() {
                         .setNegativeButton("취소", null)
                         .show()
                 }
+
                 R.id.nav_nagari -> {
                     AlertDialog.Builder(this)
                         .setTitle("회원탈퇴")

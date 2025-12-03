@@ -85,6 +85,10 @@
             android:name=".RegionSelectionActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".LenderReviewTargetsActivity"
+            android:exported="false" />
+
         <meta-data
             android:name="com.kakao.sdk.AppKey"
             android:value="7a3a72c388ba6dfc6df8ca9715f284ff" />

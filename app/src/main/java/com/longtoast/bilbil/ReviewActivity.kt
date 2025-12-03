@@ -1,3 +1,4 @@
+// com.longtoast.bilbil.ReviewActivity.kt
 package com.longtoast.bilbil
 
 import android.content.Intent
@@ -9,6 +10,7 @@ import android.widget.RatingBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.textfield.TextInputEditText
+import com.google.gson.Gson
 import com.longtoast.bilbil.api.RetrofitClient
 import com.longtoast.bilbil.dto.MsgEntity
 import com.longtoast.bilbil.dto.ReviewCreateRequest
@@ -21,19 +23,27 @@ class ReviewActivity : AppCompatActivity() {
     private lateinit var ratingBar: RatingBar
     private lateinit var editContent: TextInputEditText
     private lateinit var btnSubmit: Button
-    private lateinit var btnClose: ImageButton // 🆕 추가: 닫기 버튼
+    private lateinit var btnClose: ImageButton
 
-    // Intent로 받아와야 하는 값
-    private var transactionId: Int = -1
+    // 🔥 Long 으로 통일
+    private var transactionId: Long = -1L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_review)
 
         // 1. Intent 데이터 수신
-        transactionId = intent.getIntExtra("TRANSACTION_ID", -1)
+        //    - 예전 flow: Int 로 넣었을 수도 있으니 둘 다 지원
+        val intId = intent.getIntExtra("TRANSACTION_ID", -1)
+        transactionId = if (intId != -1) {
+            intId.toLong()
+        } else {
+            intent.getLongExtra("TRANSACTION_ID", -1L)
+        }
 
-        if (transactionId == -1) {
+        Log.d("ReviewActivity", "받은 TRANSACTION_ID = $transactionId")
+
+        if (transactionId <= 0L) {
             Toast.makeText(this, "잘못된 접근입니다. (거래 ID 없음)", Toast.LENGTH_SHORT).show()
             finish()
             return
@@ -47,19 +57,12 @@ class ReviewActivity : AppCompatActivity() {
         ratingBar = findViewById(R.id.rating_bar)
         editContent = findViewById(R.id.edit_review_content)
         btnSubmit = findViewById(R.id.btn_submit_review)
-        btnClose = findViewById(R.id.btn_close) // 🆕 추가: XML의 X 버튼 연결
-
-        // ❌ 삭제: toolbar 관련 코드는 이제 필요 없습니다.
-        // toolbar = findViewById(R.id.toolbar_review)
+        btnClose = findViewById(R.id.btn_close)
     }
 
     private fun setupListeners() {
-        // 🆕 변경: 툴바 대신 X 버튼 클릭 시 종료
-        btnClose.setOnClickListener {
-            finish()
-        }
+        btnClose.setOnClickListener { finish() }
 
-        // 작성 완료 버튼
         btnSubmit.setOnClickListener {
             submitReview()
         }
@@ -70,7 +73,6 @@ class ReviewActivity : AppCompatActivity() {
         val comment = editContent.text.toString().trim()
         val reviewerId = AuthTokenManager.getUserId()
 
-        // 1. 유효성 검사
         if (reviewerId == null) {
             Toast.makeText(this, "로그인 정보가 없습니다.", Toast.LENGTH_SHORT).show()
             return
@@ -79,38 +81,47 @@ class ReviewActivity : AppCompatActivity() {
             Toast.makeText(this, "최소 1점 이상의 별점을 선택해주세요.", Toast.LENGTH_SHORT).show()
             return
         }
+        if (transactionId <= 0L) {
+            Toast.makeText(this, "유효하지 않은 거래 ID입니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-        // 2. DTO 생성
+        // 🔥 서버에 보낼 DTO
         val request = ReviewCreateRequest(
-            transactionId = transactionId.toLong(),
+            transactionId = transactionId,
             rating = rating,
             comment = comment
         )
 
-        // 3. 서버 전송
+        Log.d("ReviewActivity", "submitReview() call: txId=$transactionId, rating=$rating")
+
         RetrofitClient.getApiService().createReview(request)
             .enqueue(object : Callback<MsgEntity> {
                 override fun onResponse(call: Call<MsgEntity>, response: Response<MsgEntity>) {
                     if (response.isSuccessful) {
-                        Toast.makeText(this@ReviewActivity, "리뷰가 등록되었습니다!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@ReviewActivity,
+                            "리뷰가 등록되었습니다!",
+                            Toast.LENGTH_SHORT
+                        ).show()
 
-                        val intent = Intent(this@ReviewActivity, ReviewListActivity::class.java).apply {
-                            // 내가 쓴 리뷰 목록 보기 모드로 실행
+                        val intent = Intent(
+                            this@ReviewActivity,
+                            ReviewListActivity::class.java
+                        ).apply {
                             putExtra("REVIEW_TYPE", "WRITTEN")
-                            // 뒤로가기 스택 정리 (리뷰 작성 화면으로 다시 돌아오지 않게)
                             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                         }
                         startActivity(intent)
-                        finish() // 작성 화면 종료
+                        finish()
                         return
                     }
 
-                    // ❌ 실패 케이스 처리
                     val code = response.code()
                     val errorMsg = try {
                         val errJson = response.errorBody()?.string()
                         if (!errJson.isNullOrEmpty()) {
-                            com.google.gson.Gson().fromJson(errJson, MsgEntity::class.java)?.message
+                            Gson().fromJson(errJson, MsgEntity::class.java)?.message
                         } else null
                     } catch (e: Exception) {
                         null
@@ -119,13 +130,21 @@ class ReviewActivity : AppCompatActivity() {
                     if (code == 400 && errorMsg == "한 거래 당 리뷰는 1개씩 등록 가능합니다.") {
                         Toast.makeText(this@ReviewActivity, errorMsg, Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(this@ReviewActivity, "리뷰 등록 실패 (코드: $code)", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@ReviewActivity,
+                            "리뷰 등록 실패 (코드: $code)",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
 
                 override fun onFailure(call: Call<MsgEntity>, t: Throwable) {
                     Log.e("REVIEW", "통신 오류", t)
-                    Toast.makeText(this@ReviewActivity, "서버 연결 오류", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@ReviewActivity,
+                        "서버 연결 오류",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             })
     }
